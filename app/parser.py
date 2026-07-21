@@ -141,6 +141,7 @@ def _collect_workout_windows(xml_bytes):
 
 def _bucket_records(xml_bytes, windows, route_points_by_index=None):
     buckets = [{} for _ in windows]
+    distance_by_source = [{} for _ in windows]
     for _, elem in ET.iterparse(io.BytesIO(xml_bytes), events=("end",)):
         if elem.tag == "Record":
             metric = RECORD_TYPES.get(elem.get("type"))
@@ -152,9 +153,26 @@ def _bucket_records(xml_bytes, windows, route_points_by_index=None):
                 for i, w in enumerate(windows):
                     if w["start_time"] <= start <= w["end_time"]:
                         elapsed = int((start - w["start_time"]).total_seconds())
-                        buckets[i].setdefault(elapsed, {})[metric] = value
+                        if metric == "distance":
+                            source = elem.get("sourceName") or ""
+                            distance_by_source[i].setdefault(source, {})[elapsed] = value
+                        else:
+                            buckets[i].setdefault(elapsed, {})[metric] = value
                         break
         elem.clear()
+
+    # An iPhone and a Watch worn on the same run both log distance for it, so their
+    # records interleave and summing all of them double-counts — the phone's sparse
+    # aggregates land on top of the watch's per-second samples and the cumulative
+    # stream lurches forward by whole kilometres, which best_effort reads as an
+    # impossibly fast split. Keep only the source that sampled the workout most
+    # densely and drop the rest.
+    for i, by_source in enumerate(distance_by_source):
+        if not by_source:
+            continue
+        best_source = max(by_source, key=lambda s: len(by_source[s]))
+        for elapsed, value in by_source[best_source].items():
+            buckets[i].setdefault(elapsed, {})["distance"] = value
 
     if route_points_by_index:
         for i, points in route_points_by_index.items():
@@ -253,7 +271,16 @@ def _persist_activity(
     return True
 
 
+def is_best_effort_eligible(activity):
+    return analytics.categorize_activity_type(activity.activity_type)["category"] == "Run"
+
+
 def update_best_efforts(db_session, activity, stream_data):
+    # Best efforts are a running PR board: a ride covers 5K in a time no run can match,
+    # and gym workouts carry stray incidental distance samples.
+    if not is_best_effort_eligible(activity):
+        return
+
     times, distances = analytics.coalesce_stream_metric(stream_data["time"], stream_data["distance"])
     if len(times) < 2:
         return
@@ -287,6 +314,20 @@ def update_best_efforts(db_session, activity, stream_data):
                 )
             )
     db_session.commit()
+
+
+def recompute_best_efforts(db_session):
+    db_session.query(BestEffort).delete()
+    db_session.commit()
+
+    rows = (
+        db_session.query(Activity, ActivityStream)
+        .join(ActivityStream, ActivityStream.activity_id == Activity.id)
+        .order_by(Activity.start_time.asc())
+        .all()
+    )
+    for activity, stream in rows:
+        update_best_efforts(db_session, activity, stream.stream_data)
 
 
 def _is_unsafe_zip_entry(name):

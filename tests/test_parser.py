@@ -370,3 +370,76 @@ def test_update_best_efforts_non_pr_does_not_overwrite(db_session, make_activity
     five_k = db_session.query(BestEffort).filter_by(distance_label="5K").one()
     assert five_k.activity_id == fast_activity.id
     assert five_k.duration_seconds == pytest.approx(1400.0, abs=0.01)
+
+
+DUAL_SOURCE_DISTANCE_XML = b"""<?xml version="1.0" encoding="UTF-8"?>
+<HealthData>
+ <Workout workoutActivityType="HKWorkoutActivityTypeRunning" duration="10.0" durationUnit="min" totalDistance="1.2" totalDistanceUnit="km" startDate="2026-07-01 08:00:00 -0700" endDate="2026-07-01 08:10:00 -0700"/>
+ <Record type="HKQuantityTypeIdentifierDistanceWalkingRunning" sourceName="Watch" unit="m" value="200" startDate="2026-07-01 08:01:00 -0700" endDate="2026-07-01 08:01:03 -0700"/>
+ <Record type="HKQuantityTypeIdentifierDistanceWalkingRunning" sourceName="Watch" unit="m" value="200" startDate="2026-07-01 08:03:00 -0700" endDate="2026-07-01 08:03:03 -0700"/>
+ <Record type="HKQuantityTypeIdentifierDistanceWalkingRunning" sourceName="Watch" unit="m" value="200" startDate="2026-07-01 08:05:00 -0700" endDate="2026-07-01 08:05:03 -0700"/>
+ <Record type="HKQuantityTypeIdentifierDistanceWalkingRunning" sourceName="Watch" unit="m" value="200" startDate="2026-07-01 08:07:00 -0700" endDate="2026-07-01 08:07:03 -0700"/>
+ <Record type="HKQuantityTypeIdentifierDistanceWalkingRunning" sourceName="Watch" unit="m" value="200" startDate="2026-07-01 08:09:00 -0700" endDate="2026-07-01 08:09:03 -0700"/>
+ <Record type="HKQuantityTypeIdentifierDistanceWalkingRunning" sourceName="iPhone" unit="m" value="600" startDate="2026-07-01 08:04:00 -0700" endDate="2026-07-01 08:04:01 -0700"/>
+</HealthData>"""
+
+
+def test_overlapping_second_source_does_not_inflate_distance():
+    windows = parser.parse_apple_health_xml(DUAL_SOURCE_DISTANCE_XML)
+    distances = [d for d in windows[0]["stream_data"]["distance"] if d is not None]
+
+    assert distances[-1] == pytest.approx(1000.0, abs=1.0)
+
+
+def test_overlapping_second_source_does_not_create_distance_spike():
+    windows = parser.parse_apple_health_xml(DUAL_SOURCE_DISTANCE_XML)
+    stream = windows[0]["stream_data"]
+    pairs = [(t, d) for t, d in zip(stream["time"], stream["distance"]) if d is not None]
+
+    for (t0, d0), (t1, d1) in zip(pairs, pairs[1:]):
+        speed = (d1 - d0) / (t1 - t0)
+        assert speed < 8.0, f"implausible {speed:.1f} m/s between t={t0} and t={t1}"
+
+
+def test_update_best_efforts_ignores_cycling(db_session, make_activity):
+    ride = make_activity(activity_type="Cycle", dedup_key="ride-1")
+    stream_data = {"time": [0, 489], "hr": [None, None], "distance": [0, 5000.0], "elevation": [], "pace": []}
+
+    parser.update_best_efforts(db_session, ride, stream_data)
+
+    assert db_session.query(BestEffort).count() == 0
+
+
+def test_update_best_efforts_ignores_strength_training(db_session, make_activity):
+    gym = make_activity(activity_type="TraditionalStrengthTraining", dedup_key="gym-1")
+    stream_data = {"time": [0, 120], "hr": [None, None], "distance": [0, 3218.0], "elevation": [], "pace": []}
+
+    parser.update_best_efforts(db_session, gym, stream_data)
+
+    assert db_session.query(BestEffort).count() == 0
+
+
+def test_recompute_best_efforts_drops_stale_non_run_prs(db_session, make_activity):
+    ride = make_activity(activity_type="Cycle", dedup_key="ride-2")
+    run = make_activity(activity_type="Run", dedup_key="run-2")
+    ride_stream = {"time": [0, 489], "hr": [None, None], "distance": [0, 5000.0], "elevation": [], "pace": []}
+    run_stream = {"time": [0, 1500], "hr": [None, None], "distance": [0, 5000.0], "elevation": [], "pace": []}
+    db_session.add(ActivityStream(activity_id=ride.id, stream_data=ride_stream))
+    db_session.add(ActivityStream(activity_id=run.id, stream_data=run_stream))
+    db_session.add(
+        BestEffort(
+            distance_label="5K",
+            distance_meters=5000.0,
+            activity_id=ride.id,
+            duration_seconds=489.0,
+            pace_per_km_seconds=97.8,
+            achieved_at=ride.start_time,
+        )
+    )
+    db_session.commit()
+
+    parser.recompute_best_efforts(db_session)
+
+    five_k = db_session.query(BestEffort).filter_by(distance_label="5K").one()
+    assert five_k.activity_id == run.id
+    assert five_k.duration_seconds == pytest.approx(1500.0, abs=0.01)
