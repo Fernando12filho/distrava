@@ -47,21 +47,40 @@ function _fmtClock(v) {
   return m + ":" + String(s).padStart(2, "0");
 }
 
-function renderRoutePolyline(containerId, lats, lons) {
+function _lerpHex(a, b, t) {
+  const pa = parseInt(a.slice(1), 16);
+  const pb = parseInt(b.slice(1), 16);
+  let out = "#";
+  for (const shift of [16, 8, 0]) {
+    const ca = (pa >> shift) & 255;
+    const cb = (pb >> shift) & 255;
+    out += Math.round(ca + t * (cb - ca)).toString(16).padStart(2, "0");
+  }
+  return out;
+}
+
+function _effortRampColor(ramp, t) {
+  const clamped = Math.min(1, Math.max(0, t));
+  const scaled = clamped * (ramp.length - 1);
+  const i = Math.min(ramp.length - 2, Math.floor(scaled));
+  return _lerpHex(ramp[i], ramp[i + 1], scaled - i);
+}
+
+function renderRoutePolyline(containerId, lats, lons, times, hrs, zones) {
   const el = document.getElementById(containerId);
   if (!el) return;
 
   const points = [];
   for (let i = 0; i < lats.length; i++) {
     if (lats[i] !== null && lats[i] !== undefined && lons[i] !== null && lons[i] !== undefined) {
-      points.push([lats[i], lons[i]]);
+      points.push({ lat: lats[i], lon: lons[i], t: times ? times[i] : null });
     }
   }
   if (points.length < 2) return;
 
-  const avgLat = points.reduce((sum, p) => sum + p[0], 0) / points.length;
+  const avgLat = points.reduce((sum, p) => sum + p.lat, 0) / points.length;
   const cosLat = Math.cos((avgLat * Math.PI) / 180);
-  const projected = points.map(([lat, lon]) => [lon * cosLat, lat]);
+  const projected = points.map((p) => [p.lon * cosLat, p.lat]);
 
   const xs = projected.map((p) => p[0]);
   const ys = projected.map((p) => p[1]);
@@ -79,26 +98,67 @@ function renderRoutePolyline(containerId, lats, lons) {
   const offsetX = (width - spanX * scale) / 2;
   const offsetY = (height - spanY * scale) / 2;
 
-  const pathPoints = projected
-    .map(([x, y]) => {
-      const px = offsetX + (x - minX) * scale;
-      const py = height - (offsetY + (y - minY) * scale);
-      return px.toFixed(1) + "," + py.toFixed(1);
-    })
-    .join(" ");
+  const coords = projected.map(([x, y]) => {
+    const px = offsetX + (x - minX) * scale;
+    const py = height - (offsetY + (y - minY) * scale);
+    return px.toFixed(1) + "," + py.toFixed(1);
+  });
+
+  const strokeAttrs =
+    'fill="none" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"';
+
+  const [hrTimes, hrVals] = _coalesce(times || [], hrs || []);
+  let svgBody;
+  if (zones && zones.length >= 3 && hrTimes.length) {
+    // Zone floors are resting + lo × reserve, so any two floors recover the
+    // resting HR and reserve without shipping them separately.
+    const reserve = (zones[2].min_bpm - zones[1].min_bpm) / (zones[2].lo - zones[1].lo);
+    const restingHr = zones[1].min_bpm - zones[1].lo * reserve;
+
+    // The zone colors are a validated brightness ramp, so the route gradient
+    // interpolates the same palette the zones card shows.
+    const ramp = zones.map((z) => z.color);
+
+    // Both hrTimes and route point times ascend, so a single forward-walking
+    // pointer finds each point's nearest HR sample in linear time. The ramp
+    // position is quantized so same-shade segments merge into few polylines.
+    let j = 0;
+    const colors = points.map((p) => {
+      while (j + 1 < hrTimes.length && Math.abs(hrTimes[j + 1] - p.t) <= Math.abs(hrTimes[j] - p.t)) j++;
+      const effort = ((hrVals[j] - restingHr) / reserve - 0.5) / 0.5;
+      return _effortRampColor(ramp, Math.round(effort * 24) / 24);
+    });
+
+    // One polyline per same-zone run; the boundary point is repeated in both
+    // runs so the route stays visually continuous.
+    const runs = [];
+    let start = 0;
+    for (let k = 1; k < points.length - 1; k++) {
+      if (colors[k] !== colors[start]) {
+        runs.push({ from: start, to: k, color: colors[start] });
+        start = k;
+      }
+    }
+    runs.push({ from: start, to: points.length - 1, color: colors[start] });
+    svgBody = runs
+      .map((r) => '<polyline points="' + coords.slice(r.from, r.to + 1).join(" ") + '" stroke="' + r.color + '" ' + strokeAttrs + " />")
+      .join("");
+  } else {
+    svgBody = '<polyline points="' + coords.join(" ") + '" stroke="#C4F82A" ' + strokeAttrs + " />";
+  }
 
   el.innerHTML =
     '<svg viewBox="0 0 ' + width + " " + height + '" style="width:100%; height:100%;" preserveAspectRatio="xMidYMid meet">' +
-    '<polyline points="' + pathPoints + '" fill="none" stroke="#C4F82A" stroke-width="2.5" ' +
-    'stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" /></svg>';
+    svgBody +
+    "</svg>";
   el.style.backgroundImage = "none";
 }
 
-async function initActivityCharts(streamUrl, units) {
+async function initActivityCharts(streamUrl, units, zones) {
   const response = await fetch(streamUrl);
   const stream = await response.json();
 
-  renderRoutePolyline("route-map", stream.lat || [], stream.lon || []);
+  renderRoutePolyline("route-map", stream.lat || [], stream.lon || [], stream.time || [], stream.hr || [], zones || []);
 
   const isImperial = units === "imperial";
   const distDivisor = isImperial ? 1609.344 : 1000;

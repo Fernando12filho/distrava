@@ -253,17 +253,47 @@ def test_format_pace_none_input_returns_none():
 
 # --- HR zone bands -------------------------------------------------------
 
-def test_hr_zone_bands_computes_five_zones_from_max_hr():
-    zones = analytics.hr_zone_bands(200)
+def test_hr_zone_bands_computes_five_zones_from_heart_rate_reserve():
+    zones = analytics.hr_zone_bands(200, 60)
 
     assert len(zones) == 5
     assert zones[0]["name"] == "Zone 1 — Recovery"
     assert zones[0]["pct_range"] == "50–60%"
-    assert zones[0]["bpm_range"] == "100–120 bpm"
-    assert zones[0]["color"] == "#3A6B4A"
+    assert zones[0]["bpm_range"] == "< 144 bpm"
+    assert zones[0]["color"] == "#3F6212"
+    assert zones[1]["bpm_range"] == "144–158 bpm"
     assert zones[4]["name"] == "Zone 5 — VO2 max"
-    assert zones[4]["bpm_range"] == "180–200 bpm"
+    assert zones[4]["bpm_range"] == "186–200 bpm"
     assert zones[4]["color"] == "#C4F82A"
+
+
+def test_hr_zone_colors_form_single_hue_brightness_ramp():
+    zones = analytics.hr_zone_bands(200, 60)
+
+    def luminance(color):
+        r, g, b = (int(color[i : i + 2], 16) for i in (1, 3, 5))
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+    luminances = [luminance(z["color"]) for z in zones]
+    assert luminances == sorted(luminances)
+
+
+def test_hr_zone_bands_feed_time_in_zone_directly():
+    zones = analytics.hr_zone_bands(200, 60)
+
+    seconds = analytics.time_in_zone([0, 60, 120], [150.0, 190.0, 190.0], zones)
+
+    assert seconds[2] == pytest.approx(60.0)
+    assert seconds[5] == pytest.approx(60.0)
+
+
+def test_hr_zone_bands_zone_one_is_open_ended_below():
+    zones = analytics.hr_zone_bands(200, 60)
+
+    seconds = analytics.time_in_zone([0, 60, 120], [80.0, 100.0, 100.0], zones)
+
+    assert seconds[1] == pytest.approx(120.0)
+    assert sum(seconds.values()) == pytest.approx(120.0)
 
 
 # --- training calendar ---------------------------------------------------
@@ -317,6 +347,10 @@ def test_annotate_splits_marks_fastest_and_scales_bar():
     assert annotated[1]["bar_pct"] == pytest.approx(100.0)
     assert annotated[2]["bar_pct"] == pytest.approx(30.0)
     assert annotated[0]["bar_pct"] == pytest.approx(65.0)
+
+
+def test_annotate_splits_handles_empty_list():
+    assert analytics.annotate_splits_for_display([]) == []
 
 
 def test_annotate_splits_handles_uniform_pace_without_division_by_zero():

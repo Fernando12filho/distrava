@@ -2,6 +2,7 @@ function initSettingsForm(postUrl) {
   const form = document.getElementById("settings-form");
   const saveStatus = document.getElementById("save-status");
   const maxHrInput = document.getElementById("max-hr-input");
+  const restingHrInput = document.getElementById("resting-hr-input");
   const zoneChips = document.querySelectorAll("#hr-zones-list .hr-zone-chip");
   const unitsInput = document.getElementById("units-input");
   const unitsButtons = document.querySelectorAll("#units-segmented .segmented-btn");
@@ -35,12 +36,16 @@ function initSettingsForm(postUrl) {
   }
 
   function recomputeZones() {
-    const fallback = parseInt(maxHrInput.placeholder, 10) || 190;
-    const maxHr = parseInt(maxHrInput.value, 10) || fallback;
-    zoneChips.forEach((chip) => {
+    const maxHr = parseInt(maxHrInput.value, 10) || parseInt(maxHrInput.placeholder, 10) || 190;
+    const restingHr = parseInt(restingHrInput.value, 10) || parseInt(restingHrInput.placeholder, 10) || 60;
+    const reserve = maxHr - restingHr;
+    zoneChips.forEach((chip, i) => {
       const lo = parseFloat(chip.dataset.lo);
       const hi = parseFloat(chip.dataset.hi);
-      chip.querySelector(".hr-zone-bpm").textContent = Math.round(lo * maxHr) + "–" + Math.round(hi * maxHr) + " bpm";
+      const loBpm = Math.round(restingHr + lo * reserve);
+      const hiBpm = Math.round(restingHr + hi * reserve);
+      chip.querySelector(".hr-zone-bpm").textContent =
+        i === 0 ? "< " + hiBpm + " bpm" : loBpm + "–" + hiBpm + " bpm";
     });
   }
 

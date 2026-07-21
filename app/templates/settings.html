@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Settings{% endblock %}
 {% block page_title %}<div class="topbar-title">Settings</div>{% endblock %}
-{% block topbar_right %}<span id="save-status" class="save-status">All changes saved</span>{% endblock %}
+{% block topbar_right %}
+  <span id="save-status" class="save-status">All changes saved</span>
+  <button type="submit" form="settings-form" class="btn btn-primary">Save</button>
+{% endblock %}
 
 {% block content %}
 <div class="container narrow">
@@ -15,8 +18,8 @@
           <input class="fld" type="number" name="max_hr" id="max-hr-input" value="{{ settings.max_hr if settings and settings.max_hr else '' }}" placeholder="{{ resolved_max_hr }}" />
         </div>
         <div class="field-row">
-          <div><div class="field-label">Resting heart rate</div><div class="field-help">bpm</div></div>
-          <input class="fld" type="number" name="resting_hr" value="{{ settings.resting_hr if settings and settings.resting_hr else '' }}" />
+          <div><div class="field-label">Resting heart rate</div><div class="field-help">bpm · used for zones and training load</div></div>
+          <input class="fld" type="number" name="resting_hr" id="resting-hr-input" value="{{ settings.resting_hr if settings and settings.resting_hr else '' }}" placeholder="{{ resolved_resting_hr }}" />
         </div>
         <div class="field-row">
           <div><div class="field-label">Weight</div><div class="field-help" id="weight-unit-label">{{ weight_unit }}</div></div>
@@ -30,7 +33,7 @@
     </section>
 
     <section class="card">
-      <div class="card-header"><div class="title">Heart rate zones</div></div>
+      <div class="card-header"><div><div class="title">Heart rate zones</div><div class="card-subtitle">% of heart-rate reserve (max − resting) · Karvonen method</div></div></div>
       <div class="hr-zones-list" id="hr-zones-list">
         {% for z in zones %}
         <div class="hr-zone-chip" data-lo="{{ z.lo }}" data-hi="{{ z.hi }}">

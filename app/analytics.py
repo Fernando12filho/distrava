@@ -257,27 +257,39 @@ def format_pace(seconds_per_km):
     return f"{minutes}:{secs:02d}"
 
 
+# Zones are ordered intensity, so the palette is a single-hue brightness ramp
+# in the accent lime family (dim → full accent), shared with the route-map
+# effort gradient. Validated for monotone lightness and surface contrast.
 _HR_ZONE_DEFS = [
-    ("Zone 1 — Recovery", "Very light · active recovery", 0.50, 0.60, "#3A6B4A"),
-    ("Zone 2 — Aerobic", "Endurance base building", 0.60, 0.70, "#4E7FB0"),
-    ("Zone 3 — Tempo", "Sustained moderate effort", 0.70, 0.80, "#B0A24E"),
-    ("Zone 4 — Threshold", "Hard · lactate threshold", 0.80, 0.90, "#C08A4E"),
+    ("Zone 1 — Recovery", "Very light · active recovery", 0.50, 0.60, "#3F6212"),
+    ("Zone 2 — Aerobic", "Endurance base building", 0.60, 0.70, "#65A30D"),
+    ("Zone 3 — Tempo", "Sustained moderate effort", 0.70, 0.80, "#84CC16"),
+    ("Zone 4 — Threshold", "Hard · lactate threshold", 0.80, 0.90, "#A3E635"),
     ("Zone 5 — VO2 max", "Maximal · short intervals", 0.90, 1.00, "#C4F82A"),
 ]
 
 
-def hr_zone_bands(max_hr):
+# Karvonen method, matching Apple Watch defaults: zone boundaries are
+# percentages of heart-rate reserve (max − resting), not of max HR alone.
+def hr_zone_bands(max_hr, resting_hr):
+    reserve = max_hr - resting_hr
     zones = []
-    for name, desc, lo, hi, color in _HR_ZONE_DEFS:
+    for i, (name, desc, lo, hi, color) in enumerate(_HR_ZONE_DEFS):
+        lo_bpm = round(resting_hr + lo * reserve)
+        hi_bpm = round(resting_hr + hi * reserve)
         zones.append(
             {
+                "zone_number": i + 1,
                 "name": name,
                 "desc": desc,
                 "color": color,
                 "lo": lo,
                 "hi": hi,
+                # Zone 1 is open-ended below so warm-up and recovery time is
+                # counted instead of dropped.
+                "min_bpm": 0 if i == 0 else lo_bpm,
                 "pct_range": f"{round(lo * 100)}–{round(hi * 100)}%",
-                "bpm_range": f"{round(lo * max_hr)}–{round(hi * max_hr)} bpm",
+                "bpm_range": f"< {hi_bpm} bpm" if i == 0 else f"{lo_bpm}–{hi_bpm} bpm",
             }
         )
     return zones
@@ -317,6 +329,8 @@ def current_streak(levels):
 
 
 def annotate_splits_for_display(splits):
+    if not splits:
+        return []
     paces = [s["pace_per_km_seconds"] for s in splits]
     fastest = min(paces)
     slowest = max(paces)

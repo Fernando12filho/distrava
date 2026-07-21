@@ -27,7 +27,7 @@ def get_db():
 
 @bp.route("/")
 def index():
-    return redirect(url_for("main.activity_list"))
+    return redirect(url_for("main.dashboard"))
 
 
 def _display_title(activity):
@@ -214,6 +214,25 @@ def _convert_splits_for_display(splits, units):
     return splits
 
 
+def _time_in_zones_display(stream_data, max_hr, resting_hr):
+    hr_times, hr_values = analytics.coalesce_stream_metric(stream_data["time"], stream_data.get("hr", []))
+    if len(hr_times) < 2:
+        return []
+    bands = analytics.hr_zone_bands(max_hr, resting_hr)
+    seconds_by_zone = analytics.time_in_zone(hr_times, hr_values, bands)
+    total = sum(seconds_by_zone.values())
+    if total <= 0:
+        return []
+    return [
+        {
+            **band,
+            "time": analytics.format_duration(seconds_by_zone[band["zone_number"]]),
+            "pct": seconds_by_zone[band["zone_number"]] / total * 100,
+        }
+        for band in bands
+    ]
+
+
 def _activity_own_best_efforts(db, activity, stream_data):
     times, distances = analytics.coalesce_stream_metric(stream_data["time"], stream_data["distance"])
     if len(times) < 2:
@@ -237,7 +256,8 @@ def activity_detail(activity_id):
     if activity is None:
         return "Activity not found", 404
 
-    units = _get_units(db.query(UserSettings).first())
+    settings = db.query(UserSettings).first()
+    units = _get_units(settings)
     category = analytics.categorize_activity_type(activity.activity_type)
     # Splits/best-efforts/pace are a running concept — Apple Health streams for
     # non-running workouts (e.g. Volleyball) can carry stray incidental distance
@@ -247,6 +267,10 @@ def activity_detail(activity_id):
     stream = db.query(ActivityStream).filter_by(activity_id=activity_id).first()
     splits = []
     efforts = []
+    hr_zones = []
+    if stream is not None:
+        resting_hr, max_hr = _resolve_hr_profile(settings, date.today())
+        hr_zones = _time_in_zones_display(stream.stream_data, max_hr, resting_hr)
     if stream is not None and is_pace_based:
         split_meters = analytics.split_distance_meters(units)
         splits = _convert_splits_for_display(
@@ -272,6 +296,7 @@ def activity_detail(activity_id):
         category=category,
         splits=splits,
         efforts=efforts,
+        hr_zones=hr_zones,
         is_pace_based=is_pace_based,
         units=units,
         dist_value=dist_value,
@@ -389,7 +414,7 @@ def settings_page():
             return "", 204
         return redirect(url_for("main.settings_page"))
 
-    _, resolved_max_hr = _resolve_hr_profile(settings, date.today())
+    resolved_resting_hr, resolved_max_hr = _resolve_hr_profile(settings, date.today())
     db_url = current_app.config.get("DATABASE_URL", "")
     db_path = db_url[len("sqlite:///") :] if db_url.startswith("sqlite:///") else db_url
     db_size_mb = None
@@ -406,7 +431,8 @@ def settings_page():
         "settings.html",
         settings=settings,
         resolved_max_hr=resolved_max_hr,
-        zones=analytics.hr_zone_bands(resolved_max_hr),
+        zones=analytics.hr_zone_bands(resolved_max_hr, resolved_resting_hr),
+        resolved_resting_hr=resolved_resting_hr,
         db_path=db_path,
         db_size_mb=db_size_mb,
         units=units,
@@ -433,6 +459,7 @@ def _pct_delta(current, previous):
 
 WEEKLY_VOLUME_WEEKS = 12
 CALENDAR_DAYS = 35
+RACE_PREDICTION_TARGETS = [("5K", 5000.0), ("10K", 10000.0), ("Half Marathon", 21097.0), ("Marathon", 42195.0)]
 
 
 @bp.route("/dashboard")
@@ -537,6 +564,20 @@ def dashboard():
         )
     recent_prs.append({"label": "Highest weekly load", "value": f"{best_week_load:.0f}", "date": best_week_label})
 
+    # Longest PR distance is the most reliable Riegel basis: extrapolating up
+    # from short efforts overstates endurance far more than scaling between
+    # race-length efforts does.
+    prediction_basis = max(best_efforts, key=lambda be: be.distance_meters, default=None)
+    race_predictions = []
+    vo2max = None
+    if prediction_basis is not None:
+        for label, target_meters in RACE_PREDICTION_TARGETS:
+            seconds = analytics.riegel_predict(
+                prediction_basis.duration_seconds, prediction_basis.distance_meters, target_meters
+            )
+            race_predictions.append({"label": label, "value": analytics.format_duration(seconds)})
+        vo2max = analytics.estimate_vo2max(prediction_basis.distance_meters, prediction_basis.duration_seconds)
+
     last_import = max((a.created_at for a in activities if a.created_at), default=None)
     weekly_distance_value, _unit = analytics.convert_distance(this_week_distance, units)
 
@@ -561,4 +602,7 @@ def dashboard():
         weekly_volume_unit_label="miles" if units == "imperial" else "kilometers",
         recent=recent,
         recent_prs=recent_prs,
+        race_predictions=race_predictions,
+        prediction_basis_label=prediction_basis.distance_label if prediction_basis else None,
+        vo2max=vo2max,
     )

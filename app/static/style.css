@@ -50,8 +50,8 @@
   --dot-gym: #c9a46b;
   --dot-other: #9c9ca6;
 
-  --zone-1: #3a6b4a;
-  --zone-2: #4e7fb0;
+  --zone-1: #3f6212;
+  --zone-2: #65a30d;
   --zone-3: #b0a24e;
   --zone-4: #c08a4e;
   --zone-5: #c4f82a;
@@ -1170,6 +1170,50 @@ a.recent-row:hover {
 
 .split-cell-right.muted {
   color: var(--text-muted);
+}
+
+.zones-card {
+  margin-bottom: 24px;
+}
+
+.zones-list {
+  padding: 6px 22px 16px;
+}
+
+.zone-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--divider-row);
+}
+
+.zone-row:last-child {
+  border-bottom: none;
+}
+
+.zone-row-meta {
+  width: 220px;
+  flex: none;
+}
+
+.zone-bar-track {
+  flex: 1;
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.zone-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+}
+
+.zone-row-time {
+  text-align: right;
+  width: 72px;
+  flex: none;
 }
 
 .efforts-card {

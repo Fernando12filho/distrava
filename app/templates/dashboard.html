@@ -123,6 +123,33 @@
     </div>
   </div>
 
+  {% if race_predictions %}
+  <div style="display:grid; grid-template-columns:1.6fr 1fr; gap:24px; margin-top:24px;">
+    <div class="table-card">
+      <div class="card-header">
+        <div>
+          <div class="title">Race predictions</div>
+          <div class="card-subtitle">Riegel model · based on your fastest {{ prediction_basis_label }}</div>
+        </div>
+      </div>
+      <div class="pr-list">
+        {% for p in race_predictions %}
+        <div class="pr-row">
+          <div><div class="pr-label">{{ p.label }}</div></div>
+          <div class="pr-value">{{ p.value }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="stat-card" style="align-self:start;">
+      <div class="stat-label">Est. VO2max</div>
+      <div class="stat-value-row"><span class="stat-value">{{ '%.1f'|format(vo2max) }}</span><span class="stat-unit">ml/kg/min</span></div>
+      <div class="stat-delta"><span class="vs-label">from fastest {{ prediction_basis_label }}</span></div>
+    </div>
+  </div>
+  {% endif %}
+
 </div>
 
 {% else %}

@@ -78,6 +78,28 @@
   </div>
   {% endif %}
 
+  {% if hr_zones %}
+  <div class="card zones-card">
+    <div class="card-header"><div class="title">Heart rate zones</div><span class="meta-text mono">time in zone</span></div>
+    <div class="zones-list">
+      {% for z in hr_zones %}
+      <div class="zone-row">
+        <div class="hr-zone-color" style="background:{{ z.color }};"></div>
+        <div class="zone-row-meta">
+          <div class="hr-zone-name">{{ z.name }}</div>
+          <div class="hr-zone-desc">{{ z.bpm_range }}</div>
+        </div>
+        <div class="zone-bar-track"><div class="zone-bar-fill" style="width:{{ '%.0f'|format(z.pct) }}%; background:{{ z.color }};"></div></div>
+        <div class="zone-row-time">
+          <div class="hr-zone-bpm">{{ z.time }}</div>
+          <div class="hr-zone-pct">{{ '%.0f'|format(z.pct) }}%</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   {% if is_pace_based %}
   <div class="detail-lower-grid">
     <div class="card splits-card">
@@ -127,7 +149,7 @@
 {% if is_pace_based %}
 <script src="{{ url_for('static', filename='activity-charts.js') }}"></script>
 <script>
-  initActivityCharts("{{ url_for('main.activity_stream', activity_id=activity.id) }}", "{{ units }}");
+  initActivityCharts("{{ url_for('main.activity_stream', activity_id=activity.id) }}", "{{ units }}", {{ hr_zones | tojson }});
 </script>
 {% endif %}
 {% endblock %}

@@ -3,10 +3,10 @@ import io
 import pytest
 
 
-def test_index_redirects_to_activities(client):
+def test_index_redirects_to_dashboard(client):
     response = client.get("/")
     assert response.status_code == 302
-    assert response.headers["Location"].endswith("/activities")
+    assert response.headers["Location"].endswith("/dashboard")
 
 
 def test_activity_list_returns_200(client, make_activity):
@@ -244,6 +244,108 @@ def test_activity_detail_marks_season_best_for_own_pr(client, make_activity, db_
     assert "SEASON BEST" in response.data.decode()
 
 
+def test_activity_detail_shows_time_in_hr_zones(client, make_activity, db_session):
+    from app.models import ActivityStream
+
+    activity = make_activity(duration_seconds=1500, distance_meters=5000.0)
+    times = [i * 300 for i in range(6)]
+    db_session.add(
+        ActivityStream(
+            activity_id=activity.id,
+            stream_data={"time": times, "hr": [150.0] * 6, "distance": [None] * 6, "elevation": [], "pace": []},
+        )
+    )
+    db_session.commit()
+
+    body = client.get(f"/activities/{activity.id}").data.decode()
+
+    assert "Heart rate zones" in body
+    zone2_index = body.index("Zone 2 — Aerobic")
+    assert zone2_index < body.index("25:00", zone2_index) < body.index("Zone 3 — Tempo")
+
+
+def test_activity_detail_counts_low_hr_time_in_zone_one(client, make_activity, db_session):
+    from app.models import ActivityStream
+
+    activity = make_activity(duration_seconds=1500, distance_meters=5000.0)
+    times = [i * 300 for i in range(6)]
+    db_session.add(
+        ActivityStream(
+            activity_id=activity.id,
+            stream_data={"time": times, "hr": [90.0] * 6, "distance": [None] * 6, "elevation": [], "pace": []},
+        )
+    )
+    db_session.commit()
+
+    body = client.get(f"/activities/{activity.id}").data.decode()
+
+    assert "Heart rate zones" in body
+    assert "100%" in body
+
+
+def test_activity_detail_shows_hr_zones_for_non_run_with_hr(client, make_activity, db_session):
+    from app.models import ActivityStream
+
+    activity = make_activity(activity_type="TraditionalStrengthTraining", distance_meters=0.0)
+    times = [i * 300 for i in range(6)]
+    db_session.add(
+        ActivityStream(
+            activity_id=activity.id,
+            stream_data={"time": times, "hr": [150.0] * 6, "distance": [None] * 6, "elevation": [], "pace": []},
+        )
+    )
+    db_session.commit()
+
+    body = client.get(f"/activities/{activity.id}").data.decode()
+
+    assert "Heart rate zones" in body
+
+
+def test_activity_detail_passes_zone_bands_to_charts_script(client, make_activity, db_session):
+    from app.models import ActivityStream
+
+    activity = make_activity(duration_seconds=1500, distance_meters=5000.0)
+    times = [i * 300 for i in range(6)]
+    db_session.add(
+        ActivityStream(
+            activity_id=activity.id,
+            stream_data={
+                "time": times,
+                "hr": [150.0] * 6,
+                "distance": [i * 1000.0 for i in range(6)],
+                "lat": [47.6 + i * 0.001 for i in range(6)],
+                "lon": [-122.3 + i * 0.001 for i in range(6)],
+                "elevation": [],
+                "pace": [],
+            },
+        )
+    )
+    db_session.commit()
+
+    body = client.get(f"/activities/{activity.id}").data.decode()
+
+    assert "min_bpm" in body
+
+
+def test_activity_detail_omits_hr_zones_without_hr_data(client, make_activity, db_session):
+    from app.models import ActivityStream
+
+    activity = make_activity(duration_seconds=1500, distance_meters=5000.0)
+    times = [i * 300 for i in range(6)]
+    distances = [i * 1000.0 for i in range(6)]
+    db_session.add(
+        ActivityStream(
+            activity_id=activity.id,
+            stream_data={"time": times, "hr": [None] * 6, "distance": distances, "elevation": [], "pace": []},
+        )
+    )
+    db_session.commit()
+
+    body = client.get(f"/activities/{activity.id}").data.decode()
+
+    assert "Heart rate zones" not in body
+
+
 def test_activity_stream_json_has_expected_keys(client, make_activity, db_session):
     from app.models import ActivityStream
 
@@ -324,6 +426,22 @@ def test_settings_page_shows_weight_converted_to_pounds_when_imperial(client, db
     response = client.get("/settings")
 
     assert "158.7" in response.data.decode()
+
+
+def test_settings_page_has_explicit_save_button(client):
+    body = client.get("/settings").data.decode()
+
+    assert 'type="submit" form="settings-form"' in body
+    assert ">Save<" in body
+
+
+def test_settings_page_native_post_saves_resting_hr_and_redirects(client, db_session):
+    from app.models import UserSettings
+
+    response = client.post("/settings", data={"resting_hr": "52", "units": "metric"})
+
+    assert response.status_code == 302
+    assert db_session.query(UserSettings).one().resting_hr == 52
 
 
 def test_settings_page_post_converts_submitted_pounds_back_to_kg(client, db_session):
@@ -425,6 +543,70 @@ def test_dashboard_shows_populated_sections_when_activities_exist(client, make_a
     assert "Weekly volume" in body
     assert "Recent activities" in body
     assert "Recent PRs" in body
+
+
+def _add_best_effort(db_session, activity, label="5K", distance_meters=5000.0, duration_seconds=1500.0):
+    from app.models import BestEffort
+
+    db_session.add(
+        BestEffort(
+            distance_label=label,
+            distance_meters=distance_meters,
+            activity_id=activity.id,
+            duration_seconds=duration_seconds,
+            pace_per_km_seconds=duration_seconds / (distance_meters / 1000),
+            achieved_at=activity.start_time,
+        )
+    )
+    db_session.commit()
+
+
+def test_dashboard_shows_race_predictions_from_best_effort(client, make_activity, db_session):
+    from app import analytics
+
+    activity = make_activity(duration_seconds=1500, distance_meters=5000.0)
+    _add_best_effort(db_session, activity)
+
+    body = client.get("/dashboard").data.decode()
+
+    expected_10k = analytics.format_duration(analytics.riegel_predict(1500.0, 5000.0, 10000.0))
+    expected_marathon = analytics.format_duration(analytics.riegel_predict(1500.0, 5000.0, 42195.0))
+    assert "Race predictions" in body
+    assert "Marathon" in body
+    assert expected_10k in body
+    assert expected_marathon in body
+
+
+def test_dashboard_predictions_use_longest_best_effort_as_basis(client, make_activity, db_session):
+    activity = make_activity(duration_seconds=3200, distance_meters=10000.0)
+    _add_best_effort(db_session, activity, label="1K", distance_meters=1000.0, duration_seconds=250.0)
+    _add_best_effort(db_session, activity, label="10K", distance_meters=10000.0, duration_seconds=3200.0)
+
+    body = client.get("/dashboard").data.decode()
+
+    assert "fastest 10K" in body
+
+
+def test_dashboard_shows_estimated_vo2max(client, make_activity, db_session):
+    from app import analytics
+
+    activity = make_activity(duration_seconds=1500, distance_meters=5000.0)
+    _add_best_effort(db_session, activity)
+
+    body = client.get("/dashboard").data.decode()
+
+    expected = analytics.estimate_vo2max(5000.0, 1500.0)
+    assert "VO2max" in body
+    assert f"{expected:.1f}" in body
+
+
+def test_dashboard_omits_race_predictions_without_best_efforts(client, make_activity):
+    make_activity()
+
+    body = client.get("/dashboard").data.decode()
+
+    assert "Race predictions" not in body
+    assert "VO2max" not in body
 
 
 def test_dashboard_shows_miles_unit_when_imperial(client, make_activity, db_session):
