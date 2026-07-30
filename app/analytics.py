@@ -257,15 +257,16 @@ def format_pace(seconds_per_km):
     return f"{minutes}:{secs:02d}"
 
 
-# Zones are ordered intensity, so the palette is a single-hue brightness ramp
-# in the accent lime family (dim → full accent), shared with the route-map
-# effort gradient. Validated for monotone lightness and surface contrast.
+# Five distinct hues, cool → hot, the fitness-app zone convention. Shared with
+# the route-map gradient, which interpolates between them. Validated for CVD
+# and normal-vision adjacent-pair separation and ≥3:1 surface contrast; zone
+# names/bpm labels always accompany the color, so identity is never color-alone.
 _HR_ZONE_DEFS = [
-    ("Zone 1 — Recovery", "Very light · active recovery", 0.50, 0.60, "#3F6212"),
-    ("Zone 2 — Aerobic", "Endurance base building", 0.60, 0.70, "#65A30D"),
-    ("Zone 3 — Tempo", "Sustained moderate effort", 0.70, 0.80, "#84CC16"),
-    ("Zone 4 — Threshold", "Hard · lactate threshold", 0.80, 0.90, "#A3E635"),
-    ("Zone 5 — VO2 max", "Maximal · short intervals", 0.90, 1.00, "#C4F82A"),
+    ("Zone 1 — Recovery", "Very light · active recovery", 0.50, 0.60, "#38BDF8"),
+    ("Zone 2 — Aerobic", "Endurance base building", 0.60, 0.70, "#4ADE80"),
+    ("Zone 3 — Tempo", "Sustained moderate effort", 0.70, 0.80, "#FDE047"),
+    ("Zone 4 — Threshold", "Hard · lactate threshold", 0.80, 0.90, "#F97316"),
+    ("Zone 5 — VO2 max", "Maximal · short intervals", 0.90, 1.00, "#E11D48"),
 ]
 
 
@@ -338,6 +339,6 @@ def annotate_splits_for_display(splits):
 
     annotated = []
     for split, pace in zip(splits, paces):
-        bar_pct = 100.0 if spread == 0 else 30 + (slowest - pace) / spread * 70
+        bar_pct = 100.0 if spread == 0 else round(30 + (slowest - pace) / spread * 70, 2)
         annotated.append({**split, "is_fastest": pace == fastest, "bar_pct": bar_pct})
     return annotated

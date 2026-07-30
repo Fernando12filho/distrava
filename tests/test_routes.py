@@ -175,6 +175,33 @@ def test_activity_detail_computes_splits_from_stream(client, make_activity, db_s
     assert body.count("data-split-index") == 5
 
 
+def test_activity_detail_page_source_carries_no_long_decimals(client, make_activity, db_session):
+    import re
+
+    from app.models import ActivityStream
+
+    activity = make_activity(duration_seconds=1200, distance_meters=3000.0)
+    times = [i * 100 for i in range(13)]
+    distances = [0, 200, 450, 700, 980, 1250, 1500, 1780, 2050, 2300, 2560, 2800, 3000]
+    db_session.add(
+        ActivityStream(
+            activity_id=activity.id,
+            stream_data={
+                "time": times,
+                "hr": [120.0 + i * 4 for i in range(13)],
+                "distance": [float(d) for d in distances],
+                "elevation": [],
+                "pace": [],
+            },
+        )
+    )
+    db_session.commit()
+
+    body = client.get(f"/activities/{activity.id}").data.decode()
+
+    assert re.search(r"\d+\.\d{3,}", body) is None
+
+
 def test_activity_detail_returns_404_for_missing(client):
     response = client.get("/activities/999")
     assert response.status_code == 404

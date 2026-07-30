@@ -33,7 +33,24 @@ def _apply_schema_upgrades(engine):
                 conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"))
 
 
+# Deliberately minimal .env support instead of a python-dotenv dependency:
+# real shell environment always wins over the file.
+def load_env_file(path):
+    if not path.exists():
+        return
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
 def create_app(config=None):
+    load_env_file(Path(".env"))
     app = Flask(__name__)
     app.config.setdefault(
         "DATABASE_URL", os.environ.get("DISTRAVA_DATABASE_URL", "sqlite:///./data/fitness.db")

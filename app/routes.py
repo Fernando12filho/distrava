@@ -6,7 +6,16 @@ from math import ceil
 from pathlib import Path
 from urllib.parse import urlencode
 
-from flask import Blueprint, current_app, g, jsonify, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    current_app,
+    g,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from sqlalchemy import func
 
 from app import analytics, parser
@@ -17,6 +26,19 @@ bp = Blueprint("main", __name__)
 MAX_UPLOAD_BYTES = 200 * 1024 * 1024
 ALLOWED_IMPORT_EXTENSIONS = {".zip", ".gpx", ".csv"}
 ACTIVITIES_PER_PAGE = 10
+DEFAULT_RESTING_HR = 60
+DEFAULT_MAX_HR = 190
+
+
+def _resolve_hr_profile(settings, today):
+    resting_hr = settings.resting_hr if settings and settings.resting_hr else DEFAULT_RESTING_HR
+    if settings and settings.max_hr:
+        max_hr = settings.max_hr
+    elif settings and settings.birth_year:
+        max_hr = analytics.default_max_hr(settings.birth_year, today.year)
+    else:
+        max_hr = DEFAULT_MAX_HR
+    return resting_hr, max_hr
 
 
 def get_db():
@@ -227,7 +249,7 @@ def _time_in_zones_display(stream_data, max_hr, resting_hr):
         {
             **band,
             "time": analytics.format_duration(seconds_by_zone[band["zone_number"]]),
-            "pct": seconds_by_zone[band["zone_number"]] / total * 100,
+            "pct": round(seconds_by_zone[band["zone_number"]] / total * 100, 2),
         }
         for band in bands
     ]
@@ -373,21 +395,6 @@ def import_file():
         }
     )
     return jsonify(result), 200
-
-
-DEFAULT_RESTING_HR = 60
-DEFAULT_MAX_HR = 190
-
-
-def _resolve_hr_profile(settings, today):
-    resting_hr = settings.resting_hr if settings and settings.resting_hr else DEFAULT_RESTING_HR
-    if settings and settings.max_hr:
-        max_hr = settings.max_hr
-    elif settings and settings.birth_year:
-        max_hr = analytics.default_max_hr(settings.birth_year, today.year)
-    else:
-        max_hr = DEFAULT_MAX_HR
-    return resting_hr, max_hr
 
 
 @bp.route("/settings", methods=["GET", "POST"])

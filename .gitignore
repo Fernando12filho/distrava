@@ -13,5 +13,8 @@ export*.zip
 /*.gpx
 /*.csv
 
+# Local secrets (API keys)
+.env
+
 .DS_Store
 Thumbs.db

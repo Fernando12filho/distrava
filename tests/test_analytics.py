@@ -260,22 +260,17 @@ def test_hr_zone_bands_computes_five_zones_from_heart_rate_reserve():
     assert zones[0]["name"] == "Zone 1 — Recovery"
     assert zones[0]["pct_range"] == "50–60%"
     assert zones[0]["bpm_range"] == "< 144 bpm"
-    assert zones[0]["color"] == "#3F6212"
+    assert zones[0]["color"] == "#38BDF8"
     assert zones[1]["bpm_range"] == "144–158 bpm"
     assert zones[4]["name"] == "Zone 5 — VO2 max"
     assert zones[4]["bpm_range"] == "186–200 bpm"
-    assert zones[4]["color"] == "#C4F82A"
+    assert zones[4]["color"] == "#E11D48"
 
 
-def test_hr_zone_colors_form_single_hue_brightness_ramp():
+def test_hr_zone_colors_are_five_distinct_hues():
     zones = analytics.hr_zone_bands(200, 60)
 
-    def luminance(color):
-        r, g, b = (int(color[i : i + 2], 16) for i in (1, 3, 5))
-        return 0.2126 * r + 0.7152 * g + 0.0722 * b
-
-    luminances = [luminance(z["color"]) for z in zones]
-    assert luminances == sorted(luminances)
+    assert len({z["color"] for z in zones}) == 5
 
 
 def test_hr_zone_bands_feed_time_in_zone_directly():

@@ -223,6 +223,11 @@ async function initActivityCharts(streamUrl, units, zones) {
         titleFont: { family: "'JetBrains Mono'", size: 10 },
         displayColors: false,
         padding: 8,
+        callbacks: {
+          title: function (items) {
+            return Number(items[0].label).toFixed(2) + " " + distUnit;
+          },
+        },
       },
     },
     elements: { point: { radius: 0 } },
