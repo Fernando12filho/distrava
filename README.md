@@ -1,4 +1,4 @@
-# Strava Copy
+# Distrava
 
 A local-first, open-source desktop app that replicates Strava's paid run-analysis
 features — best efforts, HR zones, splits, training load, race predictions — with
