@@ -24,7 +24,6 @@ class Activity(Base):
     source_id = Column(String, nullable=True)
     dedup_key = Column(String, unique=True, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    title = Column(String, nullable=True)
     source_device = Column(String, nullable=True)
 
     streams = relationship(

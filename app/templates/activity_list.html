@@ -40,7 +40,6 @@
     <div class="table-header-row activities-cols">
       <a class="sort-link" href="{{ sort_links.date.href }}">Date <span class="sort-arrow">{{ sort_links.date.arrow }}</span></a>
       <span>Type</span>
-      <a class="sort-link" href="{{ sort_links.title.href }}">Title <span class="sort-arrow">{{ sort_links.title.arrow }}</span></a>
       <a class="sort-link cell-right" href="{{ sort_links.dist.href }}"><span class="sort-arrow">{{ sort_links.dist.arrow }}</span> Distance</a>
       <a class="sort-link cell-right" href="{{ sort_links.dur.href }}"><span class="sort-arrow">{{ sort_links.dur.arrow }}</span> Duration</a>
       <a class="sort-link cell-right" href="{{ sort_links.pace.href }}"><span class="sort-arrow">{{ sort_links.pace.arrow }}</span> Pace</a>
@@ -51,7 +50,6 @@
     <a class="table-row activities-cols" data-activity-id="{{ a.id }}" href="{{ url_for('main.activity_detail', activity_id=a.id) }}">
       <span class="mono" style="font-size:13px; color:var(--text-secondary);">{{ a.date }}</span>
       <span class="type-pill"><span class="type-dot" style="background:{{ a.dot }};"></span><span class="type-label">{{ a.type }}</span></span>
-      <span class="cell-title">{{ a.title }}</span>
       <span class="mono cell-right" style="font-size:13px;">{{ a.dist }}</span>
       <span class="mono cell-right" style="font-size:13px; color:var(--text-tertiary);">{{ a.dur }}</span>
       <span class="mono cell-right" style="font-size:13px; color:var(--text-secondary);">{{ a.pace }}</span>

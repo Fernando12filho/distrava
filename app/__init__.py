@@ -12,7 +12,7 @@ from app.models import Base
 # alters an existing table. data/fitness.db predates these columns, so on an
 # existing table we add whatever's missing by hand instead of wiping the file.
 _SCHEMA_UPGRADES = {
-    "activities": ["title", "source_device"],
+    "activities": ["source_device"],
     "user_settings": ["weight_kg", "units"],
 }
 

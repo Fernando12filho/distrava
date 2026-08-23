@@ -112,20 +112,22 @@ def test_user_settings_fields(db_session):
     assert stored.birth_year == 1990
 
 
-def test_activity_title_and_source_device_optional_fields(db_session, make_activity):
-    activity = make_activity(title="Morning tempo along the river", source_device="Garmin Forerunner 265")
+def test_activity_source_device_optional_field(db_session, make_activity):
+    make_activity(source_device="Garmin Forerunner 265")
 
     stored = db_session.query(Activity).one()
-    assert stored.title == "Morning tempo along the river"
     assert stored.source_device == "Garmin Forerunner 265"
 
 
-def test_activity_title_and_source_device_default_to_none(db_session, make_activity):
+def test_activity_source_device_defaults_to_none(db_session, make_activity):
     make_activity()
 
     stored = db_session.query(Activity).one()
-    assert stored.title is None
     assert stored.source_device is None
+
+
+def test_activity_has_no_title_column(db_session):
+    assert "title" not in Activity.__table__.columns
 
 
 def test_user_settings_weight_and_units_fields(db_session):

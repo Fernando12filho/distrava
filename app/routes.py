@@ -52,15 +52,7 @@ def index():
     return redirect(url_for("main.dashboard"))
 
 
-def _display_title(activity):
-    if activity.title:
-        return activity.title
-    return analytics.categorize_activity_type(activity.activity_type)["label"]
-
-
 def _detail_page_title(activity):
-    if activity.title:
-        return activity.title
     label = analytics.categorize_activity_type(activity.activity_type)["label"]
     return f"{label} · {activity.start_time.strftime('%b %d, %Y')}"
 
@@ -85,7 +77,6 @@ def _activity_row(activity, units="metric"):
         "date": activity.start_time.strftime("%b %d"),
         "type": cat["label"],
         "dot": cat["dot"],
-        "title": _display_title(activity),
         "dist": f"{dist_value:.1f} {dist_unit}" if dist_value is not None else "—",
         "dur": analytics.format_duration(activity.duration_seconds),
         "pace": analytics.format_pace(pace_value) or "—",
@@ -94,8 +85,6 @@ def _activity_row(activity, units="metric"):
 
 
 def _sort_value(activity, sort_key):
-    if sort_key == "title":
-        return _display_title(activity).lower()
     if sort_key == "dist":
         return activity.distance_meters or 0.0
     if sort_key == "dur":
@@ -116,7 +105,7 @@ def _qs(overrides):
 
 
 TYPE_FILTER_OPTIONS = ["All", "Run", "Ride", "Gym", "Other"]
-SORT_COLUMNS = [("date", "Date"), ("title", "Title"), ("dist", "Distance"), ("dur", "Duration"), ("pace", "Pace"), ("hr", "HR")]
+SORT_COLUMNS = [("date", "Date"), ("dist", "Distance"), ("dur", "Duration"), ("pace", "Pace"), ("hr", "HR")]
 
 
 @bp.route("/activities")

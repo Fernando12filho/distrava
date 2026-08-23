@@ -71,7 +71,6 @@ def test_create_app_upgrades_existing_activities_table_without_losing_data():
 
     stored = session.query(Activity).one()
     assert stored.dedup_key == "old-row-key"
-    assert stored.title is None
     assert stored.source_device is None
     session.close()
 

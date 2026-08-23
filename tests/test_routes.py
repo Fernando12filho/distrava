@@ -207,23 +207,37 @@ def test_activity_detail_returns_404_for_missing(client):
     assert response.status_code == 404
 
 
-def test_activity_detail_falls_back_to_synthesized_title_when_none(client, make_activity):
+def test_activity_detail_heading_is_type_and_date(client, make_activity):
     from datetime import datetime
 
-    activity = make_activity(activity_type="Run", start_time=datetime(2026, 7, 11, 6, 42, 0), title=None)
+    activity = make_activity(activity_type="Run", start_time=datetime(2026, 7, 11, 6, 42, 0))
 
     response = client.get(f"/activities/{activity.id}")
 
-    body = response.data.decode()
-    assert "Run · Jul 11, 2026" in body
+    assert "Run · Jul 11, 2026" in response.data.decode()
 
 
-def test_activity_detail_shows_real_title_when_set(client, make_activity):
-    activity = make_activity(title="Morning tempo along the river")
+def test_activity_list_shows_type_once_per_row(client, make_activity):
+    make_activity(activity_type="Run")
 
-    response = client.get(f"/activities/{activity.id}")
+    body = client.get("/activities").data.decode()
 
-    assert "Morning tempo along the river" in response.data.decode()
+    assert body.count("cell-title") == 0
+    assert body.count('class="type-label">Run<') == 1
+
+
+def test_activity_list_header_has_no_title_column(client):
+    body = client.get("/activities").data.decode()
+
+    assert ">Title " not in body
+
+
+def test_activity_list_ignores_stale_title_sort_key(client, make_activity):
+    make_activity(activity_type="Run")
+
+    response = client.get("/activities?sort=title")
+
+    assert response.status_code == 200
 
 
 def test_activity_detail_omits_device_when_none(client, make_activity):

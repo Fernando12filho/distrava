@@ -661,7 +661,7 @@ a.nav-item:hover {
 
 .table-header-row.activities-cols,
 .table-row.activities-cols {
-  grid-template-columns: 110px 90px 1fr 100px 100px 96px 80px;
+  grid-template-columns: 110px 1fr 100px 100px 96px 80px;
 }
 
 .table-row {
@@ -697,15 +697,6 @@ a.table-row:hover,
 
 .sort-arrow {
   color: var(--accent);
-}
-
-.cell-title {
-  color: var(--text-primary);
-  font-size: 14px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding-right: 16px;
 }
 
 .cell-dash {
