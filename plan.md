@@ -1,4 +1,4 @@
-# Plan — Local Strava Alternative (Phase 1)
+# Plan — Distrava (Phase 1)
 
 ## Goal
 Reproduce Strava's paid run-analysis features locally. No GPS tracking, no social

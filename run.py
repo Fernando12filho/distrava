@@ -13,5 +13,5 @@ def start_flask():
 
 if __name__ == "__main__":
     threading.Thread(target=start_flask, daemon=True).start()
-    webview.create_window("Strava Copy", "http://127.0.0.1:5000")
+    webview.create_window("Distrava", "http://127.0.0.1:5000")
     webview.start()

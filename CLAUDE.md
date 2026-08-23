@@ -1,4 +1,4 @@
-# CLAUDE.md — Local Strava Alternative
+# CLAUDE.md — Distrava
 
 ## Project Overview
 A local-first, open-source desktop app that replicates Strava's paid run analysis
