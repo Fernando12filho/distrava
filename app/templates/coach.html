@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% set status_labels = {"planned": "Planned", "done": "✓ Done", "partial": "◐ Partial", "skipped": "Skipped", "moved": "Moved"} %}
+{% set status_buttons = [("done", "Done"), ("partial", "Partial"), ("skipped", "Skip")] %}
+
+{% macro status_chip(status) -%}
+<span class="status-chip st-{{ status }}">{{ status_labels[status] }}</span>
+{%- endmacro %}
+
+{% block title %}Coach{% endblock %}
+{% block topbar_left %}
+<div class="coach-topbar-left">
+  <div class="topbar-title">Coach</div>
+  <div class="week-nav">
+    <a class="icon-btn" href="{{ prev_url }}" aria-label="Previous week">←</a>
+    <span class="week-range">{{ range_label }}</span>
+    <a class="icon-btn" href="{{ next_url }}" aria-label="Next week">→</a>
+    {% if not is_this_week %}<a class="link-btn" href="{{ this_week_url }}">This week</a>{% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scroll_area_class %}coach-scroll{% endblock %}
+
+{% block content %}
+<div class="coach-layout">
+  <div class="coach-board">
+    <div class="week-head">
+      <div>
+        <div class="eyebrow">Week {{ week_number }}</div>
+        <div class="week-title">Training week</div>
+      </div>
+      <div class="week-head-meta">Drag a session to another day<br />Tap a session to see its exercises</div>
+    </div>
+
+    <div class="move-error" id="move-error" hidden>Couldn't move that session — the board is unchanged.</div>
+
+    <div class="week-grid" id="week-grid">
+      {% for day in days %}
+      <section class="day-col{% if day.is_today %} today{% endif %}{% if day.is_past %} past{% endif %}" data-day="{{ day.index }}">
+        <div class="day-col-head">
+          <span class="dow">{{ day.dow }}</span>
+          {% if day.is_today %}<span class="today-tag">TODAY</span>{% endif %}
+          <span class="num">{{ day.num }}</span>
+        </div>
+        <div class="day-sessions">
+          {% for s in day.sessions %}
+          <a class="session-card{% if s.kind == 'rest' %} rest{% endif %}{% if selected and selected.id == s.id %} selected{% endif %}"
+             href="{{ url_for('coach.board_page', week=week_start.isoformat(), session=s.id) }}"
+             draggable="true"
+             data-move-url="{{ url_for('coach.move_session', session_id=s.id) }}">
+            {% if s.kind == 'rest' %}
+            <span class="rest-mark"></span>
+            <span class="session-focus">Rest</span>
+            {% else %}
+            <span class="session-kind kind-{{ s.kind }}"><span class="type-dot"></span>{{ s.kind_label }}</span>
+            <span class="session-focus">{{ s.focus }}</span>
+            <span class="session-meta">{{ s.summary }}</span>
+            <span class="session-foot">{{ status_chip(s.status) }}</span>
+            {% endif %}
+          </a>
+          {% endfor %}
+        </div>
+        <details class="add-session">
+          <summary aria-label="Add a session on {{ day.dow }}">+</summary>
+          <form method="post" action="{{ url_for('coach.add_session') }}" class="template-picker">
+            <input type="hidden" name="week_start" value="{{ week_start.isoformat() }}" />
+            <input type="hidden" name="day_index" value="{{ day.index }}" />
+            {% for key, focus in templates %}
+            <button type="submit" name="template" value="{{ key }}">{{ focus }}</button>
+            {% endfor %}
+          </form>
+        </details>
+      </section>
+      {% endfor %}
+    </div>
+
+    {% if selected %}
+    <section class="card session-detail">
+      <div class="session-detail-head">
+        <div>
+          <span class="session-kind kind-{{ selected.kind }}"><span class="type-dot"></span>{{ selected.kind_label }} · {{ days[selected.day_index].dow }} {{ days[selected.day_index].num }}</span>
+          <h2 class="session-detail-title">{{ selected.focus }}</h2>
+          {% if selected.summary %}<div class="session-detail-sub">{{ selected.summary }}</div>{% endif %}
+        </div>
+        <div class="session-detail-actions">
+          {% if selected.kind != 'rest' %}
+          <form method="post" action="{{ url_for('coach.set_status', session_id=selected.id) }}" class="segmented">
+            {% for value, label in status_buttons %}
+            {# Tapping the active status again puts the session back to planned. #}
+            <button type="submit" name="status" value="{{ 'planned' if selected.status == value else value }}"
+                    class="segmented-btn{% if selected.status == value %} active{% endif %}">{{ label }}</button>
+            {% endfor %}
+          </form>
+          {% endif %}
+          <form method="post" action="{{ url_for('coach.delete_session', session_id=selected.id) }}">
+            <button type="submit" class="quiet-btn">Remove session</button>
+          </form>
+        </div>
+      </div>
+      {% if selected.exercises %}
+      <div class="exercise-header-row"><span>Exercise</span><span>Volume</span><span>Muscle</span><span>Load</span><span></span></div>
+      {% for item in selected.exercises %}
+      <div class="exercise-row">
+        <span>{{ item.name }}</span>
+        <span class="exercise-volume">{{ item.volume }}</span>
+        <span class="exercise-muscle">{{ item.muscle|replace('_', ' ') }}</span>
+        <span class="intensity-bars" title="{{ item.intensity }}">
+          {% for level in range(1, 4) %}<i class="{{ 'on' if level <= item.intensity_level }}"></i>{% endfor %}
+        </span>
+        <form method="post" action="{{ url_for('coach.delete_item', item_id=item.id) }}" class="exercise-actions">
+          <button type="submit" class="quiet-btn">Remove</button>
+        </form>
+      </div>
+      {% endfor %}
+      {% endif %}
+    </section>
+    {% else %}
+    <div class="detail-hint">Tap a session to see its exercises</div>
+    {% endif %}
+  </div>
+
+  <aside class="coach-panel">
+    <div class="coach-panel-head">
+      <div class="coach-panel-title"><span class="status-dot{% if not provider_connected %} off{% endif %}"></span>Coach</div>
+      <span class="coach-provider">{{ 'YOUR API KEY' if provider_connected else 'NOT CONNECTED' }}</span>
+    </div>
+    <div class="coach-panel-body">
+      <div class="today-card">
+        <span class="eyebrow">Today · {{ today.strftime('%a') }} {{ today.day }}</span>
+        {% for s in today_sessions %}
+        <div class="today-session">
+          <span class="today-focus">{{ s.focus }}</span>
+          {% if s.summary %}<span class="today-meta">{{ s.summary }}</span>{% endif %}
+          {% if s.kind != 'rest' %}{{ status_chip(s.status) }}{% endif %}
+        </div>
+        {% else %}
+        <p class="today-empty">Nothing planned today.</p>
+        {% endfor %}
+      </div>
+
+      {% if not provider_connected %}
+      <div class="coach-setup">
+        <div class="coach-setup-tile"><span></span></div>
+        <div class="coach-setup-title">Coach not connected</div>
+        <p>Connect your own API key in Settings to ask questions and get proposals. The week and its sessions work without it.</p>
+        <a class="btn btn-secondary" href="{{ url_for('main.settings_page') }}">Open settings</a>
+      </div>
+      {% endif %}
+    </div>
+  </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='coach.js') }}"></script>
+<script>initCoachBoard();</script>
+{% endblock %}

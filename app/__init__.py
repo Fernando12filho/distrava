@@ -97,6 +97,10 @@ def create_app(config=None):
 
     app.register_blueprint(bp)
 
+    from app.coach.routes import bp as coach_bp
+
+    app.register_blueprint(coach_bp)
+
     @app.teardown_appcontext
     def close_session(exception=None):
         session = g.pop("db_session", None)

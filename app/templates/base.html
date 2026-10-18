@@ -26,7 +26,10 @@
 
           <div class="nav-divider"></div>
 
-          <div class="nav-item soon"><span>Coach</span><span class="soon-pill">SOON</span></div>
+          <a href="{{ url_for('coach.board_page') }}"
+             class="nav-item {{ 'active' if request.endpoint and request.endpoint.startswith('coach.') }}">
+            <span>Coach</span>
+          </a>
           <div class="nav-item soon"><span>Insights</span><span class="soon-pill">SOON</span></div>
 
           <div class="nav-divider"></div>
