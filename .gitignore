@@ -18,3 +18,19 @@ export*.zip
 
 .DS_Store
 Thumbs.db
+
+# Xcode / Swift
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+DerivedData/
+build/
+.swiftpm/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# ai-jail sandbox config (personal, per machine)
+.ai-jail
