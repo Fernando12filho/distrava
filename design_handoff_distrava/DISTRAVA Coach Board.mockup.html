@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DISTRAVA — Coach board (mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!--
+  Clickable mockup for build-order step 3 (Coach board), revision 2.
+  Design reference only: tokens come from README.md / the Design System tile.
+  Rebuild in Jinja + vanilla JS; sample data and the PREVIEW STATE switcher are
+  design aids.
+
+  Revision 2 (user feedback):
+  - Days are vertical columns, Mon → Sun left to right.
+  - The schedule shows SESSIONS (what to train: "Chest & Triceps", "Running
+    day"), not individual exercises. Exercises live inside a session.
+  - The coach is the primary surface: a permanent panel, not a drawer.
+
+  Covers UC-05 (drag/add/remove), UC-07 (coach proposal preview), UC-09 (auto
+  match confirm), UC-10 (one-tap status), UC-11 (3 skippable questions),
+  UC-14 (undo), UC-15 (no AI).
+-->
+<style>
+  :root {
+    --bg-base:#0B0B0F; --bg-sidebar:#0D0D12; --surface:#16161C; --surface-2:#1E1E26;
+    --surface-input:#101015; --row-hover:#1A1A21; --border:#22222A; --border-strong:#2C2C36;
+    --border-btn:#33333D; --divider:#1C1C22; --divider-inner:#17171D; --rule:#26262E;
+    --nav-active:#17171D; --accent:#C4F82A; --accent-hover:#d6ff5c;
+    --text:#ECECEF; --text-2:#9C9CA6; --muted:#5E5E68; --faint:#3A3A42;
+    --run:#7FB2E8; --ride:#8FD1B0; --gym:#C9A46B; --mobility:#9C9CA6;
+    --mono:'JetBrains Mono', ui-monospace, monospace; --sans:'Inter', system-ui, sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg-base); color:var(--text); font-family:var(--sans); -webkit-font-smoothing:antialiased; }
+  button { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
+  ::selection { background:rgba(196,248,42,0.25); color:#fff; }
+  ::-webkit-scrollbar { width:10px; height:10px; }
+  ::-webkit-scrollbar-thumb { background:var(--rule); border-radius:10px; border:2px solid var(--bg-base); }
+  .mono { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+
+  .app { display:flex; height:100vh; overflow:hidden; }
+
+  /* ---------- sidebar (App Shell) ---------- */
+  .sidebar { width:248px; flex:none; background:var(--bg-sidebar); border-right:1px solid var(--divider); display:flex; flex-direction:column; padding:22px 14px; }
+  .wordmark { padding:8px 12px 22px; font-weight:800; font-size:22px; letter-spacing:-0.03em; line-height:1; }
+  .wordmark span { color:var(--accent); }
+  .nav { display:flex; flex-direction:column; gap:2px; }
+  .nav-item { position:relative; display:flex; align-items:center; padding:10px 14px; border-radius:9px; font-weight:500; font-size:14px; color:var(--text-2); }
+  .nav-item:hover { background:#15151B; }
+  .nav-item.active { background:var(--nav-active); color:var(--text); font-weight:600; }
+  .nav-item.active::before { content:""; position:absolute; left:0; top:8px; bottom:8px; width:3px; border-radius:2px; background:var(--accent); }
+  .nav-item.soon { opacity:0.5; pointer-events:none; }
+  .soon-pill { margin-left:auto; font-family:var(--mono); font-size:9px; color:var(--muted); letter-spacing:0.1em; border:1px solid var(--border-strong); border-radius:20px; padding:2px 7px; }
+  .nav-rule { height:1px; background:var(--divider); margin:12px 14px; }
+  .privacy { margin-top:auto; padding:14px; display:flex; align-items:center; gap:9px; font-family:var(--mono); font-size:11px; color:var(--muted); line-height:1.4; }
+  .dot { width:7px; height:7px; border-radius:50%; background:var(--accent); flex:none; box-shadow:0 0 8px rgba(196,248,42,0.6); }
+
+  /* ---------- content ---------- */
+  main { flex:1; display:flex; flex-direction:column; overflow:hidden; min-width:0; }
+  .topbar { height:64px; flex:none; border-bottom:1px solid var(--divider); display:flex; align-items:center; justify-content:space-between; padding:0 32px; gap:16px; }
+  .topbar h1 { font-weight:600; font-size:17px; letter-spacing:-0.01em; }
+  .week-nav { display:flex; align-items:center; gap:10px; font-family:var(--mono); font-size:12px; color:var(--text-2); }
+  .icon-btn { width:28px; height:28px; border:1px solid var(--border); border-radius:8px; color:var(--text-2); font-family:var(--mono); }
+  .icon-btn:hover { background:var(--row-hover); color:var(--text); }
+  .btn-primary { font-weight:600; font-size:13px; color:var(--bg-base); background:var(--accent); border-radius:8px; padding:9px 16px; }
+  .btn-primary:hover { background:var(--accent-hover); }
+  .btn-secondary { font-weight:600; font-size:13px; color:var(--text); border:1px solid var(--border-btn); border-radius:8px; padding:8px 14px; }
+  .btn-secondary:hover { background:var(--row-hover); }
+  .btn-secondary:disabled, .btn-primary:disabled { opacity:0.4; cursor:not-allowed; }
+
+  .body { flex:1; display:flex; overflow:hidden; }
+  .board-scroll { flex:1; overflow-y:auto; padding:28px 28px 64px 32px; min-width:0; }
+
+  .week-head { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:18px; gap:16px; }
+  .eyebrow { font-family:var(--mono); font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); }
+  .week-title { font-weight:600; font-size:24px; letter-spacing:-0.02em; margin-top:6px; }
+  .week-meta { font-family:var(--mono); font-size:12px; color:var(--muted); text-align:right; line-height:1.6; }
+
+  /* proposal bar (D3: preview on the board) */
+  .proposal-bar { display:none; align-items:center; gap:14px; padding:14px 18px; margin-bottom:16px; border-radius:12px; background:rgba(196,248,42,0.05); border:1px solid rgba(196,248,42,0.25); }
+  .proposal-bar.show { display:flex; }
+  .proposal-bar .why { flex:1; font-size:14px; color:var(--text); line-height:1.5; }
+  .proposal-bar .why b { font-family:var(--mono); font-size:10px; letter-spacing:0.14em; color:var(--accent); font-weight:600; margin-right:8px; }
+
+  /* ---------- week: seven vertical day columns ---------- */
+  .week { display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:10px; }
+  .day { display:flex; flex-direction:column; gap:8px; min-height:340px; padding:10px; border-radius:14px; background:var(--surface); border:1px solid var(--border); transition:background 0.15s; position:relative; }
+  .day.past .day-head, .day.past .sessions { opacity:0.55; }
+  .day.today { border-color:rgba(196,248,42,0.45); }
+  .day.today::before { content:""; position:absolute; top:0; left:14px; right:14px; height:3px; border-radius:0 0 2px 2px; background:var(--accent); }
+  .day.drop-target { background:var(--row-hover); outline:1px dashed var(--border-btn); outline-offset:-4px; }
+  .day-head { display:flex; align-items:baseline; justify-content:space-between; padding:4px 4px 6px; border-bottom:1px solid var(--divider-inner); }
+  .day-head .dow { font-family:var(--mono); font-size:10px; letter-spacing:0.14em; color:var(--muted); }
+  .day-head .num { font-family:var(--mono); font-size:20px; font-weight:500; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; }
+  .today-tag { font-family:var(--mono); font-size:9px; letter-spacing:0.1em; color:var(--bg-base); background:var(--accent); border-radius:20px; padding:2px 6px; }
+  .sessions { display:flex; flex-direction:column; gap:8px; flex:1; }
+
+  .session { display:flex; flex-direction:column; gap:8px; padding:11px; border-radius:11px; background:var(--surface-input); border:1px solid var(--border); cursor:grab; text-align:left; transition:border-color 0.15s, opacity 0.15s; }
+  .session:hover { border-color:var(--border-btn); }
+  .session.selected { border-color:var(--accent); }
+  .session.dragging { opacity:0.35; }
+  .kind { display:flex; align-items:center; gap:6px; font-family:var(--mono); font-size:9px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-2); }
+  .kind i { width:6px; height:6px; border-radius:50%; flex:none; }
+  .kind-run i { background:var(--run); } .kind-ride i { background:var(--ride); }
+  .kind-gym i { background:var(--gym); } .kind-mobility i { background:var(--mobility); }
+  .session .focus { font-weight:600; font-size:14px; line-height:1.25; letter-spacing:-0.01em; }
+  .session .meta { font-family:var(--mono); font-size:11px; color:var(--muted); line-height:1.45; font-variant-numeric:tabular-nums; }
+  .session .foot { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+
+  .session.rest { cursor:default; background:transparent; border-style:dashed; align-items:center; justify-content:center; text-align:center; flex:1; min-height:120px; }
+  .rest-mark { width:24px; height:24px; border-radius:50%; border:1.5px solid var(--rule); }
+  .session.rest .focus { font-weight:500; color:var(--text-2); }
+
+  /* status chips — never red; skipped is neutral grey */
+  .status { font-family:var(--mono); font-size:9px; letter-spacing:0.1em; text-transform:uppercase; border-radius:7px; padding:3px 7px; }
+  .st-planned { color:var(--muted); border:1px solid var(--border-strong); }
+  .st-done { color:var(--accent); background:rgba(196,248,42,0.12); }
+  .st-partial { color:var(--accent); border:1px solid rgba(196,248,42,0.4); }
+  .st-skipped { color:var(--text-2); background:var(--surface-2); }
+  .st-moved { color:var(--text-2); border:1px dashed var(--border-btn); }
+
+  /* coach proposal ghosts */
+  .session.ghost-add { opacity:0.65; border:1px dashed rgba(196,248,42,0.6); background:rgba(196,248,42,0.03); cursor:default; }
+  .session.ghost-remove { opacity:0.35; cursor:default; }
+  .session.ghost-remove .focus { text-decoration:line-through; text-decoration-color:var(--muted); }
+  .ghost-label { font-family:var(--mono); font-size:9px; letter-spacing:0.1em; color:var(--accent); }
+
+  /* auto-match (UC-09) */
+  .match { display:flex; flex-direction:column; gap:7px; padding:8px; border-radius:8px; background:rgba(196,248,42,0.05); border:1px solid rgba(196,248,42,0.25); }
+  .match .m-line { font-family:var(--mono); font-size:10px; color:var(--text-2); line-height:1.45; }
+  .match button { align-self:flex-start; font-weight:600; font-size:11px; color:var(--bg-base); background:var(--accent); border-radius:6px; padding:4px 8px; }
+
+  .add-slot { height:32px; border-radius:9px; border:1px dashed var(--border-strong); color:var(--muted); font-size:16px; }
+  .add-slot:hover { color:var(--accent); border-color:var(--accent); }
+  .picker { display:flex; flex-direction:column; padding:4px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border-strong); }
+  .picker button { text-align:left; padding:7px 8px; border-radius:6px; font-size:12px; color:var(--text-2); }
+  .picker button:hover { background:var(--row-hover); color:var(--text); }
+
+  /* ---------- session detail (below the week) ---------- */
+  .detail { margin-top:20px; background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+  .detail-head { display:flex; justify-content:space-between; align-items:flex-start; gap:20px; padding:20px 22px; border-bottom:1px solid var(--divider-inner); }
+  .detail-head h2 { font-weight:600; font-size:20px; letter-spacing:-0.02em; margin-top:8px; }
+  .detail-head .sub { font-family:var(--mono); font-size:12px; color:var(--muted); margin-top:6px; }
+  .detail-actions { display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
+  .seg { display:flex; padding:4px; gap:4px; background:#131319; border:1px solid var(--border); border-radius:10px; }
+  .seg button { padding:7px 14px; border-radius:7px; font-size:13px; font-weight:500; color:var(--text-2); }
+  .seg button.on { background:var(--accent); color:var(--bg-base); font-weight:600; }
+  .ex-head, .ex-row { display:grid; grid-template-columns:1fr 110px 110px 56px 150px; align-items:center; gap:12px; padding:11px 22px; }
+  .ex-head { font-family:var(--mono); font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--rule); }
+  .ex-row { border-bottom:1px solid var(--divider-inner); font-size:14px; }
+  .ex-row:last-child { border-bottom:none; }
+  .ex-row:hover { background:var(--row-hover); }
+  .ex-row .v { font-family:var(--mono); font-size:13px; font-variant-numeric:tabular-nums; }
+  .ex-row .muscle { font-family:var(--mono); font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-2); }
+  .ex-row .acts { display:flex; justify-content:flex-end; gap:12px; }
+  .link-btn { font-size:12px; color:var(--muted); }
+  .link-btn:hover { color:var(--text-2); }
+  .link-btn.accent { color:var(--accent); }
+  .link-btn:disabled { opacity:0.4; cursor:not-allowed; }
+  .intensity { display:inline-flex; gap:2px; }
+  .intensity i { width:4px; height:10px; border-radius:1px; background:var(--rule); }
+  .intensity i.on { background:var(--text-2); }
+  .detail-empty { margin-top:20px; padding:22px; border:1px dashed var(--border-strong); border-radius:14px; text-align:center; font-size:13px; color:var(--muted); }
+
+  /* ---------- coach panel: permanent, the primary surface ---------- */
+  .coach { width:400px; flex:none; border-left:1px solid var(--divider); background:var(--bg-sidebar); display:flex; flex-direction:column; min-height:0; }
+  .coach-head { height:56px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 20px; border-bottom:1px solid var(--divider); }
+  .coach-head .title { display:flex; align-items:center; gap:9px; font-weight:600; font-size:15px; }
+  .coach-head .provider { font-family:var(--mono); font-size:10px; color:var(--muted); letter-spacing:0.08em; }
+  .coach-body { flex:1; overflow-y:auto; padding:18px 20px; display:flex; flex-direction:column; gap:14px; }
+  .coach-foot { flex:none; padding:14px 20px 18px; border-top:1px solid var(--divider); display:flex; flex-direction:column; gap:10px; }
+
+  .today-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:10px; }
+  .today-card .t-focus { font-weight:600; font-size:17px; letter-spacing:-0.01em; }
+  .today-card .t-meta { font-family:var(--mono); font-size:12px; color:var(--text-2); }
+  .today-card p { font-size:14px; color:var(--text-2); line-height:1.55; }
+
+  .msg { font-size:14px; line-height:1.55; max-width:92%; }
+  .msg.user { align-self:flex-end; background:var(--surface-2); border-radius:12px 12px 4px 12px; padding:10px 13px; }
+  .msg.coach { align-self:flex-start; color:var(--text); }
+  .msg.coach .who { font-family:var(--mono); font-size:10px; letter-spacing:0.14em; color:var(--muted); margin-bottom:4px; display:block; }
+  .thinking { font-family:var(--mono); font-size:12px; color:var(--muted); display:flex; align-items:center; gap:8px; }
+  .thinking .pulse { width:6px; height:6px; border-radius:50%; background:var(--accent); animation:pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity:0.25; } 50% { opacity:1; } }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { font-size:12px; color:var(--text-2); border:1px solid var(--border-strong); border-radius:20px; padding:5px 11px; }
+  .chip:hover { color:var(--text); background:var(--row-hover); }
+  .chip:disabled { opacity:0.4; cursor:not-allowed; }
+  .composer { display:flex; gap:8px; }
+  .composer input { flex:1; background:var(--surface-input); border:1px solid var(--border-strong); border-radius:8px; padding:9px 12px; color:var(--text); font:inherit; font-size:13px; }
+  .composer input:focus { outline:none; border-color:var(--accent); }
+  .composer input:disabled { opacity:0.4; }
+
+  .q { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:10px; }
+  .q-count { font-family:var(--mono); font-size:10px; letter-spacing:0.14em; color:var(--muted); }
+  .q-label { font-size:14px; }
+  .scale { display:flex; gap:6px; flex-wrap:wrap; }
+  .scale button { min-width:32px; padding:7px 0; border-radius:8px; border:1px solid var(--border-strong); font-family:var(--mono); font-size:13px; color:var(--text-2); }
+  .scale button.word { padding:7px 11px; }
+  .scale button:hover { border-color:var(--accent); color:var(--text); }
+  .skip { font-size:13px; color:var(--muted); align-self:flex-start; padding:2px 0; }
+  .skip:hover { color:var(--text-2); }
+
+  .setup { text-align:center; display:flex; flex-direction:column; align-items:center; gap:12px; padding:24px 8px; }
+  .setup .tile { width:44px; height:44px; border:1.5px solid var(--rule); border-radius:12px; display:flex; align-items:center; justify-content:center; }
+  .setup .tile span { width:14px; height:14px; border:1.5px solid var(--muted); border-radius:4px; }
+  .setup p { font-size:14px; color:var(--text-2); line-height:1.6; }
+
+  /* undo toast (UC-14) */
+  .toast { position:fixed; left:50%; bottom:28px; transform:translate(-50%, 20px); opacity:0; pointer-events:none; display:flex; align-items:center; gap:16px; padding:11px 14px 11px 18px; background:var(--surface-2); border:1px solid var(--border-strong); border-radius:10px; font-size:13px; transition:all 0.2s; z-index:20; }
+  .toast.show { opacity:1; transform:translate(-50%, 0); pointer-events:auto; }
+  .toast button { font-weight:600; color:var(--accent); }
+
+  /* design aid only — drop in production */
+  .preview-switch { position:fixed; left:16px; bottom:16px; display:flex; align-items:center; gap:8px; padding:6px 6px 6px 12px; background:var(--surface); border:1px solid var(--border-strong); border-radius:10px; z-index:30; }
+  .preview-switch .eyebrow { font-size:9px; }
+  .preview-switch .seg { padding:3px; }
+  .preview-switch .seg button { padding:5px 10px; font-size:12px; }
+
+  @media (max-width: 1280px) {
+    .sidebar { width:72px; padding:22px 8px; }
+    .sidebar .nav, .sidebar .privacy span:last-child { display:none; }
+    .wordmark { font-size:0; padding:8px 0 22px; text-align:center; }
+    .wordmark span { font-size:22px; }
+    .coach { width:340px; }
+  }
+  @media (max-width: 1000px) {
+    .body { flex-direction:column; overflow-y:auto; }
+    .board-scroll { overflow:visible; flex:none; }
+    .coach { width:auto; border-left:none; border-top:1px solid var(--divider); min-height:520px; }
+  }
+  @media (max-width: 760px) {
+    .sidebar { display:none; }
+    .board-scroll, .topbar { padding-left:16px; padding-right:16px; }
+    .week { grid-template-columns:1fr; }
+    .day { min-height:0; }
+    .ex-head { display:none; }
+    .ex-row { grid-template-columns:1fr auto; }
+    .ex-row .muscle, .ex-row .intensity { display:none; }
+    .week-nav .range, .week-meta { display:none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="wordmark">D<span>I</span>STRAVA</div>
+    <nav class="nav">
+      <a class="nav-item">Dashboard</a>
+      <a class="nav-item">Activities</a>
+      <div class="nav-item soon">Routes<span class="soon-pill">SOON</span></div>
+      <div class="nav-item soon">Strength<span class="soon-pill">SOON</span></div>
+      <div class="nav-rule"></div>
+      <a class="nav-item active">Coach</a>
+      <div class="nav-item soon">Insights<span class="soon-pill">SOON</span></div>
+      <div class="nav-rule"></div>
+      <a class="nav-item">Import</a>
+      <a class="nav-item">Settings</a>
+    </nav>
+    <div class="privacy"><span class="dot"></span><span>Local-only · nothing<br>leaves this machine</span></div>
+  </aside>
+
+  <main>
+    <header class="topbar">
+      <div style="display:flex; align-items:center; gap:20px;">
+        <h1>Coach</h1>
+        <div class="week-nav">
+          <button class="icon-btn" aria-label="Previous week">←</button>
+          <span class="range">Oct 19 – Oct 25, 2026</span>
+          <button class="icon-btn" aria-label="Next week">→</button>
+        </div>
+      </div>
+      <button class="btn-primary" id="plan-week">Plan next week</button>
+    </header>
+
+    <div class="body">
+      <div class="board-scroll">
+        <div class="week-head">
+          <div>
+            <div class="eyebrow">Week 43 · base phase</div>
+            <div class="week-title">Sub-25 5K · 3 run days, 3 gym</div>
+          </div>
+          <div class="week-meta">Drag a session to another day<br>Tap a session to see its exercises</div>
+        </div>
+
+        <div class="proposal-bar" id="proposal-bar">
+          <div class="why" id="proposal-why"></div>
+          <button class="btn-secondary" id="proposal-undo">Undo</button>
+          <button class="btn-primary" id="proposal-accept">Accept</button>
+        </div>
+
+        <div class="week" id="week"></div>
+        <div id="detail"></div>
+      </div>
+
+      <aside class="coach">
+        <div class="coach-head">
+          <div class="title"><span class="dot" id="coach-dot"></span><span id="coach-title">Coach</span></div>
+          <span class="provider" id="coach-provider">YOUR API KEY</span>
+        </div>
+        <div class="coach-body" id="coach-body"></div>
+        <div class="coach-foot" id="coach-foot"></div>
+      </aside>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"><span id="toast-text"></span><button id="toast-undo">Undo</button></div>
+
+<div class="preview-switch">
+  <span class="eyebrow">Preview state</span>
+  <div class="seg" id="ai-switch">
+    <button data-ai="on" class="on">Coach connected</button>
+    <button data-ai="off">No AI</button>
+  </div>
+</div>
+
+<script>
+// ---------------------------------------------------------------- sample data
+const KIND_LABEL = { run: "Run", ride: "Ride", gym: "Gym", mobility: "Mobility", rest: "Rest" };
+
+const ex = (name, vol, unit, muscle, intensity) => ({ name, vol, unit, muscle, intensity });
+
+// Session templates — what the "+" on a day offers. The real app builds these
+// from the catalog; the focus name is what shows on the week.
+const TEMPLATES = {
+  running_day: { kind: "run", focus: "Running day", meta: "8.0 km · easy", items: [ex("Easy run", "8.0", "km", "legs", 1)] },
+  chest_triceps: { kind: "gym", focus: "Chest & Triceps", items: [
+    ex("Bench press", "4 × 6", "", "chest", 3), ex("Incline dumbbell press", "3 × 10", "", "chest", 2),
+    ex("Dips", "3 × 8", "", "triceps", 2), ex("Triceps pushdown", "3 × 12", "", "triceps", 1)] },
+  back_biceps: { kind: "gym", focus: "Back & Biceps", items: [
+    ex("Pull-up", "4 × 5", "", "back", 3), ex("Barbell row", "4 × 8", "", "back", 2),
+    ex("Dumbbell curl", "3 × 10", "", "biceps", 1)] },
+  legs_glutes: { kind: "gym", focus: "Legs & Glutes", items: [
+    ex("Back squat", "4 × 6", "", "legs", 3), ex("Romanian deadlift", "3 × 8", "", "glutes", 2),
+    ex("Walking lunge", "3 × 10", "", "legs", 2), ex("Calf raise", "3 × 15", "", "legs", 1)] },
+  shoulders_abs: { kind: "gym", focus: "Shoulders & Abs", items: [
+    ex("Overhead press", "4 × 6", "", "shoulders", 3), ex("Lateral raise", "3 × 12", "", "shoulders", 1),
+    ex("Face pull", "3 × 15", "", "shoulders", 1), ex("Plank", "3 × 45", "s", "abs", 1),
+    ex("Hanging knee raise", "3 × 10", "", "abs", 2)] },
+  mobility: { kind: "mobility", focus: "Mobility & stretch", meta: "20:00", items: [
+    ex("Hip mobility flow", "10:00", "", "hips", 1), ex("Full-body stretch", "10:00", "", "full body", 1)] },
+  rest: { kind: "rest", focus: "Rest", items: [] },
+};
+
+const DAYS = [
+  { dow: "MON", num: 19 }, { dow: "TUE", num: 20 }, { dow: "WED", num: 21 },
+  { dow: "THU", num: 22 }, { dow: "FRI", num: 23 }, { dow: "SAT", num: 24 }, { dow: "SUN", num: 25 },
+];
+const TODAY = 2;
+
+let nextId = 100;
+function session(day, template, overrides = {}) {
+  const t = TEMPLATES[template];
+  return { id: nextId++, day, kind: t.kind, focus: t.focus, meta: t.meta || null, status: "planned",
+    items: t.items.map((i) => ({ ...i })), ...overrides };
+}
+
+let sessions = [
+  session(0, "running_day", { meta: "40:00 · easy", status: "done", items: [ex("Easy run", "40:00", "", "legs", 1)] }),
+  session(1, "legs_glutes", { status: "partial" }),
+  session(2, "running_day", { meta: "6.0 km · tempo", match: "Run · 6.04 km · 31:12 · 07:06",
+    items: [ex("Warm-up", "1.5", "km", "legs", 1), ex("Tempo", "3.0", "km", "legs", 3), ex("Cool-down", "1.5", "km", "legs", 1)] }),
+  session(3, "chest_triceps"),
+  session(4, "rest"),
+  session(5, "running_day", { meta: "16.0 km · long", items: [ex("Long run", "16.0", "km", "legs", 2)] }),
+  session(6, "shoulders_abs"),
+  session(6, "mobility"),
+];
+
+// ---------------------------------------------------------------- state
+let state = {
+  ai: true,
+  selected: null,
+  pickerDay: null,
+  proposal: null,
+  checkin: null,
+  thread: [],
+  thinking: false,
+};
+let undoStack = null;
+
+const $ = (sel) => document.querySelector(sel);
+const snapshot = () => JSON.stringify(sessions);
+const dayName = (i) => DAYS[i].dow[0] + DAYS[i].dow.slice(1).toLowerCase();
+
+function metaFor(s) {
+  if (s.meta) return s.meta;
+  const sets = s.items.filter((i) => i.vol.includes("×")).length;
+  return `${s.items.length} exercises${sets ? ` · ~${s.items.length * 12} min` : ""}`;
+}
+
+// ---------------------------------------------------------------- week
+function statusChip(s) {
+  const label = { planned: "Planned", done: "✓ Done", partial: "◐ Partial", skipped: "Skipped", moved: "Moved" }[s.status];
+  return `<span class="status st-${s.status}">${label}</span>`;
+}
+
+function sessionHtml(s) {
+  if (s.kind === "rest" && !s.ghost) {
+    return `<div class="session rest" data-id="${s.id}"><span class="rest-mark"></span><span class="focus">Rest</span></div>`;
+  }
+  const ghost = s.ghost === "add" ? "ghost-add" : s.ghost === "remove" ? "ghost-remove" : "";
+  const sel = state.selected === s.id ? "selected" : "";
+  const ghostLabel = s.ghost === "add" ? `<span class="ghost-label">PROPOSED</span>`
+    : s.ghost === "remove" ? `<span class="ghost-label" style="color:var(--muted)">REPLACED</span>` : "";
+  const match = s.match && s.status === "planned" && !s.ghost
+    ? `<div class="match"><span class="m-line">Import matches<br>${s.match}</span><button data-confirm="${s.id}">Confirm</button></div>` : "";
+  return `<div class="session ${ghost} ${sel}" role="button" tabindex="0" draggable="${s.ghost ? "false" : "true"}" data-id="${s.id}">
+      ${ghostLabel}
+      <span class="kind kind-${s.kind}"><i></i>${KIND_LABEL[s.kind]}</span>
+      <span class="focus">${s.focus}</span>
+      ${s.kind === "rest" ? "" : `<span class="meta">${metaFor(s)}</span>`}
+      ${match}
+      ${s.ghost || s.kind === "rest" ? "" : `<span class="foot">${statusChip(s)}</span>`}
+    </div>`;
+}
+
+function pickerHtml(day) {
+  return `<div class="picker">${Object.entries(TEMPLATES)
+    .map(([key, t]) => `<button data-pick="${key}" data-day="${day}">${t.focus}</button>`).join("")}</div>`;
+}
+
+function renderWeek() {
+  $("#week").innerHTML = DAYS.map((d, i) => {
+    const daySessions = sessions.filter((s) => s.day === i);
+    const cls = i < TODAY ? "past" : i === TODAY ? "today" : "";
+    return `<section class="day ${cls}" data-day="${i}">
+      <div class="day-head"><span class="dow">${d.dow}</span>${i === TODAY ? `<span class="today-tag">TODAY</span>` : ""}<span class="num">${d.num}</span></div>
+      <div class="sessions">${daySessions.map(sessionHtml).join("")}</div>
+      ${state.pickerDay === i ? pickerHtml(i) : `<button class="add-slot" data-add="${i}" aria-label="Add session">+</button>`}
+    </section>`;
+  }).join("");
+
+  $("#proposal-bar").classList.toggle("show", !!state.proposal);
+  if (state.proposal) $("#proposal-why").innerHTML = `<b>WHY</b>${state.proposal.why}`;
+}
+
+function intensityBars(level) {
+  return `<span class="intensity" title="intensity">${[1, 2, 3].map((i) => `<i class="${i <= level ? "on" : ""}"></i>`).join("")}</span>`;
+}
+
+function renderDetail() {
+  const s = sessions.find((x) => x.id === state.selected);
+  if (!s) {
+    $("#detail").innerHTML = `<div class="detail-empty">Tap a session to see its exercises</div>`;
+    return;
+  }
+  const statuses = ["done", "partial", "skipped"];
+  $("#detail").innerHTML = `<div class="detail">
+      <div class="detail-head">
+        <div>
+          <span class="kind kind-${s.kind}"><i></i>${KIND_LABEL[s.kind]} · ${DAYS[s.day].dow} ${DAYS[s.day].num}</span>
+          <h2>${s.focus}</h2>
+          <div class="sub">${metaFor(s)}</div>
+        </div>
+        <div class="detail-actions">
+          <div class="seg">${statuses.map((st) => `<button data-status="${st}" class="${s.status === st ? "on" : ""}">${st === "skipped" ? "Skip" : st[0].toUpperCase() + st.slice(1)}</button>`).join("")}</div>
+          <button class="link-btn" data-remove="${s.id}">Remove session</button>
+        </div>
+      </div>
+      <div class="ex-head"><span>Exercise</span><span>Volume</span><span>Muscle</span><span>Load</span><span></span></div>
+      ${s.items.map((it, idx) => `<div class="ex-row">
+          <span>${it.name}</span>
+          <span class="v">${it.vol}${it.unit ? ` ${it.unit}` : ""}</span>
+          <span class="muscle">${it.muscle}</span>
+          ${intensityBars(it.intensity)}
+          <span class="acts"><button class="link-btn accent" data-ask="${idx}" ${state.ai ? "" : "disabled"}>Ask coach</button><button class="link-btn" data-drop-item="${idx}">Remove</button></span>
+        </div>`).join("")}
+    </div>`;
+}
+
+// ---------------------------------------------------------------- coach panel
+function todayCard() {
+  const today = sessions.filter((s) => s.day === TODAY && !s.ghost);
+  if (!today.length) return "";
+  const s = today[0];
+  const yesterday = sessions.find((x) => x.day === TODAY - 1 && !x.ghost);
+  const note = s.kind === "rest" ? "Nothing scheduled. Rest is part of the plan."
+    : yesterday && yesterday.kind === "gym"
+      ? `Your legs worked yesterday (${yesterday.focus}). Keep the tempo controlled — it should feel comfortably hard, not all-out.`
+      : "On plan. Tap the session to see the structure.";
+  return `<div class="today-card">
+      <span class="eyebrow">Today · ${dayName(TODAY)} ${DAYS[TODAY].num}</span>
+      <span class="t-focus">${s.focus}</span>
+      ${s.kind === "rest" ? "" : `<span class="t-meta">${metaFor(s)}</span>`}
+      <p>${note}</p>
+    </div>`;
+}
+
+// UC-11: at most three questions, every one skippable — runs in code, so it
+// also works with no AI connected
+const QUESTIONS = [
+  { label: "Energy today?", options: ["1", "2", "3", "4", "5"] },
+  { label: "How hard did it feel? (RPE)", options: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"] },
+  { label: "Any pain?", options: ["None", "Knee", "Ankle", "Hip", "Shoulder", "Back"] },
+];
+
+function checkinHtml() {
+  const { sessionId, step } = state.checkin;
+  const s = sessions.find((x) => x.id === sessionId);
+  if (step >= QUESTIONS.length) {
+    return `<div class="q"><span class="q-count">CHECK-IN · ${s.focus.toUpperCase()}</span>
+      <span class="q-label">Logged to your trainer notes. Nothing else to do.</span>
+      <button class="skip" id="finish-checkin">Close</button></div>`;
+  }
+  const q = QUESTIONS[step];
+  return `<div class="q">
+      <span class="q-count">CHECK-IN · ${s.focus.toUpperCase()} · ${step + 1} / ${QUESTIONS.length}</span>
+      <span class="q-label">${q.label}</span>
+      <div class="scale">${q.options.map((o) => `<button data-answer="${o}" class="${o.length > 2 ? "word" : ""}">${o}</button>`).join("")}</div>
+      <button class="skip" data-answer="">Skip</button>
+    </div>`;
+}
+
+function renderCoach() {
+  $("#coach-dot").style.background = state.ai ? "" : "var(--faint)";
+  $("#coach-dot").style.boxShadow = state.ai ? "" : "none";
+  $("#coach-provider").textContent = state.ai ? "YOUR API KEY" : "NOT CONNECTED";
+
+  const checkin = state.checkin ? checkinHtml() : "";
+  if (!state.ai) {
+    $("#coach-body").innerHTML = checkin + `<div class="setup"><div class="tile"><span></span></div>
+      <div style="font-weight:600; font-size:16px;">Coach not connected</div>
+      <p>Add your own API key or connect your agent in Settings. The week, sessions and check-ins all work without it.</p>
+      <button class="btn-secondary">Open settings</button></div>`;
+    $("#coach-foot").innerHTML = "";
+    return;
+  }
+
+  const thread = state.thread.map((m) => m.who === "user"
+    ? `<div class="msg user">${m.text}</div>`
+    : `<div class="msg coach"><span class="who">COACH</span>${m.text}</div>`).join("");
+  const thinking = state.thinking ? `<div class="thinking"><span class="pulse"></span>Coach is thinking…</div>` : "";
+  $("#coach-body").innerHTML = todayCard() + thread + checkin + thinking;
+
+  const busy = state.thinking || !!state.proposal;
+  $("#coach-foot").innerHTML = `
+    <div class="chips">
+      <button class="chip" data-say="knee" ${busy ? "disabled" : ""}>Knee hurts</button>
+      <button class="chip" data-say="barbell" ${busy ? "disabled" : ""}>No barbell today</button>
+      <button class="chip" data-say="rest" ${busy ? "disabled" : ""}>I need rest</button>
+      <button class="chip" data-say="swap" ${busy ? "disabled" : ""}>Swap Thu and Sun</button>
+    </div>
+    <form class="composer" id="composer"><input placeholder="Talk to your coach…" ${busy ? "disabled" : ""}><button class="btn-primary" ${busy ? "disabled" : ""}>Send</button></form>`;
+  const body = $("#coach-body");
+  body.scrollTop = body.scrollHeight;
+}
+
+// ---------------------------------------------------------------- coach proposals (sample)
+const PROPOSALS = {
+  knee: {
+    ask: "My knee hurts, I don't want to run today",
+    reply: "Today's tempo becomes an easy ride — aerobic work without impact. I also shortened Saturday so the long run doesn't try to make up for today.",
+    why: "Knee pain → no impact today. Tempo becomes an easy ride; Saturday's long run drops from 16.0 to 12.0 km.",
+    apply: () => {
+      const tempo = sessions.find((s) => s.day === TODAY && s.kind === "run");
+      const longRun = sessions.find((s) => s.day === 5 && s.kind === "run");
+      if (!tempo || !longRun) return [];
+      return [
+        { removeId: tempo.id, add: session(TODAY, "running_day", { kind: "ride", focus: "Easy ride", meta: "45:00 · easy", ghost: "add", items: [ex("Easy ride", "45:00", "", "legs", 1)] }) },
+        { removeId: longRun.id, add: session(5, "running_day", { focus: "Running day", meta: "12.0 km · long", ghost: "add", items: [ex("Long run", "12.0", "km", "legs", 2)] }) },
+      ];
+    },
+  },
+  barbell: {
+    ask: "No barbell this week",
+    reply: "Chest & Triceps keeps its muscle groups with dumbbells and bodyweight.",
+    why: "No barbell → bench press becomes dumbbell press. Same session, same muscle groups.",
+    apply: () => {
+      const chest = sessions.find((s) => s.focus === "Chest & Triceps" && s.items.some((i) => i.name === "Bench press"));
+      if (!chest) return [];
+      const items = chest.items.map((i) => (i.name === "Bench press" ? ex("Dumbbell bench press", "4 × 8", "", "chest", 3) : { ...i }));
+      return [{ removeId: chest.id, add: { ...chest, id: nextId++, items, ghost: "add" } }];
+    },
+  },
+  rest: {
+    ask: "I need rest today",
+    reply: "Today becomes rest and the tempo moves to Friday. Thursday is upper body, so your legs still get a day between hard sessions.",
+    why: "Rest today → tempo moves to Friday; Friday's rest moves to today.",
+    apply: () => {
+      const tempo = sessions.find((s) => s.day === TODAY && s.kind === "run");
+      const fridayRest = sessions.find((s) => s.day === 4 && s.kind === "rest");
+      if (!tempo || !fridayRest) return [];
+      return [
+        { removeId: tempo.id, add: { ...tempo, id: nextId++, day: 4, ghost: "add", match: undefined } },
+        { removeId: fridayRest.id, add: session(TODAY, "rest", { ghost: "add" }) },
+      ];
+    },
+  },
+  swap: {
+    ask: "Swap Thursday and Sunday",
+    reply: "Done as a preview — Chest & Triceps moves to Sunday, Shoulders & Abs to Thursday. Shoulders get two days before chest work, which is fine.",
+    why: "Swap Thu ↔ Sun gym sessions. No muscle group is trained hard on consecutive days.",
+    apply: () => {
+      const thu = sessions.find((s) => s.day === 3 && s.kind === "gym");
+      const sun = sessions.find((s) => s.day === 6 && s.kind === "gym");
+      if (!thu || !sun) return [];
+      return [
+        { removeId: thu.id, add: { ...thu, id: nextId++, day: 6, ghost: "add" } },
+        { removeId: sun.id, add: { ...sun, id: nextId++, day: 3, ghost: "add" } },
+      ];
+    },
+  },
+};
+
+function ask(key) {
+  const p = PROPOSALS[key];
+  state.thread.push({ who: "user", text: p.ask });
+  state.thinking = true;
+  render();
+  setTimeout(() => {
+    state.thinking = false;
+    const before = snapshot();
+    const changes = p.apply();
+    if (!changes.length) {
+      state.thread.push({ who: "coach", text: "Your week already covers that — nothing to change." });
+      return render();
+    }
+    state.thread.push({ who: "coach", text: p.reply });
+    changes.forEach((ch) => {
+      const old = sessions.find((s) => s.id === ch.removeId);
+      if (old) old.ghost = "remove";
+      if (ch.add) sessions.push(ch.add);
+    });
+    state.selected = null;
+    state.proposal = { why: p.why, before };
+    render();
+  }, 1100);
+}
+
+function acceptProposal() {
+  const before = state.proposal.before;
+  sessions = sessions.filter((s) => s.ghost !== "remove").map((s) => { delete s.ghost; return s; });
+  state.proposal = null;
+  state.thread.push({ who: "coach", text: "Applied. Undo is one tap if you change your mind." });
+  showToast("Coach change applied", before);
+  render();
+}
+
+function rejectProposal() {
+  sessions = JSON.parse(state.proposal.before);
+  state.proposal = null;
+  state.thread.push({ who: "coach", text: "Kept your week as it was." });
+  render();
+}
+
+// ---------------------------------------------------------------- undo toast (restores exact prior state)
+let toastTimer = null;
+function showToast(text, before) {
+  undoStack = before;
+  $("#toast-text").textContent = text;
+  $("#toast").classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $("#toast").classList.remove("show"), 6000);
+}
+
+$("#toast-undo").addEventListener("click", () => {
+  if (undoStack) sessions = JSON.parse(undoStack);
+  undoStack = null;
+  if (!sessions.some((s) => s.id === state.selected)) state.selected = null;
+  $("#toast").classList.remove("show");
+  render();
+});
+
+// ---------------------------------------------------------------- events
+function setStatus(id, status) {
+  const s = sessions.find((x) => x.id === id);
+  const before = snapshot();
+  s.status = status;
+  delete s.match;
+  if (status === "done" || status === "partial") state.checkin = { sessionId: id, step: 0 };
+  showToast(`${s.focus} marked ${status}`, before);
+  render();
+}
+
+function selectSession(el) {
+  const s = sessions.find((x) => x.id === Number(el.dataset.id));
+  if (!s || s.ghost || s.kind === "rest") return;
+  state.selected = state.selected === s.id ? null : s.id;
+  render();
+}
+
+document.addEventListener("keydown", (e) => {
+  const el = e.target.closest && e.target.closest(".session[data-id]");
+  if (el && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); selectSession(el); }
+});
+
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("button");
+  if (!t) {
+    const el = e.target.closest(".session[data-id]");
+    if (el) selectSession(el);
+    return;
+  }
+
+  if (t.dataset.confirm) return setStatus(Number(t.dataset.confirm), "done");
+  if (t.dataset.add !== undefined) { state.pickerDay = Number(t.dataset.add); return render(); }
+  if (t.dataset.pick) {
+    const before = snapshot();
+    const s = session(Number(t.dataset.day), t.dataset.pick);
+    sessions.push(s);
+    state.pickerDay = null;
+    showToast(`${s.focus} added to ${dayName(s.day)}`, before);
+    return render();
+  }
+  if (t.dataset.status) return setStatus(state.selected, t.dataset.status);
+  if (t.dataset.remove) {
+    const before = snapshot();
+    const s = sessions.find((x) => x.id === Number(t.dataset.remove));
+    sessions = sessions.filter((x) => x.id !== s.id);
+    state.selected = null;
+    showToast(`${s.focus} removed`, before);
+    return render();
+  }
+  if (t.dataset.dropItem !== undefined) {
+    const before = snapshot();
+    const s = sessions.find((x) => x.id === state.selected);
+    const [item] = s.items.splice(Number(t.dataset.dropItem), 1);
+    showToast(`${item.name} removed from ${s.focus}`, before);
+    return render();
+  }
+  if (t.dataset.ask !== undefined) {
+    const s = sessions.find((x) => x.id === state.selected);
+    const item = s.items[Number(t.dataset.ask)];
+    state.thread.push({ who: "user", text: `How do I do ${item.name.toLowerCase()} well?` });
+    state.thinking = true;
+    render();
+    setTimeout(() => {
+      state.thinking = false;
+      state.thread.push({ who: "coach", text: `${item.name} works your ${item.muscle}. Brace before each rep, control the lowering phase, and end the set when form slips rather than grinding it out.` });
+      render();
+    }, 900);
+    return;
+  }
+  if (t.dataset.say) return ask(t.dataset.say);
+  if (t.dataset.answer !== undefined) { state.checkin.step += 1; return render(); }
+  if (t.id === "finish-checkin") { state.checkin = null; return render(); }
+  if (t.id === "plan-week") {
+    if (!state.ai) return;
+    state.thread.push({ who: "coach", text: "Next week: same three gym splits, the long run steps up to 17.0 km, and the tempo stays at 6.0 km. Want me to lay it out as a preview?" });
+    return render();
+  }
+  if (t.id === "proposal-accept") return acceptProposal();
+  if (t.id === "proposal-undo") return rejectProposal();
+  if (t.dataset.ai) {
+    state.ai = t.dataset.ai === "on";
+    document.querySelectorAll("#ai-switch button").forEach((b) => b.classList.toggle("on", b === t));
+    if (!state.ai && state.proposal) rejectProposal();
+    $("#plan-week").disabled = !state.ai;
+    return render();
+  }
+});
+
+document.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const input = e.target.querySelector("input");
+  const text = input.value.trim();
+  if (!text) return;
+  state.thread.push({ who: "user", text });
+  state.thinking = true;
+  render();
+  setTimeout(() => {
+    state.thinking = false;
+    state.thread.push({ who: "coach", text: "In the real app this goes to your provider with the week as compact ids. Try one of the suggestions to see a proposal on the week." });
+    render();
+  }, 900);
+});
+
+// drag to move (UC-05) — manual edits always win
+let dragId = null;
+document.addEventListener("dragstart", (e) => {
+  const el = e.target.closest && e.target.closest(".session[data-id]");
+  if (!el || state.proposal) return e.preventDefault();
+  dragId = Number(el.dataset.id);
+  el.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+});
+document.addEventListener("dragend", (e) => {
+  const el = e.target.closest && e.target.closest(".session");
+  if (el) el.classList.remove("dragging");
+  document.querySelectorAll(".drop-target").forEach((d) => d.classList.remove("drop-target"));
+});
+document.addEventListener("dragover", (e) => {
+  const day = e.target.closest && e.target.closest(".day");
+  if (!day || dragId === null) return;
+  e.preventDefault();
+  document.querySelectorAll(".drop-target").forEach((d) => d !== day && d.classList.remove("drop-target"));
+  day.classList.add("drop-target");
+});
+document.addEventListener("drop", (e) => {
+  const day = e.target.closest && e.target.closest(".day");
+  if (!day || dragId === null) return;
+  e.preventDefault();
+  const s = sessions.find((x) => x.id === dragId);
+  const to = Number(day.dataset.day);
+  if (s.day !== to) {
+    const before = snapshot();
+    s.day = to;
+    showToast(`${s.focus} moved to ${dayName(to)}`, before);
+  }
+  dragId = null;
+  render();
+});
+
+function render() { renderWeek(); renderDetail(); renderCoach(); }
+render();
+</script>
+</body>
+</html>
