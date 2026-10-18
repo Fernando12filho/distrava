@@ -33,6 +33,17 @@ def _apply_schema_upgrades(engine):
                 conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"))
 
 
+COACH_TABLE_PREFIX = "coach_"
+
+
+# The "down" migration for the coach feature. Reversed sorted_tables drops
+# children before parents, and the prefix filter guarantees no pre-coach table
+# (or its rows) can be touched.
+def drop_coach_tables(engine):
+    coach_tables = [t for t in Base.metadata.sorted_tables if t.name.startswith(COACH_TABLE_PREFIX)]
+    Base.metadata.drop_all(engine, tables=list(reversed(coach_tables)))
+
+
 # Deliberately minimal .env support instead of a python-dotenv dependency:
 # real shell environment always wins over the file.
 def load_env_file(path):
@@ -70,6 +81,14 @@ def create_app(config=None):
     _apply_schema_upgrades(engine)
     app.engine = engine
     app.session_factory = sessionmaker(bind=engine)
+
+    from app.coach.catalog import seed_catalog
+
+    seed_session = app.session_factory()
+    try:
+        seed_catalog(seed_session)
+    finally:
+        seed_session.close()
 
     app.jinja_env.filters["format_duration"] = analytics.format_duration
     app.jinja_env.filters["format_pace"] = analytics.format_pace
