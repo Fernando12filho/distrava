@@ -96,7 +96,8 @@ def test_selecting_a_session_lists_its_exercises(client, db_session):
 
     for name in ["Bench press", "Incline dumbbell press", "Dips", "Triceps pushdown"]:
         assert name in html
-    assert "4 × 6" in html
+    assert re.search(r'name="sets"[^>]*value="4"', html)
+    assert re.search(r'name="reps"[^>]*value="6"', html)
 
 
 def test_selecting_a_session_from_another_week_is_ignored(client, db_session):

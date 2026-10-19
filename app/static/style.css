@@ -2158,7 +2158,7 @@ a.recent-row:hover {
 .exercise-header-row,
 .exercise-row {
   display: grid;
-  grid-template-columns: 1fr 110px 110px 56px 80px;
+  grid-template-columns: 1fr 210px 100px 56px 70px;
   align-items: center;
   gap: 12px;
   padding: 11px 22px;
@@ -2190,6 +2190,52 @@ a.recent-row:hover {
   font-family: var(--font-mono);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
+}
+
+.volume-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.volume-input {
+  width: 46px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  -moz-appearance: textfield;
+}
+
+.volume-input::-webkit-outer-spin-button,
+.volume-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.volume-input.wide {
+  width: 58px;
+}
+
+.volume-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.volume-sep,
+.volume-unit {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.volume-save {
+  margin-left: 4px;
 }
 
 .exercise-muscle {

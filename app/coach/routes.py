@@ -3,7 +3,8 @@ from datetime import date, datetime, timedelta
 from flask import Blueprint, abort, redirect, render_template, request, url_for
 from sqlalchemy import func
 
-from app.coach import board
+from app import analytics
+from app.coach import board, volume
 from app.coach.catalog import INTENSITIES, SESSION_TEMPLATES
 from app.coach.matcher import SESSION_ACTIVITY_TYPES, match_sessions
 from app.coach.week import DAYS_PER_WEEK, week_start_for
@@ -56,6 +57,8 @@ def _session_view(session, units):
     ]
     for item in items:
         item["volume"] = board.item_volume(item, units)
+        item["shape"] = volume.item_shape(item)
+        item["form"] = volume.form_values(item, units)
     return {
         "id": session.id,
         "date": session.week.week_start + timedelta(days=session.day_index),
@@ -192,6 +195,7 @@ def board_page():
         today_sessions=today_sessions,
         provider_connected=False,
         user_statuses=USER_STATUSES,
+        distance_unit=analytics.convert_distance(0.0, units)[1],
     )
 
 
@@ -297,6 +301,31 @@ def delete_session(session_id):
     db.delete(session)
     db.commit()
     return redirect(_board_url(week_start), code=303)
+
+
+@bp.route("/items/<int:item_id>/volume", methods=["POST"])
+def edit_volume(item_id):
+    db = get_db()
+    item = db.get(CoachSessionItem, item_id)
+    if item is None:
+        abort(404)
+    units = _get_units(db.query(UserSettings).first())
+    shape = volume.item_shape(
+        {
+            "sets": item.sets,
+            "reps": item.reps,
+            "duration_seconds": item.duration_seconds,
+            "distance_meters": item.distance_meters,
+        }
+    )
+    try:
+        updates = volume.parse_volume(shape, request.form, units)
+    except ValueError:
+        abort(400)
+    for field, value in updates.items():
+        setattr(item, field, value)
+    db.commit()
+    return redirect(_board_url(item.session.week.week_start, item.session_id), code=303)
 
 
 @bp.route("/items/<int:item_id>/delete", methods=["POST"])
