@@ -54,7 +54,7 @@ def index():
 
 def _detail_page_title(activity):
     label = analytics.categorize_activity_type(activity.activity_type)["label"]
-    return f"{label} · {activity.start_time.strftime('%b %d, %Y')}"
+    return f"{label} · {activity.local_start_time.strftime('%b %d, %Y')}"
 
 
 def _get_units(settings):
@@ -74,7 +74,7 @@ def _activity_row(activity, units="metric"):
     pace_value, _pace_unit = analytics.convert_pace(pace_seconds, units) if pace_seconds is not None else (None, None)
     return {
         "id": activity.id,
-        "date": activity.start_time.strftime("%b %d"),
+        "date": activity.local_start_time.strftime("%b %d"),
         "type": cat["label"],
         "dot": cat["dot"],
         "dist": f"{dist_value:.1f} {dist_unit}" if dist_value is not None else "—",
@@ -365,7 +365,7 @@ def import_file():
         if suffix == ".zip":
             result = parser.import_apple_health_zip(tmp_path, db)
         elif suffix == ".gpx":
-            result = parser.import_gpx(tmp_path, db)
+            result = parser.import_gpx(tmp_path, db, tz=current_app.config.get("LOCAL_TIMEZONE"))
         else:
             result = parser.import_csv(tmp_path, db)
     finally:
@@ -470,8 +470,8 @@ def dashboard():
     last_week_start = today - timedelta(days=13)
     last_week_end = today - timedelta(days=7)
 
-    this_week = [a for a in activities if this_week_start <= a.start_time.date() <= today]
-    last_week = [a for a in activities if last_week_start <= a.start_time.date() <= last_week_end]
+    this_week = [a for a in activities if this_week_start <= a.local_start_time.date() <= today]
+    last_week = [a for a in activities if last_week_start <= a.local_start_time.date() <= last_week_end]
 
     this_week_distance = sum(a.distance_meters for a in this_week)
     last_week_distance = sum(a.distance_meters for a in last_week)
@@ -486,7 +486,7 @@ def dashboard():
     for a in activities:
         if a.avg_hr is None:
             continue
-        day = a.start_time.date()
+        day = a.local_start_time.date()
         load = analytics.trimp(a.duration_seconds / 60, a.avg_hr, resting_hr, max_hr)
         daily_totals[day] = daily_totals.get(day, 0.0) + load
 
@@ -510,7 +510,7 @@ def dashboard():
     for weeks_back in range(WEEKLY_VOLUME_WEEKS - 1, -1, -1):
         week_end = today - timedelta(days=7 * weeks_back)
         week_start = week_end - timedelta(days=6)
-        total_meters = sum(a.distance_meters for a in activities if week_start <= a.start_time.date() <= week_end)
+        total_meters = sum(a.distance_meters for a in activities if week_start <= a.local_start_time.date() <= week_end)
         total_value, _unit = analytics.convert_distance(total_meters, units)
         weekly_volume.append(round(total_value, 1))
 
@@ -538,7 +538,7 @@ def dashboard():
             {
                 "label": "Fastest 5K",
                 "value": analytics.format_duration(five_k.duration_seconds),
-                "date": five_k.achieved_at.strftime("%b %d, %Y"),
+                "date": five_k.activity.local_start_time.strftime("%b %d, %Y"),
             }
         )
     if one_k:
@@ -546,7 +546,7 @@ def dashboard():
             {
                 "label": "Best 1K",
                 "value": analytics.format_duration(one_k.duration_seconds),
-                "date": one_k.achieved_at.strftime("%b %d, %Y"),
+                "date": one_k.activity.local_start_time.strftime("%b %d, %Y"),
             }
         )
     if longest_run:
@@ -555,7 +555,7 @@ def dashboard():
             {
                 "label": "Longest run",
                 "value": f"{longest_value:.1f} {longest_unit}",
-                "date": longest_run.start_time.strftime("%b %d, %Y"),
+                "date": longest_run.local_start_time.strftime("%b %d, %Y"),
             }
         )
     recent_prs.append({"label": "Highest weekly load", "value": f"{best_week_load:.0f}", "date": best_week_label})

@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 from flask import Flask, g
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect, select, text
 from sqlalchemy.orm import sessionmaker
 
 from app import analytics
@@ -12,13 +12,14 @@ from app.models import Base
 # alters an existing table. data/fitness.db predates these columns, so on an
 # existing table we add whatever's missing by hand instead of wiping the file.
 _SCHEMA_UPGRADES = {
-    "activities": ["source_device"],
+    "activities": ["source_device", "utc_offset_minutes"],
     "user_settings": ["weight_kg", "units"],
     "coach_sessions": ["matched_activity_id"],
 }
 
 
 def _apply_schema_upgrades(engine):
+    added = set()
     inspector = inspect(engine)
     existing_tables = set(inspector.get_table_names())
     with engine.begin() as conn:
@@ -32,6 +33,28 @@ def _apply_schema_upgrades(engine):
                 column = Base.metadata.tables[table_name].columns[column_name]
                 column_type = column.type.compile(engine.dialect)
                 conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"))
+                added.add((table_name, column_name))
+    return added
+
+
+# Activities imported before offsets were recorded only know their UTC start.
+# Runs once, when the column is first added: Apple Health and GPX rows get the
+# offset of the given timezone (the computer's own when tz is None) at that
+# instant; CSV rows were stored as local time, so theirs is 0. Re-importing an
+# Apple Health export later replaces these estimates with the exact offsets.
+def _backfill_activity_offsets(engine, tz):
+    activities = Base.metadata.tables["activities"]
+    with engine.begin() as conn:
+        rows = conn.execute(
+            select(activities.c.id, activities.c.source, activities.c.start_time).where(
+                activities.c.utc_offset_minutes.is_(None)
+            )
+        ).fetchall()
+        for activity_id, source, start_time in rows:
+            offset = 0 if source == "csv" else analytics.local_offset_minutes(start_time, tz)
+            conn.execute(
+                activities.update().where(activities.c.id == activity_id).values(utc_offset_minutes=offset)
+            )
 
 
 # The first coach model put exercises straight on the day ("cards"); it was
@@ -97,7 +120,9 @@ def create_app(config=None):
 
     _retire_card_era_coach_tables(engine)
     Base.metadata.create_all(engine)
-    _apply_schema_upgrades(engine)
+    added_columns = _apply_schema_upgrades(engine)
+    if ("activities", "utc_offset_minutes") in added_columns:
+        _backfill_activity_offsets(engine, app.config.get("LOCAL_TIMEZONE"))
     app.engine = engine
     app.session_factory = sessionmaker(bind=engine)
 

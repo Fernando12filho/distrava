@@ -76,6 +76,10 @@ def _parse_apple_date(raw):
     return datetime.strptime(raw, APPLE_DATE_FMT).astimezone(timezone.utc).replace(tzinfo=None)
 
 
+def _apple_offset_minutes(raw):
+    return int(datetime.strptime(raw, APPLE_DATE_FMT).utcoffset().total_seconds() // 60)
+
+
 def _drop_overlapping_duplicates(windows):
     kept = []
     for w in windows:
@@ -127,6 +131,7 @@ def _collect_workout_windows(xml_bytes):
                     "activity_type": _normalize_activity_type(elem.get("workoutActivityType")),
                     "start_time": _parse_apple_date(elem.get("startDate")),
                     "end_time": _parse_apple_date(elem.get("endDate")),
+                    "utc_offset_minutes": _apple_offset_minutes(elem.get("startDate")),
                     "duration_seconds": _to_seconds(elem.get("duration"), elem.get("durationUnit")),
                     "distance_meters": distance_meters,
                     "source_device": elem.get("sourceName"),
@@ -240,10 +245,17 @@ def _persist_activity(
     source_id,
     stream_data=None,
     source_device=None,
+    utc_offset_minutes=None,
+    exact_offset=False,
 ):
     dedup_key = _make_dedup_key(activity_type, start_time, duration_seconds)
     existing = db_session.query(Activity).filter_by(dedup_key=dedup_key).first()
     if existing:
+        # Re-importing an Apple Health export is how rows imported before
+        # offsets existed get the exact one; estimated offsets never overwrite.
+        if exact_offset and existing.utc_offset_minutes != utc_offset_minutes:
+            existing.utc_offset_minutes = utc_offset_minutes
+            db_session.commit()
         return False
 
     activity = Activity(
@@ -259,6 +271,7 @@ def _persist_activity(
         source=source,
         source_id=source_id,
         dedup_key=dedup_key,
+        utc_offset_minutes=utc_offset_minutes,
     )
     db_session.add(activity)
     db_session.flush()
@@ -398,6 +411,8 @@ def import_apple_health_zip(zip_path, db_session):
             source_id=None,
             source_device=w.get("source_device"),
             stream_data=stream,
+            utc_offset_minutes=w["utc_offset_minutes"],
+            exact_offset=True,
         )
         if created:
             imported += 1
@@ -439,7 +454,7 @@ def _parse_route_gpx(gpx_bytes, window_start_utc):
     return points
 
 
-def import_gpx(file_path, db_session):
+def import_gpx(file_path, db_session, tz=None):
     tree = ET.parse(str(file_path))
     root = tree.getroot()
     trkpts = root.findall(".//gpx:trkpt", GPX_NS)
@@ -505,6 +520,9 @@ def import_gpx(file_path, db_session):
         source="gpx",
         source_id=None,
         stream_data=stream_data,
+        # GPX timestamps are UTC with no zone of their own; the importing
+        # computer's timezone is the best estimate of where the run happened.
+        utc_offset_minutes=analytics.local_offset_minutes(start_time, tz),
     )
     return {"imported": 1, "skipped": 0} if created else {"imported": 0, "skipped": 1}
 
@@ -533,6 +551,7 @@ def import_csv(file_path, db_session):
                 source="csv",
                 source_id=None,
                 stream_data=None,
+                utc_offset_minutes=0,
             )
             if created:
                 imported += 1

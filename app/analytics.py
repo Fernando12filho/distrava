@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import timedelta, timezone
 from math import exp
 
 CTL_DAYS = 42
@@ -203,6 +203,17 @@ def build_daily_trimp_loads(daily_totals, start_date, end_date):
         loads.append(daily_totals.get(current, 0.0))
         current += timedelta(days=1)
     return loads
+
+
+def to_local(utc_naive, offset_minutes):
+    return utc_naive + timedelta(minutes=offset_minutes or 0)
+
+
+def local_offset_minutes(utc_naive, tz=None):
+    # tz=None means the computer's own timezone rules, DST included, for that
+    # instant — astimezone() asks the OS, so no timezone database is needed.
+    local = utc_naive.replace(tzinfo=timezone.utc).astimezone(tz)
+    return int(local.utcoffset().total_seconds() // 60)
 
 
 def default_max_hr(birth_year, reference_year):

@@ -5,7 +5,7 @@
 <div class="breadcrumb">
   <a href="{{ url_for('main.activity_list') }}">← Activities</a>
   <span class="sep">/</span>
-  <span class="current">{{ activity.start_time.strftime('%b %d, %Y') }}</span>
+  <span class="current">{{ activity.local_start_time.strftime('%b %d, %Y') }}</span>
 </div>
 {% endblock %}
 
@@ -16,7 +16,7 @@
     <div>
       <div class="title-block-meta">
         <span class="type-pill lg"><span class="type-dot" style="background:{{ category.dot }};"></span><span class="type-label">{{ category.label }}</span></span>
-        <span class="meta-text">{{ activity.start_time.strftime('%b %d, %Y · %H:%M') }}{{ ' · ' ~ activity.source_device if activity.source_device }}</span>
+        <span class="meta-text">{{ activity.local_start_time.strftime('%b %d, %Y · %H:%M') }}{{ ' · ' ~ activity.source_device if activity.source_device }}</span>
       </div>
       <div class="page-title">{{ display_title }}</div>
     </div>

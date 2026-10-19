@@ -87,7 +87,7 @@ def _activity_view(activity):
     return {
         "id": activity.id,
         "activity_type": activity.activity_type,
-        "start_time": activity.start_time,
+        "start_time": activity.local_start_time,
         "distance_meters": activity.distance_meters,
         "duration_seconds": activity.duration_seconds,
     }
@@ -99,9 +99,10 @@ def _week_matches(db, week_start):
     if week is None:
         return {}, {}
     sessions = [_session_view(s, "metric") for s in week.sessions]
-    # A run logged a day off may belong to this week, so look one day past each edge.
-    window_start = datetime.combine(week_start - timedelta(days=1), datetime.min.time())
-    window_end = window_start + timedelta(days=DAYS_PER_WEEK + 2)
+    # A run logged a day off may belong to this week, and start_time is UTC
+    # while matching uses local days, so look two days past each edge.
+    window_start = datetime.combine(week_start - timedelta(days=2), datetime.min.time())
+    window_end = window_start + timedelta(days=DAYS_PER_WEEK + 4)
     claimed = {
         activity_id
         for (activity_id,) in db.query(CoachSession.matched_activity_id).filter(CoachSession.matched_activity_id.isnot(None))

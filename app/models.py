@@ -15,6 +15,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
 
+from app import analytics
+
 
 class Base(DeclarativeBase):
     pass
@@ -37,6 +39,13 @@ class Activity(Base):
     dedup_key = Column(String, unique=True, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     source_device = Column(String, nullable=True)
+    # Minutes to add to start_time (stored in UTC) to get the wall clock where
+    # the activity happened. CSV rows hold local time already, so theirs is 0.
+    utc_offset_minutes = Column(Integer, nullable=True)
+
+    @property
+    def local_start_time(self):
+        return analytics.to_local(self.start_time, self.utc_offset_minutes)
 
     streams = relationship(
         "ActivityStream", backref="activity", cascade="all, delete-orphan"
