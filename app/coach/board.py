@@ -43,6 +43,16 @@ def session_summary(kind, items, units):
     return f"{count} exercise" if count == 1 else f"{count} exercises"
 
 
+def activity_label(activity, units, session_date):
+    kind = analytics.categorize_activity_type(activity["activity_type"])["label"]
+    value, unit = analytics.convert_distance(activity["distance_meters"], units)
+    start = activity["start_time"]
+    label = f"{kind} · {value:.2f} {unit} · {analytics.format_duration(activity['duration_seconds'])} · {start:%H:%M}"
+    if start.date() != session_date:
+        label = f"{start:%a %d} · {label}"
+    return label
+
+
 def build_week_view(week_start, today, sessions):
     days = []
     for index, day in enumerate(week_days(week_start)):

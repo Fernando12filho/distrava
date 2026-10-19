@@ -14,6 +14,7 @@ from app.models import Base
 _SCHEMA_UPGRADES = {
     "activities": ["source_device"],
     "user_settings": ["weight_kg", "units"],
+    "coach_sessions": ["matched_activity_id"],
 }
 
 
@@ -31,6 +32,23 @@ def _apply_schema_upgrades(engine):
                 column = Base.metadata.tables[table_name].columns[column_name]
                 column_type = column.type.compile(engine.dialect)
                 conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"))
+
+
+# The first coach model put exercises straight on the day ("cards"); it was
+# replaced by sessions before anything wrote check-ins. Databases opened during
+# that window still carry its tables, which create_all() would never fix. Only
+# empty tables are dropped, so no data can be lost here.
+def _retire_card_era_coach_tables(engine):
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    with engine.begin() as conn:
+        if "coach_cards" in tables:
+            conn.execute(text("DROP TABLE coach_cards"))
+        if "coach_checkins" in tables:
+            columns = {c["name"] for c in inspector.get_columns("coach_checkins")}
+            empty = conn.execute(text("SELECT COUNT(*) FROM coach_checkins")).scalar() == 0
+            if "card_id" in columns and empty:
+                conn.execute(text("DROP TABLE coach_checkins"))
 
 
 COACH_TABLE_PREFIX = "coach_"
@@ -77,6 +95,7 @@ def create_app(config=None):
             db_path.parent.mkdir(parents=True, exist_ok=True)
         engine = create_engine(database_url, connect_args={"check_same_thread": False})
 
+    _retire_card_era_coach_tables(engine)
     Base.metadata.create_all(engine)
     _apply_schema_upgrades(engine)
     app.engine = engine

@@ -1,12 +1,13 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from flask import Blueprint, abort, redirect, render_template, request, url_for
 from sqlalchemy import func
 
 from app.coach import board
 from app.coach.catalog import INTENSITIES, SESSION_TEMPLATES
+from app.coach.matcher import SESSION_ACTIVITY_TYPES, match_sessions
 from app.coach.week import DAYS_PER_WEEK, week_start_for
-from app.models import CoachExercise, CoachSession, CoachSessionItem, CoachWeek, UserSettings
+from app.models import Activity, CoachExercise, CoachSession, CoachSessionItem, CoachWeek, UserSettings
 from app.routes import _get_units, get_db
 
 bp = Blueprint("coach", __name__, url_prefix="/coach")
@@ -57,6 +58,7 @@ def _session_view(session, units):
         item["volume"] = board.item_volume(item, units)
     return {
         "id": session.id,
+        "date": session.week.week_start + timedelta(days=session.day_index),
         "day_index": session.day_index,
         "position": session.position,
         "kind": session.kind,
@@ -65,12 +67,82 @@ def _session_view(session, units):
         "status": session.status,
         "summary": board.session_summary(session.kind, items, units),
         "exercises": items,
+        "distance_meters": sum(i["distance_meters"] or 0 for i in items) or None,
+        "duration_seconds": sum((i["duration_seconds"] or 0) * (i["sets"] or 1) for i in items) or None,
+        "matched_activity_id": session.matched_activity_id,
+        "matched": None,
+        "suggestion": None,
     }
 
 
 def _week_sessions(db, week_start, units):
     week = db.query(CoachWeek).filter_by(week_start=week_start).first()
     return [_session_view(s, units) for s in week.sessions] if week else []
+
+
+def _activity_view(activity):
+    return {
+        "id": activity.id,
+        "activity_type": activity.activity_type,
+        "start_time": activity.start_time,
+        "distance_meters": activity.distance_meters,
+        "duration_seconds": activity.duration_seconds,
+    }
+
+
+def _week_matches(db, week_start):
+    """Matcher results for one week, plus the activities they refer to by id."""
+    week = db.query(CoachWeek).filter_by(week_start=week_start).first()
+    if week is None:
+        return {}, {}
+    sessions = [_session_view(s, "metric") for s in week.sessions]
+    # A run logged a day off may belong to this week, so look one day past each edge.
+    window_start = datetime.combine(week_start - timedelta(days=1), datetime.min.time())
+    window_end = window_start + timedelta(days=DAYS_PER_WEEK + 2)
+    claimed = {
+        activity_id
+        for (activity_id,) in db.query(CoachSession.matched_activity_id).filter(CoachSession.matched_activity_id.isnot(None))
+    }
+    activities = [
+        _activity_view(a)
+        for a in db.query(Activity).filter(
+            Activity.start_time >= window_start,
+            Activity.start_time < window_end,
+            Activity.activity_type.in_(SESSION_ACTIVITY_TYPES.values()),
+        )
+        if a.id not in claimed
+    ]
+    return match_sessions(sessions, activities), {a["id"]: a for a in activities}
+
+
+def _attach_matches(db, sessions, week_start, units):
+    results, activities = _week_matches(db, week_start)
+    for session in sessions:
+        result = results.get(session["id"])
+        if result:
+            candidates = [activities[i] for i in result["activity_ids"]]
+            if result["kind"] == "match":
+                prompt = "Import matches"
+            elif len(candidates) > 1:
+                prompt = "Which import was this?"
+            else:
+                prompt = "Was this import this session?"
+            session["suggestion"] = {
+                "prompt": prompt,
+                "candidates": [
+                    {"id": a["id"], "label": board.activity_label(a, units, session["date"])} for a in candidates
+                ],
+            }
+
+    matched_ids = [s["matched_activity_id"] for s in sessions if s["matched_activity_id"]]
+    matched = {a.id: a for a in db.query(Activity).filter(Activity.id.in_(matched_ids))} if matched_ids else {}
+    for session in sessions:
+        activity = matched.get(session["matched_activity_id"])
+        if activity is not None:
+            session["matched"] = {
+                "label": board.activity_label(_activity_view(activity), units, session["date"]),
+                "url": url_for("main.activity_detail", activity_id=activity.id),
+            }
 
 
 def _next_position(db, week_id, day_index):
@@ -93,6 +165,7 @@ def board_page():
     units = _get_units(db.query(UserSettings).first())
 
     sessions = _week_sessions(db, week_start, units)
+    _attach_matches(db, sessions, week_start, units)
     selected_id = request.args.get("session", type=int)
     selected = next((s for s in sessions if s["id"] == selected_id), None)
 
@@ -193,6 +266,25 @@ def set_status(session_id):
     if status not in USER_STATUSES:
         abort(400)
     session.status = status
+    if status == "planned":
+        # Back to planned frees the activity so the matcher can offer it again.
+        session.matched_activity_id = None
+    db.commit()
+    return redirect(_board_url(session.week.week_start, session.id), code=303)
+
+
+@bp.route("/sessions/<int:session_id>/confirm", methods=["POST"])
+def confirm_match(session_id):
+    db = get_db()
+    session = _get_session(db, session_id)
+    activity_id = request.form.get("activity_id", type=int)
+    # Re-run the matcher rather than trusting the form: only an activity it
+    # currently offers for this session can be confirmed.
+    results, _activities = _week_matches(db, session.week.week_start)
+    if activity_id is None or activity_id not in results.get(session.id, {}).get("activity_ids", []):
+        abort(400)
+    session.status = "done"
+    session.matched_activity_id = activity_id
     db.commit()
     return redirect(_board_url(session.week.week_start, session.id), code=303)
 

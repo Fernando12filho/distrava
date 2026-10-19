@@ -87,6 +87,17 @@ def test_seed_is_idempotent(db_session):
     assert db_session.query(CoachExercise).count() == len(catalog.CATALOG)
 
 
+def test_seed_refreshes_catalog_rows_that_drifted(db_session):
+    db_session.add(CoachExercise(slug="bench_press", name="Bench", category="strength", muscle_group="push", intensity="hard"))
+    db_session.commit()
+
+    catalog.seed_catalog(db_session)
+
+    bench = db_session.query(CoachExercise).filter_by(slug="bench_press").one()
+    assert (bench.name, bench.muscle_group, bench.equipment) == ("Bench press", "chest", "barbell")
+    assert db_session.query(CoachExercise).count() == len(catalog.CATALOG)
+
+
 def test_seed_leaves_custom_exercises_alone(db_session):
     db_session.add(CoachExercise(name="Sled push", category="strength", intensity="hard", is_custom=True))
     db_session.commit()

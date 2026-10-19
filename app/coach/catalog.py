@@ -141,9 +141,17 @@ SESSION_TEMPLATES = {
 }
 
 
+# Catalog rows belong to the app, so they're brought in line with CATALOG on
+# every start (a renamed muscle group reaches existing databases). Custom
+# exercises have no slug and are never touched.
 def seed_catalog(db_session):
-    existing = {slug for (slug,) in db_session.query(CoachExercise.slug).filter(CoachExercise.slug.isnot(None))}
+    existing = {e.slug: e for e in db_session.query(CoachExercise).filter(CoachExercise.slug.isnot(None))}
     for entry in CATALOG:
-        if entry["slug"] not in existing:
+        row = existing.get(entry["slug"])
+        if row is None:
             db_session.add(CoachExercise(**entry))
+            continue
+        for field, value in entry.items():
+            if getattr(row, field) != value:
+                setattr(row, field, value)
     db_session.commit()

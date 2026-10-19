@@ -1,8 +1,8 @@
-from datetime import date
+from datetime import date, datetime
 
 import pytest
 
-from app.coach.board import build_week_view, item_volume, parse_week_param, session_summary
+from app.coach.board import activity_label, build_week_view, item_volume, parse_week_param, session_summary
 
 MONDAY = date(2026, 10, 19)
 WEDNESDAY = date(2026, 10, 21)
@@ -52,6 +52,26 @@ def test_summary_never_shows_more_than_two_decimals():
     summary = session_summary("run", [{"distance_meters": 1234.5678}], "imperial")
 
     assert summary == "0.8 mi"
+
+
+RUN = {
+    "activity_type": "Run",
+    "start_time": datetime(2026, 10, 21, 7, 6),
+    "distance_meters": 8040.0,
+    "duration_seconds": 2712,
+}
+
+
+def test_activity_label_on_the_session_day():
+    assert activity_label(RUN, "metric", WEDNESDAY) == "Run · 8.04 km · 45:12 · 07:06"
+
+
+def test_activity_label_on_another_day_leads_with_the_day():
+    assert activity_label(RUN, "imperial", date(2026, 10, 20)) == "Wed 21 · Run · 5.00 mi · 45:12 · 07:06"
+
+
+def test_activity_label_calls_a_cycle_a_ride():
+    assert activity_label({**RUN, "activity_type": "Cycle"}, "metric", WEDNESDAY).startswith("Ride · ")
 
 
 def test_week_view_has_seven_days_monday_to_sunday():

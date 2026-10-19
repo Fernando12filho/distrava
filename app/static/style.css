@@ -1907,14 +1907,86 @@ a.recent-row:hover {
   animation: spin 0.8s linear infinite;
 }
 
+.session-open {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: inherit;
+}
+
+.session-open:hover {
+  color: inherit;
+}
+
 .session-card.rest {
   background: transparent;
   border-style: dashed;
-  align-items: center;
   justify-content: center;
-  text-align: center;
   min-height: 120px;
   flex: 1;
+}
+
+.session-card.rest .session-open {
+  align-items: center;
+  text-align: center;
+}
+
+.matched-link {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.matched-link:hover {
+  color: var(--accent);
+}
+
+/* UC-09: an import that lines up with a planned session waits for one tap. */
+.match-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border-radius: var(--radius-control);
+  background: rgba(196, 248, 42, 0.05);
+  border: 1px solid rgba(196, 248, 42, 0.25);
+}
+
+.match-prompt {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.match-option {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.match-line {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.match-confirm {
+  align-self: flex-start;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 9px;
+  background: var(--accent);
+  color: var(--bg-base);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.match-confirm:hover {
+  background: var(--accent-hover);
 }
 
 .rest-mark {

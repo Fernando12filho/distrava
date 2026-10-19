@@ -43,20 +43,38 @@
         </div>
         <div class="day-sessions">
           {% for s in day.sessions %}
-          <a class="session-card{% if s.kind == 'rest' %} rest{% endif %}{% if selected and selected.id == s.id %} selected{% endif %}"
-             href="{{ url_for('coach.board_page', week=week_start.isoformat(), session=s.id) }}"
-             draggable="true"
-             data-move-url="{{ url_for('coach.move_session', session_id=s.id) }}">
-            {% if s.kind == 'rest' %}
-            <span class="rest-mark"></span>
-            <span class="session-focus">Rest</span>
-            {% else %}
-            <span class="session-kind kind-{{ s.kind }}"><span class="type-dot"></span>{{ s.kind_label }}</span>
-            <span class="session-focus">{{ s.focus }}</span>
-            <span class="session-meta">{{ s.summary }}</span>
-            <span class="session-foot">{{ status_chip(s.status) }}</span>
+          {# A div, not a link: the confirm forms below can't live inside an <a>. #}
+          <div class="session-card{% if s.kind == 'rest' %} rest{% endif %}{% if selected and selected.id == s.id %} selected{% endif %}"
+               draggable="true"
+               data-move-url="{{ url_for('coach.move_session', session_id=s.id) }}">
+            <a class="session-open" draggable="false"
+               href="{{ url_for('coach.board_page', week=week_start.isoformat(), session=s.id) }}">
+              {% if s.kind == 'rest' %}
+              <span class="rest-mark"></span>
+              <span class="session-focus">Rest</span>
+              {% else %}
+              <span class="session-kind kind-{{ s.kind }}"><span class="type-dot"></span>{{ s.kind_label }}</span>
+              <span class="session-focus">{{ s.focus }}</span>
+              <span class="session-meta">{{ s.summary }}</span>
+              <span class="session-foot">{{ status_chip(s.status) }}</span>
+              {% endif %}
+            </a>
+            {% if s.matched %}
+            <a class="matched-link" draggable="false" href="{{ s.matched.url }}">↳ {{ s.matched.label }}</a>
             {% endif %}
-          </a>
+            {% if s.suggestion %}
+            <div class="match-box">
+              <span class="match-prompt">{{ s.suggestion.prompt }}</span>
+              {% for c in s.suggestion.candidates %}
+              <form method="post" action="{{ url_for('coach.confirm_match', session_id=s.id) }}" class="match-option">
+                <input type="hidden" name="activity_id" value="{{ c.id }}" />
+                <span class="match-line">{{ c.label }}</span>
+                <button type="submit" class="match-confirm">Confirm</button>
+              </form>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
           {% endfor %}
         </div>
         <details class="add-session">

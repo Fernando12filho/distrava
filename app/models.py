@@ -162,6 +162,10 @@ class CoachSession(Base):
     kind = Column(String, nullable=False)
     focus = Column(String, nullable=False)
     status = Column(String, nullable=False, default="planned")
+    # Plain integer, not a foreign key: SQLite here runs without FK enforcement,
+    # and "wipe all data" deletes activities without knowing about the coach,
+    # so readers must tolerate an id that no longer resolves.
+    matched_activity_id = Column(Integer, nullable=True)
 
     week = relationship("CoachWeek", back_populates="sessions")
     items = relationship(

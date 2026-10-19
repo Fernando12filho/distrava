@@ -155,6 +155,93 @@ def test_restart_keeps_coach_rows():
     session.close()
 
 
+def test_existing_coach_sessions_table_gains_the_matched_activity_column():
+    engine = _engine()
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE coach_sessions (
+                    id INTEGER PRIMARY KEY,
+                    week_id INTEGER NOT NULL,
+                    day_index INTEGER NOT NULL,
+                    position INTEGER NOT NULL,
+                    kind VARCHAR NOT NULL,
+                    focus VARCHAR NOT NULL,
+                    status VARCHAR NOT NULL
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO coach_sessions (week_id, day_index, position, kind, focus, status) "
+                "VALUES (1, 0, 0, 'run', 'Running day', 'planned')"
+            )
+        )
+
+    create_app({"TESTING": True, "ENGINE": engine})
+
+    columns = {c["name"] for c in inspect(engine).get_columns("coach_sessions")}
+    assert "matched_activity_id" in columns
+    with engine.connect() as conn:
+        assert conn.execute(text("SELECT focus FROM coach_sessions")).scalar() == "Running day"
+
+
+def _card_era_engine(checkin_rows=0):
+    """A database created by the first coach model, before sessions existed."""
+    engine = _engine()
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "CREATE TABLE coach_cards (id INTEGER PRIMARY KEY, week_id INTEGER NOT NULL, "
+                "day_index INTEGER NOT NULL, exercise_id INTEGER NOT NULL, status VARCHAR NOT NULL)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE TABLE coach_checkins (id INTEGER PRIMARY KEY, card_id INTEGER NOT NULL, "
+                "created_at DATETIME, energy INTEGER, effort_rpe INTEGER, pain_location VARCHAR, note TEXT)"
+            )
+        )
+        for _ in range(checkin_rows):
+            conn.execute(text("INSERT INTO coach_checkins (card_id, energy) VALUES (1, 3)"))
+    return engine
+
+
+def test_card_era_tables_are_retired_on_startup():
+    engine = _card_era_engine()
+
+    create_app({"TESTING": True, "ENGINE": engine})
+
+    tables = set(inspect(engine).get_table_names())
+    assert "coach_cards" not in tables
+    assert {c["name"] for c in inspect(engine).get_columns("coach_checkins")} >= {"session_id"}
+    assert "card_id" not in {c["name"] for c in inspect(engine).get_columns("coach_checkins")}
+
+
+def test_card_era_checkins_with_rows_are_never_dropped():
+    engine = _card_era_engine(checkin_rows=2)
+
+    create_app({"TESTING": True, "ENGINE": engine})
+
+    with engine.connect() as conn:
+        assert conn.execute(text("SELECT COUNT(*) FROM coach_checkins")).scalar() == 2
+
+
+def test_retiring_card_era_tables_keeps_sessions():
+    engine = _card_era_engine()
+    create_app({"TESTING": True, "ENGINE": engine})
+    _populate_coach(engine)
+
+    create_app({"TESTING": True, "ENGINE": engine})
+
+    session = sessionmaker(bind=engine)()
+    assert session.query(CoachSession).count() == 1
+    assert session.query(CoachCheckin).count() == 1
+    session.close()
+
+
 def test_restart_keeps_best_efforts_rows():
     engine = _engine()
     create_app({"TESTING": True, "ENGINE": engine})
