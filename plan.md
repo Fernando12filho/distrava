@@ -57,8 +57,8 @@ _Your imports are complete and every date, time and distance is right._
 | ✅ | Duplicate detection; a second watch doesn't double distance | Phase 1 |
 | ✅ | Regression net: alarms if any existing number changes | 2026-10-18 |
 | ✅ | Activities shown and counted in local time, not UTC | 2026-10-19 |
-| ⏭ | Activity list date filter in local time | small follow-up |
-| ⬜ | Re-import guide: how to refresh your Apple Health export | also fixes time offsets exactly |
+| ✅ | Activity list date filter in local time | 2026-10-20; end date now inclusive, bad dates give a clear error |
+| ⏭ | Re-import guide: how to refresh your Apple Health export | also fixes time offsets exactly |
 | ⬜ | Spot-check against Apple Fitness for a few known runs | proves the numbers; needs you |
 
 ### M2 — Records & dashboard
@@ -146,6 +146,7 @@ research answers, and only then build the rebalancer.
 | 2026-10-18 | Coach board built (sessions, not exercises, after your mockup feedback) |
 | 2026-10-19 | Auto check-in; volume editing; local-time fix |
 | 2026-10-20 | Coach paused. Decided: order M1 → M2 → M3 → M4, research-backed advice, built for you first. Research prompt written. This plan and the roadmap page created |
+| 2026-10-20 | M1: activity list date filter uses local time; "to" date includes that day |
 
 ## 7. Waiting on
 

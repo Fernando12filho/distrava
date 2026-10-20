@@ -8,6 +8,7 @@ from urllib.parse import urlencode
 
 from flask import (
     Blueprint,
+    abort,
     current_app,
     g,
     jsonify,
@@ -104,6 +105,11 @@ def _qs(overrides):
     return "?" + urlencode(params) if params else ""
 
 
+def _date_param(name):
+    raw = request.args.get(name)
+    return date.fromisoformat(raw) if raw else None
+
+
 TYPE_FILTER_OPTIONS = ["All", "Run", "Ride", "Gym", "Other"]
 SORT_COLUMNS = [("date", "Date"), ("dist", "Distance"), ("dur", "Duration"), ("pace", "Pace"), ("hr", "HR")]
 
@@ -112,27 +118,30 @@ SORT_COLUMNS = [("date", "Date"), ("dist", "Distance"), ("dur", "Duration"), ("p
 def activity_list():
     db = get_db()
     units = _get_units(db.query(UserSettings).first())
-    query = db.query(Activity)
+    activities = db.query(Activity).all()
 
-    date_from = request.args.get("from")
+    # Filtering happens in Python on local time: start_time is stored in UTC,
+    # so a database filter would put evening runs on the wrong day.
+    try:
+        date_from = _date_param("from")
+        date_to = _date_param("to")
+    except ValueError:
+        abort(400)
     if date_from:
-        query = query.filter(Activity.start_time >= datetime.fromisoformat(date_from))
-
-    date_to = request.args.get("to")
+        activities = [a for a in activities if a.local_start_time.date() >= date_from]
     if date_to:
-        query = query.filter(Activity.start_time <= datetime.fromisoformat(date_to))
+        activities = [a for a in activities if a.local_start_time.date() <= date_to]
 
     range_key = request.args.get("range", "all")
     if range_key != "all" and not date_from and not date_to:
         now = datetime.now()
-        if range_key == "30":
-            query = query.filter(Activity.start_time >= now - timedelta(days=30))
-        elif range_key == "90":
-            query = query.filter(Activity.start_time >= now - timedelta(days=90))
-        elif range_key == "year":
-            query = query.filter(Activity.start_time >= datetime(now.year, 1, 1))
-
-    activities = query.all()
+        since = {
+            "30": now - timedelta(days=30),
+            "90": now - timedelta(days=90),
+            "year": datetime(now.year, 1, 1),
+        }.get(range_key)
+        if since is not None:
+            activities = [a for a in activities if a.local_start_time >= since]
 
     activity_type = request.args.get("type")
     if activity_type and activity_type != "All":

@@ -205,6 +205,61 @@ def test_activity_list_shows_the_local_date(client, evening_run):
     assert "Oct 17" not in html
 
 
+def _listed(client, query, activity):
+    return f'data-activity-id="{activity.id}"' in client.get(f"/activities?{query}").get_data(as_text=True)
+
+
+def test_date_filter_uses_the_local_day(client, evening_run):
+    assert _listed(client, "from=2026-10-16&to=2026-10-16", evening_run)
+    assert not _listed(client, "from=2026-10-17", evening_run)
+
+
+def test_date_filter_end_day_is_inclusive(client, make_activity):
+    morning = make_activity(start_time=datetime(2026, 6, 1, 8, 0), end_time=datetime(2026, 6, 1, 8, 30), dedup_key="jun-1")
+
+    assert _listed(client, "to=2026-06-01", morning)
+    assert not _listed(client, "to=2026-05-31", morning)
+
+
+@pytest.mark.parametrize("query", ["from=yesterday", "to=2026-13-01", "from=2026-06-01T08:00"])
+def test_date_filter_rejects_a_bad_date(client, query):
+    assert client.get(f"/activities?{query}").status_code == 400
+
+
+class FrozenNewYear(datetime):
+    @classmethod
+    def now(cls, tz=None):
+        return cls(2027, 1, 1, 10, 0)
+
+
+def test_this_year_range_uses_the_local_year(client, make_activity, monkeypatch):
+    monkeypatch.setattr(main_routes, "datetime", FrozenNewYear)
+    # 22:00 on Dec 31 in Brasília is 01:00 UTC on Jan 1.
+    new_years_eve = make_activity(
+        start_time=datetime(2027, 1, 1, 1, 0), end_time=datetime(2027, 1, 1, 1, 30),
+        utc_offset_minutes=-180, dedup_key="nye",
+    )
+    new_years_day = make_activity(
+        start_time=datetime(2027, 1, 1, 9, 0), end_time=datetime(2027, 1, 1, 9, 30),
+        utc_offset_minutes=0, dedup_key="nyd",
+    )
+
+    assert not _listed(client, "range=year", new_years_eve)
+    assert _listed(client, "range=year", new_years_day)
+
+
+def test_last_30_days_range_uses_local_time(client, make_activity, monkeypatch):
+    monkeypatch.setattr(main_routes, "datetime", FrozenNewYear)
+    edge = datetime(2027, 1, 1, 10, 0) - timedelta(days=30)
+    # Stored an hour inside the window in UTC, but two hours outside it locally.
+    just_outside = make_activity(
+        start_time=edge + timedelta(hours=1), end_time=edge + timedelta(hours=2),
+        utc_offset_minutes=-180, dedup_key="edge",
+    )
+
+    assert not _listed(client, "range=30", just_outside)
+
+
 class FrozenFriday(date):
     @classmethod
     def today(cls):
