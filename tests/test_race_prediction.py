@@ -35,10 +35,11 @@ def test_dashboard_predictions_match_snapshot(app, client, db_session, monkeypat
     assert response.status_code == 200
     context = contexts[-1]
     assert context["prediction_basis_label"] == "Half Marathon"
-    assert context["race_predictions"] == [
-        {"label": "5K", "value": "24:06"},
-        {"label": "10K", "value": "50:15"},
-        {"label": "Half Marathon", "value": "1:50:53"},
-        {"label": "Marathon", "value": "3:51:12"},
+    # Times unchanged; "caution" added on purpose for RULE-METRIC-04.
+    assert [(p["label"], p["value"]) for p in context["race_predictions"]] == [
+        ("5K", "24:06"),
+        ("10K", "50:15"),
+        ("Half Marathon", "1:50:53"),
+        ("Marathon", "3:51:12"),
     ]
     assert context["vo2max"] == pytest.approx(40.0045, abs=1e-4)

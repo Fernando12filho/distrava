@@ -633,7 +633,13 @@ def dashboard():
             seconds = analytics.riegel_predict(
                 prediction_basis.duration_seconds, prediction_basis.distance_meters, target_meters
             )
-            race_predictions.append({"label": label, "value": analytics.format_duration(seconds)})
+            caution = (
+                training_rules.RIEGEL_LONG_CAUTION
+                if target_meters > training_rules.RIEGEL_RELIABLE_UP_TO_METERS
+                else None
+            )
+            race_predictions.append({"label": label, "value": analytics.format_duration(seconds), "caution": caution})
+        # RULE-METRIC-05: a race-equivalent score (VDOT), not a measured VO2max.
         vo2max = analytics.estimate_vo2max(prediction_basis.distance_meters, prediction_basis.duration_seconds)
 
     last_import = max((a.created_at for a in activities if a.created_at), default=None)

@@ -135,17 +135,20 @@
       <div class="pr-list">
         {% for p in race_predictions %}
         <div class="pr-row">
-          <div><div class="pr-label">{{ p.label }}</div></div>
-          <div class="pr-value">{{ p.value }}</div>
+          <div>
+            <div class="pr-label">{{ p.label }}</div>
+            {% if p.caution %}<div class="pr-caution">{{ p.caution }}</div>{% endif %}
+          </div>
+          <div class="pr-value{{ ' muted' if p.caution }}">{{ p.value }}</div>
         </div>
         {% endfor %}
       </div>
     </div>
 
     <div class="stat-card" style="align-self:start;">
-      <div class="stat-label">Est. VO2max</div>
-      <div class="stat-value-row"><span class="stat-value">{{ '%.1f'|format(vo2max) }}</span><span class="stat-unit">ml/kg/min</span></div>
-      <div class="stat-delta"><span class="vs-label">from fastest {{ prediction_basis_label }}</span></div>
+      <div class="stat-label">VDOT</div>
+      <div class="stat-value-row"><span class="stat-value">{{ '%.1f'|format(vo2max) }}</span></div>
+      <div class="stat-delta"><span class="vs-label">race-equivalent score from your fastest {{ prediction_basis_label }} · not a measured oxygen uptake</span></div>
     </div>
   </div>
   {% endif %}

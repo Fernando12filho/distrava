@@ -630,7 +630,7 @@ def test_dashboard_predictions_use_longest_best_effort_as_basis(client, make_act
     assert "fastest 10K" in body
 
 
-def test_dashboard_shows_estimated_vo2max(client, make_activity, db_session):
+def test_dashboard_shows_vdot_score(client, make_activity, db_session):
     from app import analytics
 
     activity = make_activity(duration_seconds=1500, distance_meters=5000.0)
@@ -638,8 +638,9 @@ def test_dashboard_shows_estimated_vo2max(client, make_activity, db_session):
 
     body = client.get("/dashboard").data.decode()
 
+    # Labelled VDOT, not VO2max, since 2026-10-20 (RULE-METRIC-05); same number.
     expected = analytics.estimate_vo2max(5000.0, 1500.0)
-    assert "VO2max" in body
+    assert "VDOT" in body
     assert f"{expected:.1f}" in body
 
 
@@ -649,7 +650,7 @@ def test_dashboard_omits_race_predictions_without_best_efforts(client, make_acti
     body = client.get("/dashboard").data.decode()
 
     assert "Race predictions" not in body
-    assert "VO2max" not in body
+    assert "VDOT" not in body
 
 
 def test_dashboard_shows_miles_unit_when_imperial(client, make_activity, db_session):

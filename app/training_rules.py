@@ -14,6 +14,11 @@ HR_JUMP_FLAG_BPM_PER_S = 15  # range 10–20
 # so treat them as expert opinion. Unset sex keeps the male pair.
 TRIMP_WEIGHTING = {"male": (0.64, 1.92), "female": (0.86, 1.67)}
 
+# RULE-METRIC-04: Riegel (exponent 1.06) is well calibrated up to the half
+# marathon for recreational runners; beyond it, predictions run too fast.
+RIEGEL_RELIABLE_UP_TO_METERS = 21097.0
+RIEGEL_LONG_CAUTION = "likely too fast — Riegel underestimates marathon times for most recreational runners"
+
 # RULE-METRIC-01: resting HR is the median of the watch's daily readings over
 # this many days (resting_hr_source: 7_day_median).
 RESTING_HR_WINDOW_DAYS = 7
