@@ -67,6 +67,8 @@ test files, build order). Follow its build order; reuse AC ids in test names.
   Assumptions are tagged [A] and must never ship as advice.
 - Research arrives as `research/training-rules.md` (generated from
   `research/PROMPT.md`). Only cite sources listed there; never invent one.
+- Code that applies a research rule names its id in a comment (`# RULE-REC-01`),
+  and the rule's parameters live together as config, not as scattered constants.
 
 ## Workflow
 - After every piece of work: update `plan.md` (status, rules table, log), then run

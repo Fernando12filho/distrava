@@ -137,6 +137,10 @@ def parse_plan(text):
         {"status": _status(row[0]), "topic": row[1], "decides": row[2]}
         for row in _table(_section(text, "Research"))
     ]
+    decisions = [
+        {"status": _status(row[0]), "decision": row[1], "needed_for": row[2]}
+        for row in _table(_section(text, "Decisions needed"))
+    ]
     waiting = [
         {"status": _status(row[0]), "item": row[1], "who": row[2]}
         for row in _table(_section(text, "Waiting on"))
@@ -147,6 +151,7 @@ def parse_plan(text):
         "milestones": milestones,
         "rules": rules,
         "research": research,
+        "decisions": decisions,
         "waiting": waiting,
     }
 
@@ -205,6 +210,10 @@ def render(plan):
     waiting = _rows(
         plan["waiting"],
         lambda w: [f"<td>{_chip(w['status'])}</td>", f"<td>{_inline(w['item'])}</td>", f"<td class=\"muted\">{_inline(w['who'])}</td>"],
+    )
+    decisions = _rows(
+        plan["decisions"],
+        lambda d: [f"<td>{_chip(d['status'])}</td>", f"<td>{_inline(d['decision'])}</td>", f"<td class=\"muted\">{_inline(d['needed_for'])}</td>"],
     )
     research = _rows(
         plan["research"],
@@ -270,6 +279,7 @@ def render(plan):
   .chip.st-todo {{ color: var(--muted); border: 1px solid var(--border-strong); }}
   .panels {{ display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }}
   .panel {{ background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }}
+  .panel.spaced {{ margin-bottom: 14px; }}
   .panel h3 {{ font-size: 16px; font-weight: 600; padding: 16px 18px; border-bottom: 1px solid var(--divider); }}
   .panel h3 small {{ font-family: var(--mono); font-size: 11px; font-weight: 400; color: var(--muted); margin-left: 8px; }}
   table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
@@ -313,12 +323,19 @@ def render(plan):
       </table>
     </section>
     <section class="panel">
-      <h3>Research <small>research/PROMPT.md → research/training-rules.md</small></h3>
+      <h3>Decisions needed <small>asked when their milestone starts</small></h3>
       <table>
-{research}
+{decisions}
       </table>
     </section>
   </div>
+
+  <section class="panel spaced">
+    <h3>Research <small>research/training-rules.md</small></h3>
+    <table>
+{research}
+    </table>
+  </section>
 
   <section class="panel">
     <h3>Rules the app uses, and where they come from</h3>

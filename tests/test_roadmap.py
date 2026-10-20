@@ -44,6 +44,12 @@ _Explained._
 |---|---|---|
 | ⏭ | A. What makes a session "hard" | effort labels |
 
+## 6. Decisions needed
+
+| Status | Decision | Needed for |
+|---|---|---|
+| ⏭ | D9. Fill in your profile | M2 profile |
+
 ## 7. Waiting on
 
 | Status | Item | Who |
@@ -93,6 +99,17 @@ def test_reads_rules_with_their_source_tag(plan):
 def test_reads_research_and_waiting_tables(plan):
     assert plan["research"][0]["topic"] == 'A. What makes a session "hard"'
     assert plan["waiting"][0]["item"] == "Run the research prompt"
+
+
+def test_reads_decisions_needed(plan):
+    assert plan["decisions"] == [{"status": "next", "decision": "D9. Fill in your profile", "needed_for": "M2 profile"}]
+
+
+def test_render_shows_decisions_needed(plan):
+    html = build_roadmap.render(plan)
+
+    assert "Decisions needed" in html
+    assert "D9. Fill in your profile" in html
 
 
 def test_an_unknown_status_is_an_error_not_a_silent_skip():

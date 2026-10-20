@@ -8,7 +8,7 @@ this file (`python scripts/build_roadmap.py`), so the two never disagree.
 How to read this file:
 - **Status:** ✅ done · 🔨 in progress · ⏭ next · ⬜ not started · 🔬 needs research first
 - **Source** (for every rule the app follows):
-  **[R]** research — a study or guideline is named ·
+  **[R]** research — a rule id from `research/training-rules.md` ·
   **[Y]** your decision ·
   **[S]** written in the coach spec, no source given yet ·
   **[A]** an assumption made while building — must be confirmed or replaced
@@ -26,13 +26,14 @@ your machine: no accounts, no subscriptions, no cloud.
   next, answering exercise doubts, and insights about your running.
 - **Built for you first, others later.** No onboarding or packaging work yet,
   but nothing personal is hard-coded, so it can be shared one day.
-- **Training advice must be backed by research.** See §2.
+- **Training advice must be backed by research.** See §2 and §4.
 
 ## 2. Principles (apply to every feature)
 
 | Rule | Source |
 |---|---|
-| Training advice needs a named study or guideline [R]; your own preferences are fine labelled [Y]; assumptions [A] never ship as advice | [Y] |
+| Training advice needs a rule from the research file [R]; your own preferences are fine labelled [Y]; assumptions [A] never ship as advice | [Y] |
+| Research rule parameters are config with ranges, not hard-coded constants | [R] research file, "How to read" |
 | Data stays local; the only network call allowed is the AI provider you choose | [Y] |
 | The AI never computes numbers — code calculates, the AI only explains | [Y] |
 | You own the plan: nothing changes without your confirmation | [S] |
@@ -45,8 +46,8 @@ your machine: no accounts, no subscriptions, no cloud.
 
 ## 3. Roadmap
 
-Milestones are the ones you set on GitHub on Oct 9. The features inside M1–M3
-are my proposal — tell me what to add or remove.
+Milestones are the ones you set on GitHub on Oct 9. Rule ids (RULE-…) point to
+`research/training-rules.md`.
 
 ### M1 — Trust the data
 _Your imports are complete and every date, time and distance is right._
@@ -58,18 +59,25 @@ _Your imports are complete and every date, time and distance is right._
 | ✅ | Regression net: alarms if any existing number changes | 2026-10-18 |
 | ✅ | Activities shown and counted in local time, not UTC | 2026-10-19 |
 | ✅ | Activity list date filter in local time | 2026-10-20; end date now inclusive, bad dates give a clear error |
-| ⏭ | Re-import guide: how to refresh your Apple Health export | also fixes time offsets exactly |
+| ⏭ | Re-import guide on the Import page | also fixes time offsets exactly |
+| ⬜ | Flag runs with heart-rate dropouts or implausible jumps | RULE-METRIC-07 |
 | ⬜ | Spot-check against Apple Fitness for a few known runs | proves the numbers; needs you |
 
 ### M2 — Records & dashboard
-_What Strava charges for, explained so you can trust it._
+_What Strava charges for, correct by the research and explained so you can trust it._
 
 | Status | Feature | Notes |
 |---|---|---|
 | ✅ | Best efforts (400 m → marathon), splits, HR zones | Phase 1 |
 | ✅ | Training load (TRIMP / CTL / ATL), race predictions, VO2max estimate | Phase 1 |
-| 🔬 | Check every metric against the research file | research §E |
-| ⬜ | "What does this number mean?" for each metric, with its source | |
+| ✅ | Check every metric against research | 2026-10-20 — findings below |
+| ⬜ | Profile: sex, goal, years running/lifting, runs and gym days per week | needed by RULE-METRIC-02/03, WEEK-01/02 |
+| ⬜ | Max HR: Tanaka 208 − 0.7 × age, replaced by your observed max | RULE-METRIC-02; today 220 − age |
+| ⬜ | Training load with sex-specific TRIMP constants, shown as a personal trend | RULE-METRIC-03; today male constants for all |
+| ⬜ | Race predictions: marathon flagged as likely too fast | RULE-METRIC-04 |
+| ⬜ | "VO2max" relabelled as a race-equivalent score (VDOT); zones labelled as estimates | RULE-METRIC-05, METRIC-01 |
+| ⬜ | Grade-adjusted pace: Minetti curve instead of 3.3 % per 1 % | RULE-METRIC-06; computed but not shown today |
+| ⬜ | "What does this number mean?" for each metric, with its rule id | |
 | ⬜ | PR history over time (not only the current best) | |
 
 ### M3 — Gym & foundations
@@ -78,14 +86,17 @@ _The gym side gets the same depth as running._
 | Status | Feature | Notes |
 |---|---|---|
 | ✅ | Exercise catalog: 40 exercises, muscle groups, equipment | built for the coach |
-| 🔬 | Replace the catalog's easy/moderate/hard labels with a researched measure of effort | research §A |
-| ⬜ | Log a gym session: sets, reps, weight | Apple Health only gives duration + HR |
+| ⬜ | Log a gym session: sets, reps, weight, reps in reserve | RULE-LOAD-03; Apple Health only gives duration + HR |
+| ⬜ | Session effort (sRPE) after every run and lift | RULE-LOAD-01 |
+| ⬜ | Retire the catalog's easy/moderate/hard labels: effort comes from what you did | RULE-LOAD-04 |
+| ⬜ | Weekly hard sets per muscle group | RULE-WEEK-02/03 |
+| ⬜ | Review session templates: 2 strength days with heavy legs for runners | RULE-WEEK-04 |
 | ⬜ | Strength progress per exercise and muscle group | |
-| 🔬 | Mobility, stretching and meditation sessions | research §F |
+| ⬜ | Mobility, stretching and meditation sessions, with honest claims only | RULE-MOB-01/02/03 |
 
 ### M4 — Coach & trainer
 _Spec: `Distrava Coach — Use Cases, Decisions & Test Plan.md`. Paused after step 4
-until M1–M3 are done and the research is back._
+until M1–M3 are done._
 
 | Status | Feature | Notes |
 |---|---|---|
@@ -93,12 +104,12 @@ until M1–M3 are done and the research is back._
 | ✅ | 2. Data model | weeks → sessions → exercises, check-ins, notes |
 | ✅ | 3. Weekly board | Coach page: 7 day columns, add / move / remove sessions, Done / Partial / Skip, edit volumes |
 | ✅ | 4. Auto check-in | imported runs/rides offered as "Import matches · Confirm" |
-| 🔬 | 5. Rebalancer | rules need sources — research §A–§D |
+| ⬜ | 5. Rebalancer | RULE-REC-01/02/04, PROG-01/02, WEEK-01; decisions D1, D4, D7 |
 | ⬜ | 6. Connect an AI provider | your own API key, stored in the OS keychain |
 | ⬜ | 7. Coach tools, preview, undo | the AI proposes, you accept or undo |
-| ⬜ | 8. Plan a week from scratch or from past weeks | |
+| ⬜ | 8. Plan a week from scratch or from past weeks | RULE-WEEK-01..04 |
 | ⬜ | 9. Import a trainer's PDF plan | |
-| 🔬 | 10. Post-workout check-in + trainer export | research §G |
+| ⬜ | 10. Post-workout check-in + trainer export | RULE-CHECK-01/02; decision D8 |
 | ⬜ | 11. Exercise Q&A and fact check | answer + confidence + basis |
 | ⬜ | 12. Connect your own AI agent (MCP) | |
 
@@ -106,37 +117,54 @@ until M1–M3 are done and the research is back._
 
 | Rule | Used in | Source |
 |---|---|---|
-| HR zones as % of heart-rate reserve (Karvonen) | zones, time in zone | [R] Karvonen 1957; Apple Watch default — to verify (research §E1) |
-| Max HR fallback 220 − age | settings | [R] widely used, known to be imprecise — to verify (§E2) |
-| Training load = TRIMP; fitness/fatigue = 42/7-day averages | dashboard | [R] Banister impulse-response model — to verify (§E3) |
-| Race prediction: Riegel, exponent 1.06 | dashboard | [R] Riegel 1981 — to verify (§E4) |
-| VO2max estimate (Daniels VDOT formula) | dashboard | [R] Daniels & Gilbert — to verify (§E5) |
-| Grade-adjusted pace: +3.3 % per 1 % grade | activity detail | [A] no source recorded — to verify (§E6) |
+| HR zones as % of heart-rate reserve (Karvonen) | zones, time in zone | [R] RULE-METRIC-01 — supported; should be labelled as estimates |
+| Max HR fallback 220 − age | settings, zones, load | [R] RULE-METRIC-02 says **never use it** — replace with Tanaka (M2) |
+| Training load = TRIMP with male constants for everyone | dashboard | [R] RULE-METRIC-03 — constants are sex-specific; app lacks your sex (M2) |
+| Fitness / fatigue as 42 / 7-day averages | dashboard | [R] RULE-METRIC-03 — convention; fine as a personal trend |
+| Race prediction: Riegel, exponent 1.06 | dashboard | [R] RULE-METRIC-04 — fine to half marathon; marathon too fast (M2) |
+| VO2max estimate (Daniels VDOT) | dashboard | [R] RULE-METRIC-05 — not validated as VO2max; relabel (M2) |
+| Grade-adjusted pace: +3.3 % per 1 % grade | splits (not shown) | [R] RULE-METRIC-06 — no source; replace with Minetti (M2) |
 | Best-effort distances mirror Strava | records | [Y] |
 | Match an import to a session: same type, same day, ±25 % | coach | [Y] proposed by me, you approved |
 | A run one day off asks instead of matching | coach | [Y] proposed by me, you approved |
-| Exercise intensity easy / moderate / hard | catalog | [A] my judgement — to replace (§A) |
-| Session templates (e.g. "Chest & Triceps" = bench, incline, dips, pushdown) | coach | [A] my choice — to review |
-| Default volumes (e.g. running day = 8 km) | coach | [A] my choice — to review |
+| Exercise intensity easy / moderate / hard | catalog | [R] RULE-LOAD-04 says effort must come from what you did — retire (M3) |
+| Session templates (one leg day in the gym split) | coach | [R] RULE-WEEK-04 — runners need 2 strength days with heavy legs — review (M3) |
+| Default volumes (e.g. running day = 8 km) | coach | [A] no source — derive from your recent weeks (M4) |
 
 ## 5. Research
 
-**You:** run the prompt in `research/PROMPT.md` in a normal Claude chat with
-research turned on, and save the answer as `research/training-rules.md`.
-**Then I:** turn each rule into [R] entries in §4, replace every [A] that the
-research answers, and only then build the rebalancer.
+Received 2026-10-20: `research/training-rules.md` — 30 rules, from the prompt in
+`research/PROMPT.md`. Your profile block was blank, so rules marked
+"depends_on" wait for the profile (M2).
 
 | Status | Topic | What it decides |
 |---|---|---|
-| ⏭ | A. What makes a session "hard" | effort labels, rebalancer, check-ins |
-| ⏭ | B. Recovery and spacing | rebalancer |
-| ⏭ | C. A sensible week (targets) | planner, rebalancer |
-| ⏭ | D. Skipped sessions and progression | rebalancer |
-| ⏭ | E. Metrics already shown | M2 dashboard |
-| ⏭ | F. Mobility, stretching, meditation | M3 |
-| ⏭ | G. Post-workout check-in | M4 step 10 |
+| ✅ | A. What makes a session "hard" — RULE-LOAD-01..04 | effort tracking (M3), rebalancer |
+| ✅ | B. Recovery and spacing — RULE-REC-01..04 | rebalancer, planner |
+| ✅ | C. A sensible week — RULE-WEEK-01..05 | planner, templates (M3) |
+| ✅ | D. Skipped sessions and progression — RULE-PROG-01..04 | rebalancer, dashboard |
+| ✅ | E. Metrics already shown — RULE-METRIC-01..07 | M2 fixes |
+| ✅ | F. Mobility, stretching, meditation — RULE-MOB-01..03 | M3 |
+| ✅ | G. Post-workout check-in — RULE-CHECK-01..02 | M4 step 10 |
+| ⬜ | ACSM 2026 resistance-training update (replaces the 2009 stand) | check before M3 |
 
-## 6. Log
+## 6. Decisions needed
+
+From the research file's open questions. Each is asked when its milestone starts.
+
+| Status | Decision | Needed for |
+|---|---|---|
+| ⬜ | D1. "Hard run" without a lab test: effort rating, heart rate, or either? | M3, M4 rebalancer |
+| ⬜ | D2. Show the 80/20 easy/hard split by time or by number of runs? | M4 planner |
+| ⬜ | D3. Keep your gym split, or nudge toward 2 leg days a week for running? | M3 templates |
+| ⬜ | D4. Gap after hard legs before a hard run: 24 h or 48 h? | M4 rebalancer |
+| ⬜ | D5. Training-load constants: keep 42/7 days, or fit your own later? | M2 |
+| ⬜ | D6. Grade-adjusted pace model: Minetti (lab) or a large-GPS-data model? | M2 |
+| ⬜ | D7. Coming back after a break: 14-day threshold, 80 % first week? | M4 rebalancer |
+| ⬜ | D8. When a check-in disagrees with the watch, does the check-in win? | M4 step 10 |
+| ⏭ | D9. Fill in your profile (age, sex, runs/week, split, goal, experience) | M2 profile |
+
+## 7. Log
 
 | Date | What happened |
 |---|---|
@@ -147,11 +175,13 @@ research answers, and only then build the rebalancer.
 | 2026-10-19 | Auto check-in; volume editing; local-time fix |
 | 2026-10-20 | Coach paused. Decided: order M1 → M2 → M3 → M4, research-backed advice, built for you first. Research prompt written. This plan and the roadmap page created |
 | 2026-10-20 | M1: activity list date filter uses local time; "to" date includes that day |
+| 2026-10-20 | Research received. Five metrics on the dashboard conflict with it; fixes added to M2. Coach rules now have sources |
 
-## 7. Waiting on
+## 8. Waiting on
 
 | Status | Item | Who |
 |---|---|---|
-| ⏭ | Run the research prompt, save `research/training-rules.md` | you |
+| ✅ | Run the research prompt, save `research/training-rules.md` | you |
+| ⏭ | Decision D9: your profile, before M2 starts | you |
 | ⬜ | Sync the GitHub board with this plan — start a session with `ai-jail --github --allow-host github.com --allow-host api.github.com claude` | you start it, I sync |
-| ⬜ | Push branch `coach-board` (7 commits, local only) | you, or me in the session above |
+| ⬜ | Push branch `coach-board` (local only) | you, or me in the session above |

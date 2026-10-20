@@ -47,6 +47,7 @@
   .chip.st-todo { color: var(--muted); border: 1px solid var(--border-strong); }
   .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
   .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  .panel.spaced { margin-bottom: 14px; }
   .panel h3 { font-size: 16px; font-weight: 600; padding: 16px 18px; border-bottom: 1px solid var(--divider); }
   .panel h3 small { font-family: var(--mono); font-size: 11px; font-weight: 400; color: var(--muted); margin-left: 8px; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -84,8 +85,8 @@
         <span class="mid">M1</span>
         <h2>Trust the data</h2>
         <p class="summary">Your imports are complete and every date, time and distance is right.</p>
-        <div class="progress"><span style="width:71%"></span></div>
-        <span class="count">5 / 7 done</span>
+        <div class="progress"><span style="width:62%"></span></div>
+        <span class="count">5 / 8 done</span>
       </header>
       <ul>
         <li class="item st-done">
@@ -115,8 +116,13 @@
         </li>
         <li class="item st-next">
           <span class="chip st-next">Next</span>
-          <span class="feature">Re-import guide: how to refresh your Apple Health export</span>
+          <span class="feature">Re-import guide on the Import page</span>
           <span class="notes">also fixes time offsets exactly</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">Flag runs with heart-rate dropouts or implausible jumps</span>
+          <span class="notes">RULE-METRIC-07</span>
         </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
@@ -129,9 +135,9 @@
       <header>
         <span class="mid">M2</span>
         <h2>Records &amp; dashboard</h2>
-        <p class="summary">What Strava charges for, explained so you can trust it.</p>
-        <div class="progress"><span style="width:40%"></span></div>
-        <span class="count">2 / 5 done</span>
+        <p class="summary">What Strava charges for, correct by the research and explained so you can trust it.</p>
+        <div class="progress"><span style="width:27%"></span></div>
+        <span class="count">3 / 11 done</span>
       </header>
       <ul>
         <li class="item st-done">
@@ -144,14 +150,44 @@
           <span class="feature">Training load (TRIMP / CTL / ATL), race predictions, VO2max estimate</span>
           <span class="notes">Phase 1</span>
         </li>
-        <li class="item st-research">
-          <span class="chip st-research">Needs research</span>
-          <span class="feature">Check every metric against the research file</span>
-          <span class="notes">research §E</span>
+        <li class="item st-done">
+          <span class="chip st-done">Done</span>
+          <span class="feature">Check every metric against research</span>
+          <span class="notes">2026-10-20 — findings below</span>
         </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
-          <span class="feature">&quot;What does this number mean?&quot; for each metric, with its source</span>
+          <span class="feature">Profile: sex, goal, years running/lifting, runs and gym days per week</span>
+          <span class="notes">needed by RULE-METRIC-02/03, WEEK-01/02</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">Max HR: Tanaka 208 − 0.7 × age, replaced by your observed max</span>
+          <span class="notes">RULE-METRIC-02; today 220 − age</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">Training load with sex-specific TRIMP constants, shown as a personal trend</span>
+          <span class="notes">RULE-METRIC-03; today male constants for all</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">Race predictions: marathon flagged as likely too fast</span>
+          <span class="notes">RULE-METRIC-04</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">&quot;VO2max&quot; relabelled as a race-equivalent score (VDOT); zones labelled as estimates</span>
+          <span class="notes">RULE-METRIC-05, METRIC-01</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">Grade-adjusted pace: Minetti curve instead of 3.3 % per 1 %</span>
+          <span class="notes">RULE-METRIC-06; computed but not shown today</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">&quot;What does this number mean?&quot; for each metric, with its rule id</span>
           
         </li>
         <li class="item st-todo">
@@ -166,8 +202,8 @@
         <span class="mid">M3</span>
         <h2>Gym &amp; foundations</h2>
         <p class="summary">The gym side gets the same depth as running.</p>
-        <div class="progress"><span style="width:20%"></span></div>
-        <span class="count">1 / 5 done</span>
+        <div class="progress"><span style="width:12%"></span></div>
+        <span class="count">1 / 8 done</span>
       </header>
       <ul>
         <li class="item st-done">
@@ -175,25 +211,40 @@
           <span class="feature">Exercise catalog: 40 exercises, muscle groups, equipment</span>
           <span class="notes">built for the coach</span>
         </li>
-        <li class="item st-research">
-          <span class="chip st-research">Needs research</span>
-          <span class="feature">Replace the catalog&#x27;s easy/moderate/hard labels with a researched measure of effort</span>
-          <span class="notes">research §A</span>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">Log a gym session: sets, reps, weight, reps in reserve</span>
+          <span class="notes">RULE-LOAD-03; Apple Health only gives duration + HR</span>
         </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
-          <span class="feature">Log a gym session: sets, reps, weight</span>
-          <span class="notes">Apple Health only gives duration + HR</span>
+          <span class="feature">Session effort (sRPE) after every run and lift</span>
+          <span class="notes">RULE-LOAD-01</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">Retire the catalog&#x27;s easy/moderate/hard labels: effort comes from what you did</span>
+          <span class="notes">RULE-LOAD-04</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">Weekly hard sets per muscle group</span>
+          <span class="notes">RULE-WEEK-02/03</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">Review session templates: 2 strength days with heavy legs for runners</span>
+          <span class="notes">RULE-WEEK-04</span>
         </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
           <span class="feature">Strength progress per exercise and muscle group</span>
           
         </li>
-        <li class="item st-research">
-          <span class="chip st-research">Needs research</span>
-          <span class="feature">Mobility, stretching and meditation sessions</span>
-          <span class="notes">research §F</span>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">Mobility, stretching and meditation sessions, with honest claims only</span>
+          <span class="notes">RULE-MOB-01/02/03</span>
         </li>
       </ul>
     </section>
@@ -201,7 +252,7 @@
       <header>
         <span class="mid">M4</span>
         <h2>Coach &amp; trainer</h2>
-        <p class="summary">Spec: <code>Distrava Coach — Use Cases, Decisions &amp; Test Plan.md</code>. Paused after step 4 until M1–M3 are done and the research is back.</p>
+        <p class="summary">Spec: <code>Distrava Coach — Use Cases, Decisions &amp; Test Plan.md</code>. Paused after step 4 until M1–M3 are done.</p>
         <div class="progress"><span style="width:33%"></span></div>
         <span class="count">4 / 12 done</span>
       </header>
@@ -226,10 +277,10 @@
           <span class="feature">4. Auto check-in</span>
           <span class="notes">imported runs/rides offered as &quot;Import matches · Confirm&quot;</span>
         </li>
-        <li class="item st-research">
-          <span class="chip st-research">Needs research</span>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
           <span class="feature">5. Rebalancer</span>
-          <span class="notes">rules need sources — research §A–§D</span>
+          <span class="notes">RULE-REC-01/02/04, PROG-01/02, WEEK-01; decisions D1, D4, D7</span>
         </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
@@ -244,17 +295,17 @@
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
           <span class="feature">8. Plan a week from scratch or from past weeks</span>
-          
+          <span class="notes">RULE-WEEK-01..04</span>
         </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
           <span class="feature">9. Import a trainer&#x27;s PDF plan</span>
           
         </li>
-        <li class="item st-research">
-          <span class="chip st-research">Needs research</span>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
           <span class="feature">10. Post-workout check-in + trainer export</span>
-          <span class="notes">research §G</span>
+          <span class="notes">RULE-CHECK-01/02; decision D8</span>
         </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
@@ -274,40 +325,58 @@
     <section class="panel">
       <h3>Waiting on</h3>
       <table>
-        <tr><td><span class="chip st-next">Next</span></td><td>Run the research prompt, save <code>research/training-rules.md</code></td><td class="muted">you</td></tr>
+        <tr><td><span class="chip st-done">Done</span></td><td>Run the research prompt, save <code>research/training-rules.md</code></td><td class="muted">you</td></tr>
+        <tr><td><span class="chip st-next">Next</span></td><td>Decision D9: your profile, before M2 starts</td><td class="muted">you</td></tr>
         <tr><td><span class="chip st-todo">Not started</span></td><td>Sync the GitHub board with this plan — start a session with <code>ai-jail --github --allow-host github.com --allow-host api.github.com claude</code></td><td class="muted">you start it, I sync</td></tr>
-        <tr><td><span class="chip st-todo">Not started</span></td><td>Push branch <code>coach-board</code> (7 commits, local only)</td><td class="muted">you, or me in the session above</td></tr>
+        <tr><td><span class="chip st-todo">Not started</span></td><td>Push branch <code>coach-board</code> (local only)</td><td class="muted">you, or me in the session above</td></tr>
       </table>
     </section>
     <section class="panel">
-      <h3>Research <small>research/PROMPT.md → research/training-rules.md</small></h3>
+      <h3>Decisions needed <small>asked when their milestone starts</small></h3>
       <table>
-        <tr><td><span class="chip st-next">Next</span></td><td>A. What makes a session &quot;hard&quot;</td><td class="muted">effort labels, rebalancer, check-ins</td></tr>
-        <tr><td><span class="chip st-next">Next</span></td><td>B. Recovery and spacing</td><td class="muted">rebalancer</td></tr>
-        <tr><td><span class="chip st-next">Next</span></td><td>C. A sensible week (targets)</td><td class="muted">planner, rebalancer</td></tr>
-        <tr><td><span class="chip st-next">Next</span></td><td>D. Skipped sessions and progression</td><td class="muted">rebalancer</td></tr>
-        <tr><td><span class="chip st-next">Next</span></td><td>E. Metrics already shown</td><td class="muted">M2 dashboard</td></tr>
-        <tr><td><span class="chip st-next">Next</span></td><td>F. Mobility, stretching, meditation</td><td class="muted">M3</td></tr>
-        <tr><td><span class="chip st-next">Next</span></td><td>G. Post-workout check-in</td><td class="muted">M4 step 10</td></tr>
+        <tr><td><span class="chip st-todo">Not started</span></td><td>D1. &quot;Hard run&quot; without a lab test: effort rating, heart rate, or either?</td><td class="muted">M3, M4 rebalancer</td></tr>
+        <tr><td><span class="chip st-todo">Not started</span></td><td>D2. Show the 80/20 easy/hard split by time or by number of runs?</td><td class="muted">M4 planner</td></tr>
+        <tr><td><span class="chip st-todo">Not started</span></td><td>D3. Keep your gym split, or nudge toward 2 leg days a week for running?</td><td class="muted">M3 templates</td></tr>
+        <tr><td><span class="chip st-todo">Not started</span></td><td>D4. Gap after hard legs before a hard run: 24 h or 48 h?</td><td class="muted">M4 rebalancer</td></tr>
+        <tr><td><span class="chip st-todo">Not started</span></td><td>D5. Training-load constants: keep 42/7 days, or fit your own later?</td><td class="muted">M2</td></tr>
+        <tr><td><span class="chip st-todo">Not started</span></td><td>D6. Grade-adjusted pace model: Minetti (lab) or a large-GPS-data model?</td><td class="muted">M2</td></tr>
+        <tr><td><span class="chip st-todo">Not started</span></td><td>D7. Coming back after a break: 14-day threshold, 80 % first week?</td><td class="muted">M4 rebalancer</td></tr>
+        <tr><td><span class="chip st-todo">Not started</span></td><td>D8. When a check-in disagrees with the watch, does the check-in win?</td><td class="muted">M4 step 10</td></tr>
+        <tr><td><span class="chip st-next">Next</span></td><td>D9. Fill in your profile (age, sex, runs/week, split, goal, experience)</td><td class="muted">M2 profile</td></tr>
       </table>
     </section>
   </div>
 
+  <section class="panel spaced">
+    <h3>Research <small>research/training-rules.md</small></h3>
+    <table>
+        <tr><td><span class="chip st-done">Done</span></td><td>A. What makes a session &quot;hard&quot; — RULE-LOAD-01..04</td><td class="muted">effort tracking (M3), rebalancer</td></tr>
+        <tr><td><span class="chip st-done">Done</span></td><td>B. Recovery and spacing — RULE-REC-01..04</td><td class="muted">rebalancer, planner</td></tr>
+        <tr><td><span class="chip st-done">Done</span></td><td>C. A sensible week — RULE-WEEK-01..05</td><td class="muted">planner, templates (M3)</td></tr>
+        <tr><td><span class="chip st-done">Done</span></td><td>D. Skipped sessions and progression — RULE-PROG-01..04</td><td class="muted">rebalancer, dashboard</td></tr>
+        <tr><td><span class="chip st-done">Done</span></td><td>E. Metrics already shown — RULE-METRIC-01..07</td><td class="muted">M2 fixes</td></tr>
+        <tr><td><span class="chip st-done">Done</span></td><td>F. Mobility, stretching, meditation — RULE-MOB-01..03</td><td class="muted">M3</td></tr>
+        <tr><td><span class="chip st-done">Done</span></td><td>G. Post-workout check-in — RULE-CHECK-01..02</td><td class="muted">M4 step 10</td></tr>
+        <tr><td><span class="chip st-todo">Not started</span></td><td>ACSM 2026 resistance-training update (replaces the 2009 stand)</td><td class="muted">check before M3</td></tr>
+    </table>
+  </section>
+
   <section class="panel">
     <h3>Rules the app uses, and where they come from</h3>
     <table>
-        <tr><td>HR zones as % of heart-rate reserve (Karvonen)</td><td class="muted">zones, time in zone</td><td><span class="badge src-R">Research</span> Karvonen 1957; Apple Watch default — to verify (research §E1)</td></tr>
-        <tr><td>Max HR fallback 220 − age</td><td class="muted">settings</td><td><span class="badge src-R">Research</span> widely used, known to be imprecise — to verify (§E2)</td></tr>
-        <tr><td>Training load = TRIMP; fitness/fatigue = 42/7-day averages</td><td class="muted">dashboard</td><td><span class="badge src-R">Research</span> Banister impulse-response model — to verify (§E3)</td></tr>
-        <tr><td>Race prediction: Riegel, exponent 1.06</td><td class="muted">dashboard</td><td><span class="badge src-R">Research</span> Riegel 1981 — to verify (§E4)</td></tr>
-        <tr><td>VO2max estimate (Daniels VDOT formula)</td><td class="muted">dashboard</td><td><span class="badge src-R">Research</span> Daniels &amp; Gilbert — to verify (§E5)</td></tr>
-        <tr><td>Grade-adjusted pace: +3.3 % per 1 % grade</td><td class="muted">activity detail</td><td><span class="badge src-A">Assumption</span> no source recorded — to verify (§E6)</td></tr>
+        <tr><td>HR zones as % of heart-rate reserve (Karvonen)</td><td class="muted">zones, time in zone</td><td><span class="badge src-R">Research</span> RULE-METRIC-01 — supported; should be labelled as estimates</td></tr>
+        <tr><td>Max HR fallback 220 − age</td><td class="muted">settings, zones, load</td><td><span class="badge src-R">Research</span> RULE-METRIC-02 says never use it — replace with Tanaka (M2)</td></tr>
+        <tr><td>Training load = TRIMP with male constants for everyone</td><td class="muted">dashboard</td><td><span class="badge src-R">Research</span> RULE-METRIC-03 — constants are sex-specific; app lacks your sex (M2)</td></tr>
+        <tr><td>Fitness / fatigue as 42 / 7-day averages</td><td class="muted">dashboard</td><td><span class="badge src-R">Research</span> RULE-METRIC-03 — convention; fine as a personal trend</td></tr>
+        <tr><td>Race prediction: Riegel, exponent 1.06</td><td class="muted">dashboard</td><td><span class="badge src-R">Research</span> RULE-METRIC-04 — fine to half marathon; marathon too fast (M2)</td></tr>
+        <tr><td>VO2max estimate (Daniels VDOT)</td><td class="muted">dashboard</td><td><span class="badge src-R">Research</span> RULE-METRIC-05 — not validated as VO2max; relabel (M2)</td></tr>
+        <tr><td>Grade-adjusted pace: +3.3 % per 1 % grade</td><td class="muted">splits (not shown)</td><td><span class="badge src-R">Research</span> RULE-METRIC-06 — no source; replace with Minetti (M2)</td></tr>
         <tr><td>Best-effort distances mirror Strava</td><td class="muted">records</td><td><span class="badge src-Y">Your decision</span> </td></tr>
         <tr><td>Match an import to a session: same type, same day, ±25 %</td><td class="muted">coach</td><td><span class="badge src-Y">Your decision</span> proposed by me, you approved</td></tr>
         <tr><td>A run one day off asks instead of matching</td><td class="muted">coach</td><td><span class="badge src-Y">Your decision</span> proposed by me, you approved</td></tr>
-        <tr><td>Exercise intensity easy / moderate / hard</td><td class="muted">catalog</td><td><span class="badge src-A">Assumption</span> my judgement — to replace (§A)</td></tr>
-        <tr><td>Session templates (e.g. &quot;Chest &amp; Triceps&quot; = bench, incline, dips, pushdown)</td><td class="muted">coach</td><td><span class="badge src-A">Assumption</span> my choice — to review</td></tr>
-        <tr><td>Default volumes (e.g. running day = 8 km)</td><td class="muted">coach</td><td><span class="badge src-A">Assumption</span> my choice — to review</td></tr>
+        <tr><td>Exercise intensity easy / moderate / hard</td><td class="muted">catalog</td><td><span class="badge src-R">Research</span> RULE-LOAD-04 says effort must come from what you did — retire (M3)</td></tr>
+        <tr><td>Session templates (one leg day in the gym split)</td><td class="muted">coach</td><td><span class="badge src-R">Research</span> RULE-WEEK-04 — runners need 2 strength days with heavy legs — review (M3)</td></tr>
+        <tr><td>Default volumes (e.g. running day = 8 km)</td><td class="muted">coach</td><td><span class="badge src-A">Assumption</span> no source — derive from your recent weeks (M4)</td></tr>
     </table>
   </section>
 
