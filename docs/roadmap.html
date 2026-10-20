@@ -85,8 +85,8 @@
         <span class="mid">M1</span>
         <h2>Trust the data</h2>
         <p class="summary">Your imports are complete and every date, time and distance is right.</p>
-        <div class="progress"><span style="width:90%"></span></div>
-        <span class="count">9 / 10 done</span>
+        <div class="progress"><span style="width:82%"></span></div>
+        <span class="count">9 / 11 done</span>
       </header>
       <ul>
         <li class="item st-done">
@@ -117,7 +117,7 @@
         <li class="item st-done">
           <span class="chip st-done">Done</span>
           <span class="feature">Re-import guide on the Import page</span>
-          <span class="notes">2026-10-20; page no longer claims .fit support it doesn&#x27;t have</span>
+          <span class="notes">2026-10-20; page no longer claims .fit support it doesn&#x27;t have; time-zone wording corrected</span>
         </li>
         <li class="item st-done">
           <span class="chip st-done">Done</span>
@@ -134,10 +134,15 @@
           <span class="feature">Runs without per-second heart rate: zones, HR chart and split HR hidden, with a note; gaps and jumps noted</span>
           <span class="notes">2026-10-20; your runs: 66 hidden, 5 with a gaps note, 46 clean</span>
         </li>
-        <li class="item st-next">
-          <span class="chip st-next">Next</span>
+        <li class="item st-in_progress">
+          <span class="chip st-in_progress">In progress</span>
           <span class="feature">Spot-check against Apple Fitness for a few known runs</span>
-          <span class="notes">proves the numbers; needs you</span>
+          <span class="notes">list given 2026-10-20; waiting on your comparison</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">Winter-time and travel start times are 1–2 h off</span>
+          <span class="notes">low impact: 308 activities show 1 h late, 1 on the wrong day. Apple&#x27;s export writes all dates in the export-time offset; each workout&#x27;s own <code>HKTimeZone</code> tag fixes it. Needs <code>ai-jail --map /var/db/timezone</code> to verify</span>
         </li>
       </ul>
     </section>
@@ -337,7 +342,8 @@
       <table>
         <tr><td><span class="chip st-done">Done</span></td><td>Run the research prompt, save <code>research/training-rules.md</code></td><td class="muted">you</td></tr>
         <tr><td><span class="chip st-done">Done</span></td><td>Point me to your Apple Health <code>export.zip</code> (read-only check of one sparse run)</td><td class="muted">you</td></tr>
-        <tr><td><span class="chip st-next">Next</span></td><td>Re-import <code>mydata/export 3.zip</code> on the Import page (about a minute) — fixes HR and times on all activities</td><td class="muted">you</td></tr>
+        <tr><td><span class="chip st-done">Done</span></td><td>Re-import <code>mydata/export 3.zip</code> on the Import page (about a minute) — fixes HR and times on all activities</td><td class="muted">you</td></tr>
+        <tr><td><span class="chip st-next">Next</span></td><td>Compare the spot-check list with the Fitness app</td><td class="muted">you</td></tr>
         <tr><td><span class="chip st-next">Next</span></td><td>Decision D9: your profile, before M2 starts</td><td class="muted">you</td></tr>
         <tr><td><span class="chip st-todo">Not started</span></td><td>Sync the GitHub board with this plan — start a session with <code>ai-jail --github --allow-host github.com --allow-host api.github.com claude</code></td><td class="muted">you start it, I sync</td></tr>
         <tr><td><span class="chip st-todo">Not started</span></td><td>Push branch <code>coach-board</code> (local only)</td><td class="muted">you, or me in the session above</td></tr>

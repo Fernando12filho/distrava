@@ -59,11 +59,12 @@ _Your imports are complete and every date, time and distance is right._
 | ✅ | Regression net: alarms if any existing number changes | 2026-10-18 |
 | ✅ | Activities shown and counted in local time, not UTC | 2026-10-19 |
 | ✅ | Activity list date filter in local time | 2026-10-20; end date now inclusive, bad dates give a clear error |
-| ✅ | Re-import guide on the Import page | 2026-10-20; page no longer claims .fit support it doesn't have |
+| ✅ | Re-import guide on the Import page | 2026-10-20; page no longer claims .fit support it doesn't have; time-zone wording corrected |
 | ✅ | Find why ~half of runs have almost no heart-rate samples | 2026-10-20: Apple's export itself lacks per-second samples for those workouts; the importer was right |
 | ✅ | Average/max HR from the watch's own workout summary; re-import corrects existing activities | 2026-10-20; on your data: 27 activities off by 10+ bpm |
 | ✅ | Runs without per-second heart rate: zones, HR chart and split HR hidden, with a note; gaps and jumps noted | 2026-10-20; your runs: 66 hidden, 5 with a gaps note, 46 clean |
-| ⏭ | Spot-check against Apple Fitness for a few known runs | proves the numbers; needs you |
+| 🔨 | Spot-check against Apple Fitness for a few known runs | list given 2026-10-20; waiting on your comparison |
+| ⬜ | Winter-time and travel start times are 1–2 h off | low impact: 308 activities show 1 h late, 1 on the wrong day. Apple's export writes all dates in the export-time offset; each workout's own `HKTimeZone` tag fixes it. Needs `ai-jail --map /var/db/timezone` to verify |
 
 ### M2 — Records & dashboard
 _What Strava charges for, correct by the research and explained so you can trust it._
@@ -186,6 +187,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-20 | M1: checking heart-rate gaps on real data found ~half of runs with almost no in-run samples. Cause unknown (export or importer); investigating |
 | 2026-10-20 | M1: cause found in your export — Apple omits per-second samples for some workouts. Importer now uses the watch's own HR summary; re-import fixes existing data |
 | 2026-10-20 | M1: runs without per-second heart rate hide their zones and HR chart (D10); gaps and jumps get a note. Rule parameters now live in `app/training_rules.py` |
+| 2026-10-20 | You re-imported. Found that Apple's export writes every date in the export-time offset, so the claim "exact time zone from the watch" was wrong; winter/travel hour offset parked as low impact. Spot-check list sent |
 
 ## 8. Waiting on
 
@@ -193,7 +195,8 @@ From the research file's open questions. Each is asked when its milestone starts
 |---|---|---|
 | ✅ | Run the research prompt, save `research/training-rules.md` | you |
 | ✅ | Point me to your Apple Health `export.zip` (read-only check of one sparse run) | you |
-| ⏭ | Re-import `mydata/export 3.zip` on the Import page (about a minute) — fixes HR and times on all activities | you |
+| ✅ | Re-import `mydata/export 3.zip` on the Import page (about a minute) — fixes HR and times on all activities | you |
+| ⏭ | Compare the spot-check list with the Fitness app | you |
 | ⏭ | Decision D9: your profile, before M2 starts | you |
 | ⬜ | Sync the GitHub board with this plan — start a session with `ai-jail --github --allow-host github.com --allow-host api.github.com claude` | you start it, I sync |
 | ⬜ | Push branch `coach-board` (local only) | you, or me in the session above |
