@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_explain.html" import explain %}
 {% block title %}Dashboard{% endblock %}
 {% block page_title %}<div class="topbar-title">Dashboard</div>{% endblock %}
 {% block topbar_right %}
@@ -43,6 +44,9 @@
       <div class="stat-label">Training load</div>
       <div class="stat-value-row"><span class="stat-value">{{ training_load|round|int }}</span></div>
       {{ stat_delta(training_load_delta, true, '7-day trend') }}
+      {% call explain('RULE-METRIC-03 · Morton, Fitz-Clarke & Banister 1990') %}
+      Each workout scores minutes × how hard your heart worked (Banister TRIMP); this is the 7-day weighted average of those scores. Read it as a personal trend: compare it with your own past weeks, not with other people. Gym sessions count for less than they should, because heart rate understates lifting effort.
+      {% endcall %}
     </div>
   </div>
 
@@ -132,6 +136,11 @@
           <div class="card-subtitle">Riegel model · based on your fastest {{ prediction_basis_label }}</div>
         </div>
       </div>
+      <div class="explain-row">
+        {% call explain('RULE-METRIC-04 · Vickers & Vertosick 2016') %}
+        Riegel's formula scales your fastest effort to other distances (time × (distance ratio)^1.06). In 2,303 recreational runners it was well calibrated up to the half marathon, but too fast at the marathon for about half of them — which is why that row is quieter.
+        {% endcall %}
+      </div>
       <div class="pr-list">
         {% for p in race_predictions %}
         <div class="pr-row">
@@ -149,6 +158,9 @@
       <div class="stat-label">VDOT</div>
       <div class="stat-value-row"><span class="stat-value">{{ '%.1f'|format(vo2max) }}</span></div>
       <div class="stat-delta"><span class="vs-label">race-equivalent score from your fastest {{ prediction_basis_label }} · not a measured oxygen uptake</span></div>
+      {% call explain('RULE-METRIC-05 · no peer-reviewed validation found') %}
+      Daniels' VDOT turns a race time into one performance number, handy for comparing efforts across distances. It is not your VO2max: no study validating it against measured oxygen uptake in recreational runners was found, so don't use it to set training zones.
+      {% endcall %}
     </div>
   </div>
   {% endif %}

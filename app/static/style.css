@@ -1318,6 +1318,47 @@ a.recent-row:hover {
   font-variant-numeric: tabular-nums;
 }
 
+/* "What is this?" — a sourced explanation that stays folded until asked for. */
+.explain {
+  margin-top: 10px;
+}
+
+.explain summary {
+  list-style: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.explain summary::-webkit-details-marker {
+  display: none;
+}
+
+.explain summary:hover,
+.explain[open] summary {
+  color: var(--text-secondary);
+}
+
+.explain-body {
+  margin-top: 8px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.explain-source {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.explain-row {
+  padding: 0 22px 12px;
+}
+
 /* RULE-METRIC-04: a prediction the model is known to get wrong is shown, but
    quieter, with the reason under its label. */
 .pr-value.muted {

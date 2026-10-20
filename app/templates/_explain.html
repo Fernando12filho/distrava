@@ -1,0 +1,11 @@
+{# "What is this?" for a research-backed number. `source` names the rule id(s)
+   and only studies listed in research/training-rules.md (a test enforces it). #}
+{% macro explain(source) -%}
+<details class="explain">
+  <summary>What is this?</summary>
+  <div class="explain-body">
+    {{ caller() }}
+    <div class="explain-source">{{ source }}</div>
+  </div>
+</details>
+{%- endmacro %}

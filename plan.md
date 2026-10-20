@@ -78,12 +78,12 @@ _What Strava charges for, correct by the research and explained so you can trust
 | ✅ | Sex in Settings, used for training load | 2026-10-20; the training profile moved to M4 (you or the coach set it) |
 | ✅ | Max HR: Tanaka 208 − 0.7 × age, replaced by your observed max | 2026-10-20; yours: 194 → 190 (observed 178 is lower) |
 | ✅ | Resting HR from Apple Health (7-day median) instead of the default 60 | 2026-10-20; yours: 54 after your next re-import |
-| 🔨 | Training load with sex-specific TRIMP constants, shown as a personal trend | RULE-METRIC-03; constants done, "personal trend" wording comes with the explanations |
+| ✅ | Training load with sex-specific TRIMP constants, shown as a personal trend | 2026-10-20; RULE-METRIC-03 |
 | ✅ | Race predictions: marathon flagged as likely too fast | 2026-10-20; RULE-METRIC-04 (no slower adjustment: the research gives no formula) |
 | ✅ | "VO2max" relabelled as a race-equivalent score (VDOT); zones labelled as estimates | 2026-10-20; RULE-METRIC-05, METRIC-01 |
 | ⬜ | Grade-adjusted pace: Minetti curve instead of 3.3 % per 1 % | RULE-METRIC-06; computed but not shown today |
-| ⬜ | "What does this number mean?" for each metric, with its rule id | |
-| ⬜ | PR history over time (not only the current best) | |
+| ✅ | "What does this number mean?" for each metric, with its rule id | 2026-10-20: training load, race predictions, VDOT, HR zones; a test rejects any source not in the research file |
+| ⏭ | PR history over time (not only the current best) | |
 
 ### M3 — Gym & foundations
 _The gym side gets the same depth as running._
@@ -195,6 +195,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-20 | Spot-check: all match — M1 done. M2 started: max HR now Tanaka + observed max (yours 194 → 190); 7-day load 22.51 → 24.01 |
 | 2026-10-20 | Observed max repaired (127 → 178, backup kept). Resting HR now read from Apple Health (yours 54). Decided: the training profile is set by you or the coach |
 | 2026-10-20 | You re-imported (resting HR 54) and set sex. M2: marathon prediction cautioned, VO2max relabelled VDOT, zones labelled as estimates |
+| 2026-10-20 | M2: "What is this?" explanations with rule ids and sources on training load, predictions, VDOT and HR zones |
 
 ## 8. Waiting on
 

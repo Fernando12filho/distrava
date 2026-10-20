@@ -36,9 +36,10 @@ def test_dashboard_shows_the_marathon_caution(app, client, db_session, monkeypat
 def test_vdot_is_not_called_vo2max(app, client, db_session, monkeypatch):
     _context, html = _dashboard(app, client, db_session, monkeypatch)
 
-    assert "VDOT" in html
+    assert '<div class="stat-label">VDOT</div>' in html
     assert "race-equivalent score" in html
-    assert "VO2max" not in html
+    # The explanation may say it is *not* a VO2max; the label must not claim it is.
+    assert "Est. VO2max" not in html
     assert "ml/kg/min" not in html
 
 

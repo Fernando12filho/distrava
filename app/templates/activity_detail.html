@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_explain.html" import explain %}
 {% block title %}{{ display_title }}{% endblock %}
 {% block page_title %}{% endblock %}
 {% block topbar_left %}
@@ -89,6 +90,11 @@
   {% if hr_zones %}
   <div class="card zones-card">
     <div class="card-header"><div class="title">Heart rate zones</div><span class="meta-text mono">time in zone · estimated from max and resting HR</span></div>
+    <div class="explain-row">
+      {% call explain('RULE-METRIC-01, RULE-METRIC-02 · Swain & Leutholtz 1997; Tanaka 2001') %}
+      Zones are shares of your heart-rate reserve (Karvonen): resting + share × (max − resting). Max is your setting, else 208 − 0.7 × age, raised to the highest you've held for 5 seconds. Resting is your setting, else the median of Apple Health's last 7 daily readings. Both are estimates, not lab-measured thresholds, so zone edges can be off.
+      {% endcall %}
+    </div>
     <div class="zones-list">
       {% for z in hr_zones %}
       <div class="zone-row">
