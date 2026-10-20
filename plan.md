@@ -60,7 +60,8 @@ _Your imports are complete and every date, time and distance is right._
 | ✅ | Activities shown and counted in local time, not UTC | 2026-10-19 |
 | ✅ | Activity list date filter in local time | 2026-10-20; end date now inclusive, bad dates give a clear error |
 | ✅ | Re-import guide on the Import page | 2026-10-20; page no longer claims .fit support it doesn't have |
-| ⏭ | Flag runs with heart-rate dropouts or implausible jumps | RULE-METRIC-07 |
+| 🔨 | Find why ~half of runs have almost no heart-rate samples | 2026-10-20 finding: 66 of 111 watch runs; recent ones often lack distance samples too. Needs your export.zip |
+| ⬜ | Flag runs with heart-rate dropouts or implausible jumps | RULE-METRIC-07; waits for the finding above and D10 |
 | ⬜ | Spot-check against Apple Fitness for a few known runs | proves the numbers; needs you |
 
 ### M2 — Records & dashboard
@@ -163,6 +164,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | ⬜ | D7. Coming back after a break: 14-day threshold, 80 % first week? | M4 rebalancer |
 | ⬜ | D8. When a check-in disagrees with the watch, does the check-in win? | M4 step 10 |
 | ⏭ | D9. Fill in your profile (age, sex, runs/week, split, goal, experience) | M2 profile |
+| ⏭ | D10. Runs with little heart-rate data: just label them, or also leave them out of training load and zones? | M1 HR flags |
 
 ## 7. Log
 
@@ -177,12 +179,14 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-20 | M1: activity list date filter uses local time; "to" date includes that day |
 | 2026-10-20 | Research received. Five metrics on the dashboard conflict with it; fixes added to M2. Coach rules now have sources |
 | 2026-10-20 | M1: re-import guide on the Import page; removed the false ".fit" claim |
+| 2026-10-20 | M1: checking heart-rate gaps on real data found ~half of runs with almost no in-run samples. Cause unknown (export or importer); investigating |
 
 ## 8. Waiting on
 
 | Status | Item | Who |
 |---|---|---|
 | ✅ | Run the research prompt, save `research/training-rules.md` | you |
+| ⏭ | Point me to your Apple Health `export.zip` (read-only check of one sparse run) | you |
 | ⏭ | Decision D9: your profile, before M2 starts | you |
 | ⬜ | Sync the GitHub board with this plan — start a session with `ai-jail --github --allow-host github.com --allow-host api.github.com claude` | you start it, I sync |
 | ⬜ | Push branch `coach-board` (local only) | you, or me in the session above |

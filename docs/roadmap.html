@@ -85,8 +85,8 @@
         <span class="mid">M1</span>
         <h2>Trust the data</h2>
         <p class="summary">Your imports are complete and every date, time and distance is right.</p>
-        <div class="progress"><span style="width:75%"></span></div>
-        <span class="count">6 / 8 done</span>
+        <div class="progress"><span style="width:67%"></span></div>
+        <span class="count">6 / 9 done</span>
       </header>
       <ul>
         <li class="item st-done">
@@ -119,10 +119,15 @@
           <span class="feature">Re-import guide on the Import page</span>
           <span class="notes">2026-10-20; page no longer claims .fit support it doesn&#x27;t have</span>
         </li>
-        <li class="item st-next">
-          <span class="chip st-next">Next</span>
+        <li class="item st-in_progress">
+          <span class="chip st-in_progress">In progress</span>
+          <span class="feature">Find why ~half of runs have almost no heart-rate samples</span>
+          <span class="notes">2026-10-20 finding: 66 of 111 watch runs; recent ones often lack distance samples too. Needs your export.zip</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
           <span class="feature">Flag runs with heart-rate dropouts or implausible jumps</span>
-          <span class="notes">RULE-METRIC-07</span>
+          <span class="notes">RULE-METRIC-07; waits for the finding above and D10</span>
         </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
@@ -326,6 +331,7 @@
       <h3>Waiting on</h3>
       <table>
         <tr><td><span class="chip st-done">Done</span></td><td>Run the research prompt, save <code>research/training-rules.md</code></td><td class="muted">you</td></tr>
+        <tr><td><span class="chip st-next">Next</span></td><td>Point me to your Apple Health <code>export.zip</code> (read-only check of one sparse run)</td><td class="muted">you</td></tr>
         <tr><td><span class="chip st-next">Next</span></td><td>Decision D9: your profile, before M2 starts</td><td class="muted">you</td></tr>
         <tr><td><span class="chip st-todo">Not started</span></td><td>Sync the GitHub board with this plan — start a session with <code>ai-jail --github --allow-host github.com --allow-host api.github.com claude</code></td><td class="muted">you start it, I sync</td></tr>
         <tr><td><span class="chip st-todo">Not started</span></td><td>Push branch <code>coach-board</code> (local only)</td><td class="muted">you, or me in the session above</td></tr>
@@ -343,6 +349,7 @@
         <tr><td><span class="chip st-todo">Not started</span></td><td>D7. Coming back after a break: 14-day threshold, 80 % first week?</td><td class="muted">M4 rebalancer</td></tr>
         <tr><td><span class="chip st-todo">Not started</span></td><td>D8. When a check-in disagrees with the watch, does the check-in win?</td><td class="muted">M4 step 10</td></tr>
         <tr><td><span class="chip st-next">Next</span></td><td>D9. Fill in your profile (age, sex, runs/week, split, goal, experience)</td><td class="muted">M2 profile</td></tr>
+        <tr><td><span class="chip st-next">Next</span></td><td>D10. Runs with little heart-rate data: just label them, or also leave them out of training load and zones?</td><td class="muted">M1 HR flags</td></tr>
       </table>
     </section>
   </div>
