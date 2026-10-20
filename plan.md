@@ -59,8 +59,8 @@ _Your imports are complete and every date, time and distance is right._
 | ✅ | Regression net: alarms if any existing number changes | 2026-10-18 |
 | ✅ | Activities shown and counted in local time, not UTC | 2026-10-19 |
 | ✅ | Activity list date filter in local time | 2026-10-20; end date now inclusive, bad dates give a clear error |
-| ⏭ | Re-import guide on the Import page | also fixes time offsets exactly |
-| ⬜ | Flag runs with heart-rate dropouts or implausible jumps | RULE-METRIC-07 |
+| ✅ | Re-import guide on the Import page | 2026-10-20; page no longer claims .fit support it doesn't have |
+| ⏭ | Flag runs with heart-rate dropouts or implausible jumps | RULE-METRIC-07 |
 | ⬜ | Spot-check against Apple Fitness for a few known runs | proves the numbers; needs you |
 
 ### M2 — Records & dashboard
@@ -176,6 +176,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-20 | Coach paused. Decided: order M1 → M2 → M3 → M4, research-backed advice, built for you first. Research prompt written. This plan and the roadmap page created |
 | 2026-10-20 | M1: activity list date filter uses local time; "to" date includes that day |
 | 2026-10-20 | Research received. Five metrics on the dashboard conflict with it; fixes added to M2. Coach rules now have sources |
+| 2026-10-20 | M1: re-import guide on the Import page; removed the false ".fit" claim |
 
 ## 8. Waiting on
 

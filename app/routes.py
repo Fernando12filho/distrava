@@ -345,7 +345,7 @@ def activity_stream(activity_id):
 
 @bp.route("/import", methods=["GET"])
 def import_page():
-    return render_template("import.html")
+    return render_template("import.html", accept=",".join(sorted(ALLOWED_IMPORT_EXTENSIONS)))
 
 
 @bp.route("/import", methods=["POST"])

@@ -18,8 +18,8 @@
         <div class="dropzone-sub">Drag <span class="mono" style="color:var(--text-tertiary);">export.zip</span> here, or click to browse</div>
       </div>
       <button type="button" id="choose-file-btn" class="btn btn-primary">Choose file</button>
-      <div class="dropzone-footnote">Also accepts .gpx · .csv · .fit</div>
-      <input type="file" id="import-file-input" name="file" accept=".zip,.gpx,.csv,.fit" style="display:none;" />
+      <div class="dropzone-footnote">Also accepts .gpx · .csv</div>
+      <input type="file" id="import-file-input" name="file" accept="{{ accept }}" style="display:none;" />
     </div>
   </form>
 
@@ -70,6 +70,20 @@
   </div>
 
   <div id="import-error" class="mono" style="display:none; color:var(--negative); margin-top:16px; font-size:13px;"></div>
+
+  <section class="card import-guide">
+    <div class="card-header"><div><div class="title">Refreshing your data</div><div class="card-subtitle">Apple Health · a few minutes on your iPhone</div></div></div>
+    <ol class="import-guide-steps">
+      <li>On your iPhone, open <strong>Health</strong> and tap your profile picture in the top-right corner.</li>
+      <li>Tap <strong>Export All Health Data</strong>, then <strong>Export</strong>. A long history can take several minutes.</li>
+      <li>Send <span class="mono">export.zip</span> to this Mac — AirDrop is quickest — and drop it above.</li>
+    </ol>
+    <ul class="import-guide-notes">
+      <li>Re-importing is safe: activities already here are skipped, never duplicated.</li>
+      <li>It also corrects each activity's local time using the time zone recorded by your watch, replacing the estimate made for activities imported earlier.</li>
+      <li>GPX files only carry UTC, so they get this computer's time zone. CSV times are used as written.</li>
+    </ul>
+  </section>
 
 </div>
 {% endblock %}

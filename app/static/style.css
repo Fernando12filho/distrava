@@ -1328,6 +1328,38 @@ a.recent-row:hover {
   font-weight: 600;
 }
 
+.import-guide {
+  margin-top: 28px;
+}
+
+.import-guide-steps,
+.import-guide-notes {
+  padding: 16px 22px 0 44px;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-tertiary);
+}
+
+.import-guide-steps li + li,
+.import-guide-notes li + li {
+  margin-top: 6px;
+}
+
+.import-guide-steps strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.import-guide-notes {
+  margin-top: 14px;
+  padding-top: 14px;
+  padding-bottom: 20px;
+  border-top: 1px solid var(--divider-row);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
 .dropzone {
   border: 1.5px dashed var(--border-strong-2);
   border-radius: 16px;
