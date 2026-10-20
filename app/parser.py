@@ -42,6 +42,12 @@ DISTANCE_STATISTIC_TYPES = {
     "HKQuantityTypeIdentifierDistanceCycling",
 }
 
+# The watch's own per-workout heart-rate summary, computed from every beat.
+# Exports can hold only a handful of the underlying samples for a workout
+# (found in real data: 12 samples for a 29-minute run), so averaging those
+# can be far off — 117.6 bpm against the watch's 155.9 for that run.
+HEART_RATE_STATISTIC_TYPE = "HKQuantityTypeIdentifierHeartRate"
+
 GPX_NS = {
     "gpx": "http://www.topografix.com/GPX/1/1",
     "gpxtpx": "http://www.garmin.com/xmlschemas/TrackPointExtension/v1",
@@ -103,6 +109,7 @@ def _collect_workout_windows(xml_bytes):
     # not read back off the (by-then-cleared) parent afterward.
     pending_distance_meters = None
     pending_route_file = None
+    pending_hr_summary = (None, None)
 
     for _, elem in ET.iterparse(io.BytesIO(xml_bytes), events=("end",)):
         tag = elem.tag
@@ -113,6 +120,12 @@ def _collect_workout_windows(xml_bytes):
         elif tag == "WorkoutStatistics":
             if elem.get("type") in DISTANCE_STATISTIC_TYPES:
                 pending_distance_meters = _to_meters(elem.get("sum"), elem.get("unit"))
+            elif elem.get("type") == HEART_RATE_STATISTIC_TYPE:
+                average, maximum = elem.get("average"), elem.get("maximum")
+                pending_hr_summary = (
+                    float(average) if average else None,
+                    float(maximum) if maximum else None,
+                )
         elif tag == "FileReference":
             path = elem.get("path")
             if path and path.endswith(".gpx"):
@@ -136,10 +149,13 @@ def _collect_workout_windows(xml_bytes):
                     "distance_meters": distance_meters,
                     "source_device": elem.get("sourceName"),
                     "route_file": pending_route_file,
+                    "summary_avg_hr": pending_hr_summary[0],
+                    "summary_max_hr": pending_hr_summary[1],
                 }
             )
             pending_distance_meters = None
             pending_route_file = None
+            pending_hr_summary = (None, None)
         elem.clear()
     return _drop_overlapping_duplicates(windows), me_attrs
 
@@ -246,15 +262,20 @@ def _persist_activity(
     stream_data=None,
     source_device=None,
     utc_offset_minutes=None,
-    exact_offset=False,
+    refresh_existing=None,
 ):
     dedup_key = _make_dedup_key(activity_type, start_time, duration_seconds)
     existing = db_session.query(Activity).filter_by(dedup_key=dedup_key).first()
     if existing:
-        # Re-importing an Apple Health export is how rows imported before
-        # offsets existed get the exact one; estimated offsets never overwrite.
-        if exact_offset and existing.utc_offset_minutes != utc_offset_minutes:
-            existing.utc_offset_minutes = utc_offset_minutes
+        # Re-importing an Apple Health export is how rows imported earlier get
+        # values only the watch knows exactly (time zone, heart-rate summary).
+        # Estimates are never passed here, so they never overwrite anything.
+        changed = False
+        for field, value in (refresh_existing or {}).items():
+            if value is not None and getattr(existing, field) != value:
+                setattr(existing, field, value)
+                changed = True
+        if changed:
             db_session.commit()
         return False
 
@@ -393,6 +414,8 @@ def import_apple_health_zip(zip_path, db_session):
     for w, stream in zip(windows, streams):
         hr_values = [v for v in stream["hr"] if v is not None]
         has_elevation = any(v is not None for v in stream["elevation"])
+        sample_avg_hr = (sum(hr_values) / len(hr_values)) if hr_values else None
+        sample_max_hr = max(hr_values) if hr_values else None
         created = _persist_activity(
             db_session,
             activity_type=w["activity_type"],
@@ -400,8 +423,8 @@ def import_apple_health_zip(zip_path, db_session):
             end_time=w["end_time"],
             duration_seconds=w["duration_seconds"],
             distance_meters=w["distance_meters"],
-            avg_hr=(sum(hr_values) / len(hr_values)) if hr_values else None,
-            max_hr=max(hr_values) if hr_values else None,
+            avg_hr=w["summary_avg_hr"] if w["summary_avg_hr"] is not None else sample_avg_hr,
+            max_hr=w["summary_max_hr"] if w["summary_max_hr"] is not None else sample_max_hr,
             elevation_gain_meters=(
                 analytics.elevation_gain_from_stream(stream["time"], stream["elevation"])
                 if has_elevation
@@ -412,7 +435,11 @@ def import_apple_health_zip(zip_path, db_session):
             source_device=w.get("source_device"),
             stream_data=stream,
             utc_offset_minutes=w["utc_offset_minutes"],
-            exact_offset=True,
+            refresh_existing={
+                "utc_offset_minutes": w["utc_offset_minutes"],
+                "avg_hr": w["summary_avg_hr"],
+                "max_hr": w["summary_max_hr"],
+            },
         )
         if created:
             imported += 1

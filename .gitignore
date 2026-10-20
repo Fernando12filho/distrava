@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 venv/
 *.egg-info/
+mydata
 
 # Personal health data — never commit
 data/
