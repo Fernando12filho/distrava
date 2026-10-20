@@ -63,7 +63,7 @@ _Your imports are complete and every date, time and distance is right._
 | ✅ | Find why ~half of runs have almost no heart-rate samples | 2026-10-20: Apple's export itself lacks per-second samples for those workouts; the importer was right |
 | ✅ | Average/max HR from the watch's own workout summary; re-import corrects existing activities | 2026-10-20; on your data: 27 activities off by 10+ bpm |
 | ✅ | Runs without per-second heart rate: zones, HR chart and split HR hidden, with a note; gaps and jumps noted | 2026-10-20; your runs: 66 hidden, 5 with a gaps note, 46 clean |
-| 🔨 | Spot-check against Apple Fitness for a few known runs | list given 2026-10-20; waiting on your comparison |
+| ✅ | Spot-check against Apple Fitness for a few known runs | 2026-10-20: all match |
 | ⬜ | Winter-time and travel start times are 1–2 h off | low impact: 308 activities show 1 h late, 1 on the wrong day. Apple's export writes all dates in the export-time offset; each workout's own `HKTimeZone` tag fixes it. Needs `ai-jail --map /var/db/timezone` to verify |
 
 ### M2 — Records & dashboard
