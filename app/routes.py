@@ -217,14 +217,9 @@ def _compute_splits(stream_data, split_meters=1000.0):
     for split in splits:
         cumulative_time += split["duration_seconds"]
         curr_elevation = analytics.value_at_time(elev_times, elevations, cumulative_time) if elev_times else None
-        if prev_elevation is not None and curr_elevation is not None and split["distance_meters"] > 0:
-            grade_percent = (curr_elevation - prev_elevation) / split["distance_meters"] * 100
-            split["grade_adjusted_pace_seconds"] = analytics.grade_adjusted_pace(
-                split["pace_per_km_seconds"], grade_percent
-            )
+        if prev_elevation is not None and curr_elevation is not None:
             split["elevation_change_meters"] = curr_elevation - prev_elevation
         else:
-            split["grade_adjusted_pace_seconds"] = None
             split["elevation_change_meters"] = None
         split["hr"] = analytics.value_at_time(hr_times, hr_values, cumulative_time) if hr_times else None
         prev_elevation = curr_elevation

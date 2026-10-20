@@ -103,19 +103,6 @@ def test_km_splits_pace_normalized_to_split_unit_not_hardcoded_km():
     assert splits[0]["pace_per_km_seconds"] == pytest.approx(splits[0]["duration_seconds"], abs=0.001)
 
 
-# --- grade-adjusted pace -------------------------------------------------
-
-def test_grade_adjusted_pace_flat_same_as_raw():
-    adjusted = analytics.grade_adjusted_pace(raw_pace_sec_per_km=300, grade_percent=0)
-
-    assert adjusted == pytest.approx(300.0)
-
-
-def test_grade_adjusted_pace_uphill_slower():
-    adjusted = analytics.grade_adjusted_pace(raw_pace_sec_per_km=300, grade_percent=5)
-
-    assert adjusted > 300.0
-    assert adjusted == pytest.approx(349.5, abs=0.01)
 
 
 # --- TRIMP -----------------------------------------------------------------

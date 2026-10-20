@@ -81,7 +81,7 @@ _What Strava charges for, correct by the research and explained so you can trust
 | ✅ | Training load with sex-specific TRIMP constants, shown as a personal trend | 2026-10-20; RULE-METRIC-03 |
 | ✅ | Race predictions: marathon flagged as likely too fast | 2026-10-20; RULE-METRIC-04 (no slower adjustment: the research gives no formula) |
 | ✅ | "VO2max" relabelled as a race-equivalent score (VDOT); zones labelled as estimates | 2026-10-20; RULE-METRIC-05, METRIC-01 |
-| ⬜ | Grade-adjusted pace: Minetti curve instead of 3.3 % per 1 % | RULE-METRIC-06; computed but not shown today |
+| ✅ | Grade-adjusted pace: removed (D6) — it used an unsupported 3.3 % per 1 % rule and was never shown | 2026-10-20; revisit with Minetti 2002 if wanted |
 | ✅ | "What does this number mean?" for each metric, with its rule id | 2026-10-20: training load, race predictions, VDOT, HR zones; a test rejects any source not in the research file |
 | ⏭ | PR history over time (not only the current best) | |
 
@@ -130,7 +130,6 @@ until M1–M3 are done._
 | Fitness / fatigue as 42 / 7-day averages | dashboard | [R] RULE-METRIC-03 — convention; fine as a personal trend |
 | Race prediction: Riegel, exponent 1.06; marathon shown with a "likely too fast" caution | dashboard | [R] RULE-METRIC-04 |
 | VDOT shown as a race-equivalent score, not VO2max | dashboard | [R] RULE-METRIC-05 |
-| Grade-adjusted pace: +3.3 % per 1 % grade | splits (not shown) | [R] RULE-METRIC-06 — no source; replace with Minetti (M2) |
 | Heart-rate gaps over 30 s and jumps over 15 bpm/s are flagged | activity detail | [R] RULE-METRIC-07 (thresholds are expert opinion) |
 | Under 50 % of a workout with heart rate: zones, HR chart and split HR hidden; under 90 %: a gaps note | activity detail | [Y] D10; thresholds from your data, which clusters above 90 % or below 50 % |
 | Average / max HR come from the watch's own workout summary | everywhere | [Y] fix for Apple's sparse exports, 2026-10-20 |
@@ -169,7 +168,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | ⬜ | D3. Keep your gym split, or nudge toward 2 leg days a week for running? | M3 templates |
 | ⬜ | D4. Gap after hard legs before a hard run: 24 h or 48 h? | M4 rebalancer |
 | ⬜ | D5. Training-load constants: keep 42/7 days, or fit your own later? | M2 |
-| ⬜ | D6. Grade-adjusted pace model: Minetti (lab) or a large-GPS-data model? | M2 |
+| ✅ | D6. Grade-adjusted pace model (decided: remove it for now) | M2 |
 | ⬜ | D7. Coming back after a break: 14-day threshold, 80 % first week? | M4 rebalancer |
 | ⬜ | D8. When a check-in disagrees with the watch, does the check-in win? | M4 step 10 |
 | ✅ | D9. Choose your sex in Settings (the rest of the profile is set by you or the coach later) | M2 training load |
@@ -196,6 +195,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-20 | Observed max repaired (127 → 178, backup kept). Resting HR now read from Apple Health (yours 54). Decided: the training profile is set by you or the coach |
 | 2026-10-20 | You re-imported (resting HR 54) and set sex. M2: marathon prediction cautioned, VO2max relabelled VDOT, zones labelled as estimates |
 | 2026-10-20 | M2: "What is this?" explanations with rule ids and sources on training load, predictions, VDOT and HR zones |
+| 2026-10-20 | D6: unused grade-adjusted pace removed. PR history: Records page with progression chosen |
 
 ## 8. Waiting on
 

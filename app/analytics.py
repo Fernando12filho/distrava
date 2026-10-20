@@ -94,14 +94,6 @@ def km_splits(times, distances, split_meters=1000.0):
     return splits
 
 
-# Empirical grade-adjustment constant: running pace slows ~3.3% per 1% incline.
-GRADE_ADJUSTMENT_FACTOR = 0.033
-
-
-def grade_adjusted_pace(raw_pace_sec_per_km, grade_percent):
-    return raw_pace_sec_per_km * (1 + GRADE_ADJUSTMENT_FACTOR * grade_percent)
-
-
 def trimp(duration_minutes, avg_hr, hr_rest, hr_max, gender="male"):
     delta_ratio = (avg_hr - hr_rest) / (hr_max - hr_rest)
     scale, exponent = TRIMP_WEIGHTING[gender]
