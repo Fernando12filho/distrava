@@ -48,7 +48,8 @@ your machine: no accounts, no subscriptions, no cloud.
 ## 3. Roadmap
 
 Milestones are the ones you set on GitHub on Oct 9. Rule ids (RULE-…) point to
-`research/training-rules.md`.
+`research/training-rules.md`. #N is the GitHub issue for that row
+(Fernando12filho/distrava); every open row has one.
 
 ### M1 — Trust the data
 _Your imports are complete and every date, time and distance is right._
@@ -65,7 +66,8 @@ _Your imports are complete and every date, time and distance is right._
 | ✅ | Average/max HR from the watch's own workout summary; re-import corrects existing activities | 2026-10-20; on your data: 27 activities off by 10+ bpm |
 | ✅ | Runs without per-second heart rate: zones, HR chart and split HR hidden, with a note; gaps and jumps noted | 2026-10-20; your runs: 66 hidden, 5 with a gaps note, 46 clean |
 | ✅ | Spot-check against Apple Fitness for a few known runs | 2026-10-20: all match |
-| ⬜ | Winter-time and travel start times are 1–2 h off | low impact: 308 activities show 1 h late, 1 on the wrong day. Apple's export writes all dates in the export-time offset; each workout's own `HKTimeZone` tag fixes it. Needs `ai-jail --map /var/db/timezone` to verify |
+| ⬜ | Winter-time and travel start times are 1–2 h off | low impact: 308 activities show 1 h late, 1 on the wrong day. Apple's export writes all dates in the export-time offset; each workout's own `HKTimeZone` tag fixes it. Needs `ai-jail --map /var/db/timezone` to verify · #16 |
+| 🔬 | Research: get data from devices into Distrava without a manual export | Shortcuts, Health Auto Export, a small iOS companion; incremental vs full re-import; what leaves the device · #7 |
 
 ### M2 — Records & dashboard
 _What Strava charges for, correct by the research and explained so you can trust it._
@@ -83,8 +85,9 @@ _What Strava charges for, correct by the research and explained so you can trust
 | ✅ | "VO2max" relabelled as a race-equivalent score (VDOT); zones labelled as estimates | 2026-10-20; RULE-METRIC-05, METRIC-01 |
 | ✅ | Grade-adjusted pace: removed (D6) — it used an unsupported 3.3 % per 1 % rule and was never shown | 2026-10-20; revisit with Minetti 2002 if wanted |
 | ✅ | "What does this number mean?" for each metric, with its rule id | 2026-10-20: training load, race predictions, VDOT, HR zones; a test rejects any source not in the research file |
-| ✅ | PR history: Records page with every improvement per distance | 2026-10-20; linked from Recent PRs |
-| ✅ | Impossible best efforts removed (distance logged in chunks read as sprints) | 2026-10-20; e.g. 400 m 0:18 → 1:34, 1K 3:02 → 4:30; your PR table needs a one-time recompute |
+| ✅ | PR history: Records page with every improvement per distance | 2026-10-20; linked from Recent PRs · #8 |
+| ✅ | Impossible best efforts removed (distance logged in chunks read as sprints) | 2026-10-20; e.g. 400 m 0:18 → 1:34, 1K 3:02 → 4:30; your PR table needs a one-time recompute · #6 |
+| ⬜ | Dashboard: agree the 3–5 questions it answers at a glance, then redesign around them | e.g. load this week, recent PRs, run vs gym balance; follows the design handoff · #9 |
 
 ### M3 — Gym & foundations
 _The gym side gets the same depth as running._
@@ -92,13 +95,13 @@ _The gym side gets the same depth as running._
 | Status | Feature | Notes |
 |---|---|---|
 | ✅ | Exercise catalog: 40 exercises, muscle groups, equipment | built for the coach |
-| ⬜ | Log a gym session: sets, reps, weight, reps in reserve | RULE-LOAD-03; Apple Health only gives duration + HR |
-| ⬜ | Session effort (sRPE) after every run and lift | RULE-LOAD-01 |
-| ⬜ | Retire the catalog's easy/moderate/hard labels: effort comes from what you did | RULE-LOAD-04 |
-| ⬜ | Weekly hard sets per muscle group | RULE-WEEK-02/03 |
-| ⬜ | Review session templates: 2 strength days with heavy legs for runners | RULE-WEEK-04 |
-| ⬜ | Strength progress per exercise and muscle group | |
-| ⬜ | Mobility, stretching and meditation sessions, with honest claims only | RULE-MOB-01/02/03 |
+| ⬜ | Log a gym session: sets, reps, weight, reps in reserve | RULE-LOAD-03; Apple Health only gives duration + HR · #18 |
+| ⬜ | Session effort (sRPE) after every run and lift | RULE-LOAD-01 · #19 |
+| ⬜ | Retire the catalog's easy/moderate/hard labels: effort comes from what you did | RULE-LOAD-04 · #20 |
+| ⬜ | Weekly hard sets per muscle group | RULE-WEEK-02/03 · #21 |
+| ⬜ | Review session templates: 2 strength days with heavy legs for runners | RULE-WEEK-04 · #22 |
+| ⬜ | Strength progress per exercise and muscle group | #23 |
+| ⬜ | Mobility, stretching and meditation sessions, with honest claims only | RULE-MOB-01/02/03 · #11 |
 
 ### M4 — Coach & trainer
 _Spec: `Distrava Coach — Use Cases, Decisions & Test Plan.md`. Paused after step 4
@@ -110,15 +113,15 @@ until M1–M3 are done._
 | ✅ | 2. Data model | weeks → sessions → exercises, check-ins, notes |
 | ✅ | 3. Weekly board | Coach page: 7 day columns, add / move / remove sessions, Done / Partial / Skip, edit volumes |
 | ✅ | 4. Auto check-in | imported runs/rides offered as "Import matches · Confirm" |
-| ⬜ | 5. Rebalancer | RULE-REC-01/02/04, PROG-01/02, WEEK-01; decisions D1, D4, D7 |
-| ⬜ | Training profile: runs per week, gym days, split, goal, experience | set by you or created/changed by the coach (with your confirmation); feeds RULE-WEEK-01/02, LOAD-03 |
-| ⬜ | 6. Connect an AI provider | your own API key, stored in the OS keychain |
-| ⬜ | 7. Coach tools, preview, undo | the AI proposes, you accept or undo |
-| ⬜ | 8. Plan a week from scratch or from past weeks | RULE-WEEK-01..04 |
-| ⬜ | 9. Import a trainer's PDF plan | |
-| ⬜ | 10. Post-workout check-in + trainer export | RULE-CHECK-01/02; decision D8 |
-| ⬜ | 11. Exercise Q&A and fact check | answer + confidence + basis |
-| ⬜ | 12. Connect your own AI agent (MCP) | |
+| ⬜ | 5. Rebalancer | RULE-REC-01/02/04, PROG-01/02, WEEK-01; decisions D1, D4, D7 · #25 |
+| ⬜ | Training profile: runs per week, gym days, split, goal, experience | set by you or created/changed by the coach (with your confirmation); feeds RULE-WEEK-01/02, LOAD-03 · #26 |
+| ⬜ | 6. Connect an AI provider | your own API key, stored in the OS keychain · #27 |
+| ⬜ | 7. Coach tools, preview, undo | the AI proposes, you accept or undo · #28 |
+| ⬜ | 8. Plan a week from scratch or from past weeks | RULE-WEEK-01..04 · #29 |
+| ⬜ | 9. Import a trainer's PDF plan | #30 |
+| ⬜ | 10. Post-workout check-in + trainer export | RULE-CHECK-01/02; decision D8 · #31 |
+| ⬜ | 11. Exercise Q&A and fact check | answer + confidence + basis · #32 |
+| ⬜ | 12. Connect your own AI agent (MCP) | #33 |
 
 ## 4. Rules the app uses today, and where they come from
 
@@ -157,7 +160,7 @@ Received 2026-10-20: `research/training-rules.md` — 30 rules, from the prompt 
 | ✅ | E. Metrics already shown — RULE-METRIC-01..07 | M2 fixes |
 | ✅ | F. Mobility, stretching, meditation — RULE-MOB-01..03 | M3 |
 | ✅ | G. Post-workout check-in — RULE-CHECK-01..02 | M4 step 10 |
-| ⬜ | ACSM 2026 resistance-training update (replaces the 2009 stand) | check before M3 |
+| ⬜ | ACSM 2026 resistance-training update (replaces the 2009 stand) | check before M3 · #24 |
 
 ## 6. Decisions needed
 
@@ -169,7 +172,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | ⬜ | D2. Show the 80/20 easy/hard split by time or by number of runs? | M4 planner |
 | ⬜ | D3. Keep your gym split, or nudge toward 2 leg days a week for running? | M3 templates |
 | ⬜ | D4. Gap after hard legs before a hard run: 24 h or 48 h? | M4 rebalancer |
-| ⬜ | D5. Training-load constants: keep 42/7 days, or fit your own later? | M2 |
+| ⬜ | D5. Training-load constants: keep 42/7 days, or fit your own later? | M2 · #17 |
 | ✅ | D6. Grade-adjusted pace model (decided: remove it for now) | M2 |
 | ⬜ | D7. Coming back after a break: 14-day threshold, 80 % first week? | M4 rebalancer |
 | ⬜ | D8. When a check-in disagrees with the watch, does the check-in win? | M4 step 10 |
@@ -199,6 +202,8 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-20 | M2: "What is this?" explanations with rule ids and sources on training load, predictions, VDOT and HR zones |
 | 2026-10-20 | D6: unused grade-adjusted pace removed. PR history: Records page with progression chosen |
 | 2026-10-20 | Records page built. Found impossible PRs (400 m in 18 s) from chunked distance in 2020–21 exports; a teleport rule removes them and keeps real pauses |
+| 2026-10-20 | GitHub synced with this plan: 18 issues created (#16–#33) for every open row; #8, #12, #14 closed as done; #6 moved to M2 |
+| 2026-10-20 | Added #7 (device sync research, M1) and #9 (dashboard questions, M2) to this plan |
 
 ## 8. Waiting on
 
@@ -212,5 +217,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | ✅ | Re-import `mydata/export 3.zip` once more, to pick up your resting HR (54) | you |
 | ⏭ | Decision D9: your profile, before M2 starts | you |
 | ⏭ | OK the teleport rule, and a one-time recompute of your PR table (backup first)? | you |
-| ⬜ | Sync the GitHub board with this plan — start a session with `ai-jail --github --allow-host github.com --allow-host api.github.com claude` | you start it, I sync |
-| ⬜ | Push branch `coach-board` (local only) | you, or me in the session above |
+| ✅ | Sync the GitHub issues with this plan | done 2026-10-20 |
+| ⬜ | Board columns (Projects kanban): the token has no `project` scope — run `gh auth refresh -s project` outside the jail, then I can move cards | you |
+| ✅ | Issues #7 and #9: add them to this plan | you — added to M1 and M2 |
+| ✅ | Push branch `coach-board` — already merged into `main`, which is pushed | — |
