@@ -20,20 +20,65 @@ def _interpolate(times, distances, target_distance):
     return None
 
 
-def best_effort(times, distances, target_distance_meters):
+def _typical_speed(times, distances):
+    speeds = [
+        (distances[k] - distances[k - 1]) / (times[k] - times[k - 1])
+        for k in range(1, len(times))
+        if times[k] > times[k - 1] and distances[k] > distances[k - 1]
+    ]
+    return median(speeds) if speeds else None
+
+
+def best_effort(times, distances, target_distance_meters, max_sample_gap=None, max_gap_speed_ratio=None):
     if distances[-1] - distances[0] < target_distance_meters:
         return None
 
+    # A window is skipped if it contains a "teleport": a gap longer than
+    # max_sample_gap during which the distance implies more than
+    # max_gap_speed_ratio x the run's typical speed. Distance logged in one big
+    # chunk otherwise reads as a sprint; a pause (little distance) is fine.
+    # suspect[k] counts the teleports among the intervals up to sample k.
+    typical = _typical_speed(times, distances) if max_gap_speed_ratio is not None else None
+    suspect = [0]
+    for k in range(1, len(times)):
+        gap = times[k] - times[k - 1]
+        is_teleport = max_sample_gap is not None and gap > max_sample_gap
+        if is_teleport and max_gap_speed_ratio is not None:
+            is_teleport = typical is not None and (distances[k] - distances[k - 1]) / gap > max_gap_speed_ratio * typical
+        suspect.append(suspect[-1] + is_teleport)
+
+    # Distances never decrease, so the first sample reaching each start's target
+    # only moves forward: one pass instead of a rescan per start. Interpolation
+    # is the same as _interpolate's, so results are identical.
     best = None
+    j = 0
     for i in range(len(distances)):
         target = distances[i] + target_distance_meters
-        crossing_time = _interpolate(times[i:], distances[i:], target)
-        if crossing_time is None:
+        j = max(j, i + 1)
+        while j < len(distances) and distances[j] < target:
+            j += 1
+        if j == len(distances):
             break
+        if suspect[j] - suspect[i]:
+            continue
+        d0, d1 = distances[j - 1], distances[j]
+        t0, t1 = times[j - 1], times[j]
+        crossing_time = t1 if d1 == d0 else t0 + (target - d0) / (d1 - d0) * (t1 - t0)
         duration = crossing_time - times[i]
         if best is None or duration < best:
             best = duration
     return best
+
+
+def pr_progression(efforts):
+    """Each new record from (date, seconds, activity_id) efforts, newest first."""
+    records = []
+    for day, seconds, activity_id in sorted(efforts, key=lambda e: e[0]):
+        if records and seconds >= records[-1]["seconds"]:
+            continue
+        improvement = records[-1]["seconds"] - seconds if records else None
+        records.append({"date": day, "seconds": seconds, "activity_id": activity_id, "improvement": improvement})
+    return list(reversed(records))
 
 
 def is_new_best_effort(existing_seconds, candidate_seconds):

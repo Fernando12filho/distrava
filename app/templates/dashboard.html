@@ -115,6 +115,7 @@
       <div class="card-header with-dot">
         <span class="status-dot"></span>
         <div class="title">Recent PRs</div>
+        <a class="link-btn" style="margin-left:auto;" href="{{ url_for('main.records_page') }}">All records →</a>
       </div>
       <div class="pr-list">
         {% for p in recent_prs %}

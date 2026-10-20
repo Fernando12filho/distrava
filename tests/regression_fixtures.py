@@ -41,6 +41,22 @@ def captured_context(app):
         template_rendered.disconnect(record, app)
 
 
+def even_stream(total_meters, total_seconds, step=5):
+    """Constant pace, sampled every `step` seconds as a watch records it.
+
+    Best efforts ignore stretches built on sparse samples (more than 15 s
+    apart), so tests of best-effort maths need dense streams.
+    """
+    times = list(range(0, total_seconds, step)) + [total_seconds]
+    return {
+        "time": times,
+        "distance": [total_meters * t / total_seconds for t in times],
+        "hr": [None] * len(times),
+        "elevation": [],
+        "pace": [],
+    }
+
+
 def synthetic_run_stream(total_meters, base_sec_per_km, phase=0.0, sample_seconds=10):
     """A run whose pace and HR wobble sinusoidally, sampled every `sample_seconds`."""
     times, distances, hr, elevation = [0], [0.0], [130.0], [20.0]

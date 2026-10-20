@@ -19,6 +19,15 @@ TRIMP_WEIGHTING = {"male": (0.64, 1.92), "female": (0.86, 1.67)}
 RIEGEL_RELIABLE_UP_TO_METERS = 21097.0
 RIEGEL_LONG_CAUTION = "likely too fast — Riegel underestimates marathon times for most recreational runners"
 
+# Not a research rule: a data-quality check (plan.md, pending your OK). A best
+# effort can't include a "teleport": a gap of more than 15 s between distance
+# samples covering more than twice the run's typical speed. Old exports log
+# distance in such chunks (9.7–17.5 m/s against a run's ~1.2 m/s, giving a
+# "400 m in 18 s"), while pauses in real runs cover little distance (0–0.9 m/s
+# against 2.8 m/s in the 2026-09-27 10K).
+EFFORT_MAX_SAMPLE_GAP_SECONDS = 15
+EFFORT_GAP_SPEED_RATIO = 2.0
+
 # RULE-METRIC-01: resting HR is the median of the watch's daily readings over
 # this many days (resting_hr_source: 7_day_median).
 RESTING_HR_WINDOW_DAYS = 7

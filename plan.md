@@ -83,7 +83,8 @@ _What Strava charges for, correct by the research and explained so you can trust
 | ✅ | "VO2max" relabelled as a race-equivalent score (VDOT); zones labelled as estimates | 2026-10-20; RULE-METRIC-05, METRIC-01 |
 | ✅ | Grade-adjusted pace: removed (D6) — it used an unsupported 3.3 % per 1 % rule and was never shown | 2026-10-20; revisit with Minetti 2002 if wanted |
 | ✅ | "What does this number mean?" for each metric, with its rule id | 2026-10-20: training load, race predictions, VDOT, HR zones; a test rejects any source not in the research file |
-| ⏭ | PR history over time (not only the current best) | |
+| ✅ | PR history: Records page with every improvement per distance | 2026-10-20; linked from Recent PRs |
+| ✅ | Impossible best efforts removed (distance logged in chunks read as sprints) | 2026-10-20; e.g. 400 m 0:18 → 1:34, 1K 3:02 → 4:30; your PR table needs a one-time recompute |
 
 ### M3 — Gym & foundations
 _The gym side gets the same depth as running._
@@ -134,6 +135,7 @@ until M1–M3 are done._
 | Under 50 % of a workout with heart rate: zones, HR chart and split HR hidden; under 90 %: a gaps note | activity detail | [Y] D10; thresholds from your data, which clusters above 90 % or below 50 % |
 | Average / max HR come from the watch's own workout summary | everywhere | [Y] fix for Apple's sparse exports, 2026-10-20 |
 | Best-effort distances mirror Strava | records | [Y] |
+| A best effort can't include a gap over 15 s that covers more than 2× the run's typical speed | records, PRs | [A] from your data, pending your OK |
 | Match an import to a session: same type, same day, ±25 % | coach | [Y] proposed by me, you approved |
 | A run one day off asks instead of matching | coach | [Y] proposed by me, you approved |
 | Exercise intensity easy / moderate / hard | catalog | [R] RULE-LOAD-04 says effort must come from what you did — retire (M3) |
@@ -196,6 +198,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-20 | You re-imported (resting HR 54) and set sex. M2: marathon prediction cautioned, VO2max relabelled VDOT, zones labelled as estimates |
 | 2026-10-20 | M2: "What is this?" explanations with rule ids and sources on training load, predictions, VDOT and HR zones |
 | 2026-10-20 | D6: unused grade-adjusted pace removed. PR history: Records page with progression chosen |
+| 2026-10-20 | Records page built. Found impossible PRs (400 m in 18 s) from chunked distance in 2020–21 exports; a teleport rule removes them and keeps real pauses |
 
 ## 8. Waiting on
 
@@ -208,5 +211,6 @@ From the research file's open questions. Each is asked when its milestone starts
 | ✅ | OK to repair your observed max HR in `data/fitness.db` (127 → 178, after a backup)? | you — done |
 | ✅ | Re-import `mydata/export 3.zip` once more, to pick up your resting HR (54) | you |
 | ⏭ | Decision D9: your profile, before M2 starts | you |
+| ⏭ | OK the teleport rule, and a one-time recompute of your PR table (backup first)? | you |
 | ⬜ | Sync the GitHub board with this plan — start a session with `ai-jail --github --allow-host github.com --allow-host api.github.com claude` | you start it, I sync |
 | ⬜ | Push branch `coach-board` (local only) | you, or me in the session above |

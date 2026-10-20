@@ -2519,3 +2519,94 @@ a.recent-row:hover {
     border-top: 1px solid var(--divider);
   }
 }
+
+/* ==========================================================================
+   19 — Records
+   ========================================================================== */
+
+.records-head {
+  margin-bottom: 24px;
+}
+
+.records-sub {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.records-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.record-card {
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.record-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.record-label {
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+}
+
+.record-value {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.record-chart {
+  height: 90px;
+}
+
+.record-progression {
+  list-style: none;
+  border-top: 1px solid var(--divider-row);
+}
+
+.record-row {
+  display: grid;
+  grid-template-columns: 90px 1fr auto;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--divider-row);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.record-row:hover {
+  color: var(--text-primary);
+  background: var(--row-hover);
+}
+
+.record-row-date {
+  color: var(--text-secondary);
+}
+
+.record-row-delta {
+  color: var(--accent);
+}
+
+.record-row-delta.first {
+  color: var(--text-muted);
+}
+
+@media (max-width: 900px) {
+  .records-grid {
+    grid-template-columns: 1fr;
+  }
+}

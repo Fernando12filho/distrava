@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Records{% endblock %}
+{% block topbar_left %}
+<div class="breadcrumb">
+  <a href="{{ url_for('main.dashboard') }}">← Dashboard</a>
+  <span class="sep">/</span>
+  <span class="current">Records</span>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  {% if records %}
+  <div class="records-head">
+    <h1 class="page-title">Records</h1>
+    <p class="records-sub">Your fastest stretch of each distance inside a run, and every time you beat it.</p>
+  </div>
+
+  <div class="records-grid">
+    {% for r in records %}
+    <section class="card record-card">
+      <div class="record-head">
+        <div>
+          <div class="record-label">{{ r.label }}</div>
+          <div class="pr-date mono">{{ r.current.date }}</div>
+        </div>
+        <a class="record-value" href="{{ r.current.url }}">{{ r.current.value }}</a>
+      </div>
+      {% if r.progression|length > 1 %}
+      <div class="record-chart"><canvas data-chart='{{ r.chart | tojson }}'></canvas></div>
+      {% endif %}
+      <ol class="record-progression">
+        {% for p in r.progression %}
+        <li>
+          <a href="{{ p.url }}" class="record-row">
+            <span class="record-row-value mono">{{ p.value }}</span>
+            <span class="record-row-date mono">{{ p.date }}</span>
+            <span class="record-row-delta mono{{ ' first' if not p.delta }}">{{ p.delta or 'first' }}</span>
+          </a>
+        </li>
+        {% endfor %}
+      </ol>
+    </section>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state" style="max-width:440px; margin:80px auto;">
+    <div class="empty-state-icon"><span class="inner"></span></div>
+    <div class="empty-state-title">No records yet</div>
+    <div class="empty-state-body">Records come from runs with distance data. Import an Apple Health export or a .gpx file and they'll appear here.</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='records.js') }}"></script>
+<script>initRecordCharts();</script>
+{% endblock %}

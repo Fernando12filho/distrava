@@ -293,7 +293,11 @@ def _activity_own_best_efforts(db, activity, stream_data):
 
     efforts = []
     for label, target_meters in parser.STANDARD_DISTANCES:
-        seconds = analytics.best_effort(times, distances, target_meters)
+        seconds = analytics.best_effort(
+            times, distances, target_meters,
+            max_sample_gap=training_rules.EFFORT_MAX_SAMPLE_GAP_SECONDS,
+            max_gap_speed_ratio=training_rules.EFFORT_GAP_SPEED_RATIO,
+        )
         if seconds is None:
             continue
         global_best = db.query(BestEffort).filter_by(distance_label=label).first()
@@ -490,6 +494,55 @@ def settings_page():
         weight_value=weight_value,
         weight_unit=weight_unit,
     )
+
+
+def _record_entry(record):
+    return {
+        "value": analytics.format_duration(record["seconds"]),
+        "date": record["date"].strftime("%b %d, %Y"),
+        "delta": f"−{analytics.format_duration(record['improvement'])}" if record["improvement"] else None,
+        "url": url_for("main.activity_detail", activity_id=record["activity_id"]),
+    }
+
+
+@bp.route("/records")
+def records_page():
+    db = get_db()
+    efforts = {label: [] for label, _meters in parser.STANDARD_DISTANCES}
+    rows = db.query(Activity, ActivityStream).join(ActivityStream, ActivityStream.activity_id == Activity.id).all()
+    for activity, stream in rows:
+        if not parser.is_best_effort_eligible(activity):
+            continue
+        times, distances = analytics.coalesce_stream_metric(stream.stream_data["time"], stream.stream_data["distance"])
+        if len(times) < 2:
+            continue
+        for label, meters in parser.STANDARD_DISTANCES:
+            seconds = analytics.best_effort(
+                times, distances, meters,
+                max_sample_gap=training_rules.EFFORT_MAX_SAMPLE_GAP_SECONDS,
+                max_gap_speed_ratio=training_rules.EFFORT_GAP_SPEED_RATIO,
+            )
+            if seconds is not None:
+                efforts[label].append((activity.local_start_time, seconds, activity.id))
+
+    records = []
+    for label, _meters in parser.STANDARD_DISTANCES:
+        progression = analytics.pr_progression(efforts[label])
+        if not progression:
+            continue
+        chronological = list(reversed(progression))
+        records.append(
+            {
+                "label": label,
+                "current": _record_entry(progression[0]),
+                "progression": [_record_entry(r) for r in progression],
+                "chart": {
+                    "dates": [r["date"].strftime("%b %d, %Y") for r in chronological],
+                    "seconds": [round(r["seconds"]) for r in chronological],
+                },
+            }
+        )
+    return render_template("records.html", records=records)
 
 
 @bp.route("/settings/wipe", methods=["POST"])

@@ -5,6 +5,7 @@ import pytest
 
 from app import parser
 from app.models import Activity, ActivityStream, BestEffort
+from regression_fixtures import even_stream
 
 DUPLICATE_WORKOUT_XML = b"""<?xml version="1.0" encoding="UTF-8"?>
 <HealthData>
@@ -333,9 +334,7 @@ def test_entity_expansion_attempt_is_caught():
 
 def test_update_best_efforts_creates_pr_row(db_session, make_activity):
     activity = make_activity(distance_meters=10000.0, duration_seconds=3000, dedup_key="be-1")
-    times = [i * 300 for i in range(11)]
-    distances = [i * 1000.0 for i in range(11)]
-    stream_data = {"time": times, "hr": [None] * 11, "distance": distances, "elevation": [], "pace": []}
+    stream_data = even_stream(10000.0, 3000)
 
     parser.update_best_efforts(db_session, activity, stream_data)
 
@@ -347,8 +346,8 @@ def test_update_best_efforts_creates_pr_row(db_session, make_activity):
 def test_update_best_efforts_pr_replaces_old(db_session, make_activity):
     slow_activity = make_activity(dedup_key="slow")
     fast_activity = make_activity(dedup_key="fast")
-    slow_stream = {"time": [0, 1800], "hr": [None, None], "distance": [0, 5000.0], "elevation": [], "pace": []}
-    fast_stream = {"time": [0, 1400], "hr": [None, None], "distance": [0, 5000.0], "elevation": [], "pace": []}
+    slow_stream = even_stream(5000.0, 1800)
+    fast_stream = even_stream(5000.0, 1400)
 
     parser.update_best_efforts(db_session, slow_activity, slow_stream)
     parser.update_best_efforts(db_session, fast_activity, fast_stream)
@@ -361,8 +360,8 @@ def test_update_best_efforts_pr_replaces_old(db_session, make_activity):
 def test_update_best_efforts_non_pr_does_not_overwrite(db_session, make_activity):
     fast_activity = make_activity(dedup_key="fast")
     slow_activity = make_activity(dedup_key="slow")
-    fast_stream = {"time": [0, 1400], "hr": [None, None], "distance": [0, 5000.0], "elevation": [], "pace": []}
-    slow_stream = {"time": [0, 1800], "hr": [None, None], "distance": [0, 5000.0], "elevation": [], "pace": []}
+    fast_stream = even_stream(5000.0, 1400)
+    slow_stream = even_stream(5000.0, 1800)
 
     parser.update_best_efforts(db_session, fast_activity, fast_stream)
     parser.update_best_efforts(db_session, slow_activity, slow_stream)
@@ -422,8 +421,8 @@ def test_update_best_efforts_ignores_strength_training(db_session, make_activity
 def test_recompute_best_efforts_drops_stale_non_run_prs(db_session, make_activity):
     ride = make_activity(activity_type="Cycle", dedup_key="ride-2")
     run = make_activity(activity_type="Run", dedup_key="run-2")
-    ride_stream = {"time": [0, 489], "hr": [None, None], "distance": [0, 5000.0], "elevation": [], "pace": []}
-    run_stream = {"time": [0, 1500], "hr": [None, None], "distance": [0, 5000.0], "elevation": [], "pace": []}
+    ride_stream = even_stream(5000.0, 489)
+    run_stream = even_stream(5000.0, 1500)
     db_session.add(ActivityStream(activity_id=ride.id, stream_data=ride_stream))
     db_session.add(ActivityStream(activity_id=run.id, stream_data=run_stream))
     db_session.add(

@@ -327,7 +327,11 @@ def update_best_efforts(db_session, activity, stream_data):
         return
 
     for label, target_meters in STANDARD_DISTANCES:
-        candidate_seconds = analytics.best_effort(times, distances, target_meters)
+        candidate_seconds = analytics.best_effort(
+            times, distances, target_meters,
+            max_sample_gap=training_rules.EFFORT_MAX_SAMPLE_GAP_SECONDS,
+            max_gap_speed_ratio=training_rules.EFFORT_GAP_SPEED_RATIO,
+        )
         if candidate_seconds is None:
             continue
 

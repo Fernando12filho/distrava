@@ -259,15 +259,10 @@ def test_activity_detail_shows_device_when_set(client, make_activity):
 def test_activity_detail_marks_season_best_for_own_pr(client, make_activity, db_session):
     from app.models import ActivityStream, BestEffort
 
+    from regression_fixtures import even_stream
+
     activity = make_activity(duration_seconds=1500, distance_meters=5000.0)
-    times = [i * 300 for i in range(6)]
-    distances = [i * 1000.0 for i in range(6)]
-    db_session.add(
-        ActivityStream(
-            activity_id=activity.id,
-            stream_data={"time": times, "hr": [None] * 6, "distance": distances, "elevation": [], "pace": []},
-        )
-    )
+    db_session.add(ActivityStream(activity_id=activity.id, stream_data=even_stream(5000.0, 1500)))
     db_session.add(
         BestEffort(
             distance_label="1K",
