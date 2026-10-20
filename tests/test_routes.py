@@ -289,11 +289,13 @@ def test_activity_detail_shows_time_in_hr_zones(client, make_activity, db_sessio
     from app.models import ActivityStream
 
     activity = make_activity(duration_seconds=1500, distance_meters=5000.0)
-    times = [i * 300 for i in range(6)]
+    # 5 s sampling, as a watch records during a workout: sparse samples now hide
+    # the zones (RULE-METRIC-07 / decision D10), see tests/test_hr_detail.py.
+    times = list(range(0, 1501, 5))
     db_session.add(
         ActivityStream(
             activity_id=activity.id,
-            stream_data={"time": times, "hr": [150.0] * 6, "distance": [None] * 6, "elevation": [], "pace": []},
+            stream_data={"time": times, "hr": [150.0] * len(times), "distance": [None] * len(times), "elevation": [], "pace": []},
         )
     )
     db_session.commit()
@@ -309,11 +311,11 @@ def test_activity_detail_counts_low_hr_time_in_zone_one(client, make_activity, d
     from app.models import ActivityStream
 
     activity = make_activity(duration_seconds=1500, distance_meters=5000.0)
-    times = [i * 300 for i in range(6)]
+    times = list(range(0, 1501, 5))
     db_session.add(
         ActivityStream(
             activity_id=activity.id,
-            stream_data={"time": times, "hr": [90.0] * 6, "distance": [None] * 6, "elevation": [], "pace": []},
+            stream_data={"time": times, "hr": [90.0] * len(times), "distance": [None] * len(times), "elevation": [], "pace": []},
         )
     )
     db_session.commit()
@@ -328,11 +330,11 @@ def test_activity_detail_shows_hr_zones_for_non_run_with_hr(client, make_activit
     from app.models import ActivityStream
 
     activity = make_activity(activity_type="TraditionalStrengthTraining", distance_meters=0.0)
-    times = [i * 300 for i in range(6)]
+    times = list(range(0, 1801, 5))
     db_session.add(
         ActivityStream(
             activity_id=activity.id,
-            stream_data={"time": times, "hr": [150.0] * 6, "distance": [None] * 6, "elevation": [], "pace": []},
+            stream_data={"time": times, "hr": [150.0] * len(times), "distance": [None] * len(times), "elevation": [], "pace": []},
         )
     )
     db_session.commit()
@@ -346,16 +348,16 @@ def test_activity_detail_passes_zone_bands_to_charts_script(client, make_activit
     from app.models import ActivityStream
 
     activity = make_activity(duration_seconds=1500, distance_meters=5000.0)
-    times = [i * 300 for i in range(6)]
+    times = list(range(0, 1501, 5))
     db_session.add(
         ActivityStream(
             activity_id=activity.id,
             stream_data={
                 "time": times,
-                "hr": [150.0] * 6,
-                "distance": [i * 1000.0 for i in range(6)],
-                "lat": [47.6 + i * 0.001 for i in range(6)],
-                "lon": [-122.3 + i * 0.001 for i in range(6)],
+                "hr": [150.0] * len(times),
+                "distance": [t * 5000.0 / 1500 for t in times],
+                "lat": [47.6 + t * 0.000002 for t in times],
+                "lon": [-122.3 + t * 0.000002 for t in times],
                 "elevation": [],
                 "pace": [],
             },

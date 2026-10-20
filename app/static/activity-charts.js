@@ -154,11 +154,15 @@ function renderRoutePolyline(containerId, lats, lons, times, hrs, zones) {
   el.style.backgroundImage = "none";
 }
 
-async function initActivityCharts(streamUrl, units, zones) {
+// showHr is false when the workout lacks second-by-second heart rate: the
+// route is then drawn without zone colours rather than from a few samples.
+async function initActivityCharts(streamUrl, units, zones, showHr = true) {
   const response = await fetch(streamUrl);
   const stream = await response.json();
 
-  renderRoutePolyline("route-map", stream.lat || [], stream.lon || [], stream.time || [], stream.hr || [], zones || []);
+  const routeHr = showHr ? stream.hr || [] : [];
+  const routeZones = showHr ? zones || [] : [];
+  renderRoutePolyline("route-map", stream.lat || [], stream.lon || [], stream.time || [], routeHr, routeZones);
 
   const isImperial = units === "imperial";
   const distDivisor = isImperial ? 1609.344 : 1000;

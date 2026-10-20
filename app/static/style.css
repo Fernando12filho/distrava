@@ -1060,6 +1060,23 @@ a.recent-row:hover {
   height: 96px;
 }
 
+.chart-row-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.hr-note {
+  margin: 16px 0 0;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
 .chart-row-divider {
   height: 1px;
   background: var(--divider);

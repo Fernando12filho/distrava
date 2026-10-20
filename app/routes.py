@@ -19,7 +19,7 @@ from flask import (
 )
 from sqlalchemy import func
 
-from app import analytics, parser
+from app import analytics, parser, training_rules
 from app.models import Activity, ActivityStream, BestEffort, UserSettings
 
 bp = Blueprint("main", __name__)
@@ -253,6 +253,37 @@ def _time_in_zones_display(stream_data, max_hr, resting_hr):
     ]
 
 
+def _hr_quality(activity, stream):
+    """(show second-by-second HR detail?, note for the page or None).
+
+    RULE-METRIC-07 flags dropouts and jumps; decision D10 hides zones, the HR
+    chart and per-split HR when too little of the workout has readings.
+    """
+    if stream is None:
+        return True, None
+    times, hr = stream.stream_data["time"], stream.stream_data.get("hr", [])
+    has_hr = activity.avg_hr is not None or any(v is not None for v in hr)
+    if not has_hr:
+        return True, None
+
+    coverage = analytics.hr_coverage(times, hr, activity.duration_seconds, training_rules.HR_GAP_FLAG_SECONDS)
+    if coverage < training_rules.HR_DETAIL_MIN_COVERAGE:
+        note = "This workout has no second-by-second heart rate, so time in zones and the heart-rate chart are hidden."
+        if activity.source == "apple_health":
+            note += " Apple's export leaves it out for some workouts."
+        return False, note
+
+    parts = []
+    if coverage < training_rules.HR_GAPS_NOTE_BELOW:
+        parts.append(f"Heart rate has gaps: {coverage * 100:.0f}% of the workout covered.")
+    jumps = analytics.hr_jump_count(times, hr, training_rules.HR_JUMP_FLAG_BPM_PER_S)
+    if jumps:
+        parts.append(f"{jumps} implausible jump{'s' if jumps != 1 else ''} in heart rate.")
+    if parts:
+        parts.append("Time in zones may be off.")
+    return True, " ".join(parts) or None
+
+
 def _activity_own_best_efforts(db, activity, stream_data):
     times, distances = analytics.coalesce_stream_metric(stream_data["time"], stream_data["distance"])
     if len(times) < 2:
@@ -288,7 +319,8 @@ def activity_detail(activity_id):
     splits = []
     efforts = []
     hr_zones = []
-    if stream is not None:
+    hr_detail, hr_note = _hr_quality(activity, stream)
+    if stream is not None and hr_detail:
         resting_hr, max_hr = _resolve_hr_profile(settings, date.today())
         hr_zones = _time_in_zones_display(stream.stream_data, max_hr, resting_hr)
     if stream is not None and is_pace_based:
@@ -296,6 +328,9 @@ def activity_detail(activity_id):
         splits = _convert_splits_for_display(
             analytics.annotate_splits_for_display(_compute_splits(stream.stream_data, split_meters)), units
         )
+        if not hr_detail:
+            for split in splits:
+                split["hr"] = None
         efforts = _activity_own_best_efforts(db, activity, stream.stream_data)
 
     dist_value, dist_unit = (
@@ -317,6 +352,8 @@ def activity_detail(activity_id):
         splits=splits,
         efforts=efforts,
         hr_zones=hr_zones,
+        hr_detail=hr_detail,
+        hr_note=hr_note,
         is_pace_based=is_pace_based,
         units=units,
         dist_value=dist_value,

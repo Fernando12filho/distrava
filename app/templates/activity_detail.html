@@ -70,12 +70,20 @@
       <div class="chart-row-body"><canvas id="paceChart"></canvas></div>
       <div class="chart-row-divider"></div>
       <div class="chart-row-label">HEART RATE <span class="unit">bpm</span></div>
+      {% if hr_detail %}
       <div class="chart-row-body"><canvas id="hrChart"></canvas></div>
+      {% else %}
+      <div class="chart-row-body chart-row-empty">No second-by-second heart rate</div>
+      {% endif %}
       <div class="chart-row-divider"></div>
       <div class="chart-row-label muted">ELEVATION <span class="unit">{{ elev_unit }}</span></div>
       <div class="chart-row-body"><canvas id="elevChart"></canvas></div>
     </div>
   </div>
+  {% endif %}
+
+  {% if hr_note %}
+  <p class="hr-note">{{ hr_note }}</p>
   {% endif %}
 
   {% if hr_zones %}
@@ -149,7 +157,7 @@
 {% if is_pace_based %}
 <script src="{{ url_for('static', filename='activity-charts.js') }}"></script>
 <script>
-  initActivityCharts("{{ url_for('main.activity_stream', activity_id=activity.id) }}", "{{ units }}", {{ hr_zones | tojson }});
+  initActivityCharts("{{ url_for('main.activity_stream', activity_id=activity.id) }}", "{{ units }}", {{ hr_zones | tojson }}, {{ 'true' if hr_detail else 'false' }});
 </script>
 {% endif %}
 {% endblock %}

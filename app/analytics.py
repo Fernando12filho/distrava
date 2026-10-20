@@ -205,6 +205,24 @@ def build_daily_trimp_loads(daily_totals, start_date, end_date):
     return loads
 
 
+def hr_coverage(times, hr_values, duration_seconds, max_gap_seconds):
+    """Share of the workout covered by readings no more than max_gap_seconds apart."""
+    reading_times = [t for t, hr in zip(times, hr_values) if hr is not None]
+    if len(reading_times) < 2 or not duration_seconds:
+        return 0.0
+    covered = sum(b - a for a, b in zip(reading_times, reading_times[1:]) if b - a <= max_gap_seconds)
+    return min(1.0, covered / duration_seconds)
+
+
+def hr_jump_count(times, hr_values, max_bpm_per_second):
+    readings = [(t, hr) for t, hr in zip(times, hr_values) if hr is not None]
+    return sum(
+        1
+        for (t0, h0), (t1, h1) in zip(readings, readings[1:])
+        if t1 > t0 and abs(h1 - h0) / (t1 - t0) > max_bpm_per_second
+    )
+
+
 def to_local(utc_naive, offset_minutes):
     return utc_naive + timedelta(minutes=offset_minutes or 0)
 

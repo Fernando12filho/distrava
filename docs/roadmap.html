@@ -85,8 +85,8 @@
         <span class="mid">M1</span>
         <h2>Trust the data</h2>
         <p class="summary">Your imports are complete and every date, time and distance is right.</p>
-        <div class="progress"><span style="width:80%"></span></div>
-        <span class="count">8 / 10 done</span>
+        <div class="progress"><span style="width:90%"></span></div>
+        <span class="count">9 / 10 done</span>
       </header>
       <ul>
         <li class="item st-done">
@@ -129,13 +129,13 @@
           <span class="feature">Average/max HR from the watch&#x27;s own workout summary; re-import corrects existing activities</span>
           <span class="notes">2026-10-20; on your data: 27 activities off by 10+ bpm</span>
         </li>
+        <li class="item st-done">
+          <span class="chip st-done">Done</span>
+          <span class="feature">Runs without per-second heart rate: zones, HR chart and split HR hidden, with a note; gaps and jumps noted</span>
+          <span class="notes">2026-10-20; your runs: 66 hidden, 5 with a gaps note, 46 clean</span>
+        </li>
         <li class="item st-next">
           <span class="chip st-next">Next</span>
-          <span class="feature">Runs without per-second heart rate: label them, handle their zones and HR chart</span>
-          <span class="notes">RULE-METRIC-07; decision D10</span>
-        </li>
-        <li class="item st-todo">
-          <span class="chip st-todo">Not started</span>
           <span class="feature">Spot-check against Apple Fitness for a few known runs</span>
           <span class="notes">proves the numbers; needs you</span>
         </li>
@@ -355,7 +355,7 @@
         <tr><td><span class="chip st-todo">Not started</span></td><td>D7. Coming back after a break: 14-day threshold, 80 % first week?</td><td class="muted">M4 rebalancer</td></tr>
         <tr><td><span class="chip st-todo">Not started</span></td><td>D8. When a check-in disagrees with the watch, does the check-in win?</td><td class="muted">M4 step 10</td></tr>
         <tr><td><span class="chip st-next">Next</span></td><td>D9. Fill in your profile (age, sex, runs/week, split, goal, experience)</td><td class="muted">M2 profile</td></tr>
-        <tr><td><span class="chip st-next">Next</span></td><td>D10. Runs without per-second heart rate (average is fine now): hide their time-in-zones and HR chart, or show them with a warning?</td><td class="muted">M1 HR flags</td></tr>
+        <tr><td><span class="chip st-done">Done</span></td><td>D10. Runs without per-second heart rate: hide time-in-zones and HR chart (decided: hide)</td><td class="muted">M1 HR flags</td></tr>
       </table>
     </section>
   </div>
@@ -384,6 +384,9 @@
         <tr><td>Race prediction: Riegel, exponent 1.06</td><td class="muted">dashboard</td><td><span class="badge src-R">Research</span> RULE-METRIC-04 — fine to half marathon; marathon too fast (M2)</td></tr>
         <tr><td>VO2max estimate (Daniels VDOT)</td><td class="muted">dashboard</td><td><span class="badge src-R">Research</span> RULE-METRIC-05 — not validated as VO2max; relabel (M2)</td></tr>
         <tr><td>Grade-adjusted pace: +3.3 % per 1 % grade</td><td class="muted">splits (not shown)</td><td><span class="badge src-R">Research</span> RULE-METRIC-06 — no source; replace with Minetti (M2)</td></tr>
+        <tr><td>Heart-rate gaps over 30 s and jumps over 15 bpm/s are flagged</td><td class="muted">activity detail</td><td><span class="badge src-R">Research</span> RULE-METRIC-07 (thresholds are expert opinion)</td></tr>
+        <tr><td>Under 50 % of a workout with heart rate: zones, HR chart and split HR hidden; under 90 %: a gaps note</td><td class="muted">activity detail</td><td><span class="badge src-Y">Your decision</span> D10; thresholds from your data, which clusters above 90 % or below 50 %</td></tr>
+        <tr><td>Average / max HR come from the watch&#x27;s own workout summary</td><td class="muted">everywhere</td><td><span class="badge src-Y">Your decision</span> fix for Apple&#x27;s sparse exports, 2026-10-20</td></tr>
         <tr><td>Best-effort distances mirror Strava</td><td class="muted">records</td><td><span class="badge src-Y">Your decision</span> </td></tr>
         <tr><td>Match an import to a session: same type, same day, ±25 %</td><td class="muted">coach</td><td><span class="badge src-Y">Your decision</span> proposed by me, you approved</td></tr>
         <tr><td>A run one day off asks instead of matching</td><td class="muted">coach</td><td><span class="badge src-Y">Your decision</span> proposed by me, you approved</td></tr>

@@ -62,8 +62,8 @@ _Your imports are complete and every date, time and distance is right._
 | ✅ | Re-import guide on the Import page | 2026-10-20; page no longer claims .fit support it doesn't have |
 | ✅ | Find why ~half of runs have almost no heart-rate samples | 2026-10-20: Apple's export itself lacks per-second samples for those workouts; the importer was right |
 | ✅ | Average/max HR from the watch's own workout summary; re-import corrects existing activities | 2026-10-20; on your data: 27 activities off by 10+ bpm |
-| ⏭ | Runs without per-second heart rate: label them, handle their zones and HR chart | RULE-METRIC-07; decision D10 |
-| ⬜ | Spot-check against Apple Fitness for a few known runs | proves the numbers; needs you |
+| ✅ | Runs without per-second heart rate: zones, HR chart and split HR hidden, with a note; gaps and jumps noted | 2026-10-20; your runs: 66 hidden, 5 with a gaps note, 46 clean |
+| ⏭ | Spot-check against Apple Fitness for a few known runs | proves the numbers; needs you |
 
 ### M2 — Records & dashboard
 _What Strava charges for, correct by the research and explained so you can trust it._
@@ -126,6 +126,9 @@ until M1–M3 are done._
 | Race prediction: Riegel, exponent 1.06 | dashboard | [R] RULE-METRIC-04 — fine to half marathon; marathon too fast (M2) |
 | VO2max estimate (Daniels VDOT) | dashboard | [R] RULE-METRIC-05 — not validated as VO2max; relabel (M2) |
 | Grade-adjusted pace: +3.3 % per 1 % grade | splits (not shown) | [R] RULE-METRIC-06 — no source; replace with Minetti (M2) |
+| Heart-rate gaps over 30 s and jumps over 15 bpm/s are flagged | activity detail | [R] RULE-METRIC-07 (thresholds are expert opinion) |
+| Under 50 % of a workout with heart rate: zones, HR chart and split HR hidden; under 90 %: a gaps note | activity detail | [Y] D10; thresholds from your data, which clusters above 90 % or below 50 % |
+| Average / max HR come from the watch's own workout summary | everywhere | [Y] fix for Apple's sparse exports, 2026-10-20 |
 | Best-effort distances mirror Strava | records | [Y] |
 | Match an import to a session: same type, same day, ±25 % | coach | [Y] proposed by me, you approved |
 | A run one day off asks instead of matching | coach | [Y] proposed by me, you approved |
@@ -165,7 +168,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | ⬜ | D7. Coming back after a break: 14-day threshold, 80 % first week? | M4 rebalancer |
 | ⬜ | D8. When a check-in disagrees with the watch, does the check-in win? | M4 step 10 |
 | ⏭ | D9. Fill in your profile (age, sex, runs/week, split, goal, experience) | M2 profile |
-| ⏭ | D10. Runs without per-second heart rate (average is fine now): hide their time-in-zones and HR chart, or show them with a warning? | M1 HR flags |
+| ✅ | D10. Runs without per-second heart rate: hide time-in-zones and HR chart (decided: hide) | M1 HR flags |
 
 ## 7. Log
 
@@ -182,6 +185,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-20 | M1: re-import guide on the Import page; removed the false ".fit" claim |
 | 2026-10-20 | M1: checking heart-rate gaps on real data found ~half of runs with almost no in-run samples. Cause unknown (export or importer); investigating |
 | 2026-10-20 | M1: cause found in your export — Apple omits per-second samples for some workouts. Importer now uses the watch's own HR summary; re-import fixes existing data |
+| 2026-10-20 | M1: runs without per-second heart rate hide their zones and HR chart (D10); gaps and jumps get a note. Rule parameters now live in `app/training_rules.py` |
 
 ## 8. Waiting on
 
