@@ -151,8 +151,8 @@
         <span class="mid">M2</span>
         <h2>Records &amp; dashboard</h2>
         <p class="summary">What Strava charges for, correct by the research and explained so you can trust it.</p>
-        <div class="progress"><span style="width:42%"></span></div>
-        <span class="count">5 / 12 done</span>
+        <div class="progress"><span style="width:50%"></span></div>
+        <span class="count">6 / 12 done</span>
       </header>
       <ul>
         <li class="item st-done">
@@ -170,10 +170,10 @@
           <span class="feature">Check every metric against research</span>
           <span class="notes">2026-10-20 — findings below</span>
         </li>
-        <li class="item st-next">
-          <span class="chip st-next">Next</span>
+        <li class="item st-done">
+          <span class="chip st-done">Done</span>
           <span class="feature">Sex in Settings, used for training load</span>
-          <span class="notes">RULE-METRIC-03; the training profile moved to M4 (you or the coach set it)</span>
+          <span class="notes">2026-10-20; the training profile moved to M4 (you or the coach set it)</span>
         </li>
         <li class="item st-done">
           <span class="chip st-done">Done</span>
@@ -185,13 +185,13 @@
           <span class="feature">Resting HR from Apple Health (7-day median) instead of the default 60</span>
           <span class="notes">2026-10-20; yours: 54 after your next re-import</span>
         </li>
-        <li class="item st-todo">
-          <span class="chip st-todo">Not started</span>
+        <li class="item st-in_progress">
+          <span class="chip st-in_progress">In progress</span>
           <span class="feature">Training load with sex-specific TRIMP constants, shown as a personal trend</span>
-          <span class="notes">RULE-METRIC-03; today male constants for all</span>
+          <span class="notes">RULE-METRIC-03; constants done, &quot;personal trend&quot; wording comes with the explanations</span>
         </li>
-        <li class="item st-todo">
-          <span class="chip st-todo">Not started</span>
+        <li class="item st-next">
+          <span class="chip st-next">Next</span>
           <span class="feature">Race predictions: marathon flagged as likely too fast</span>
           <span class="notes">RULE-METRIC-04</span>
         </li>
@@ -372,7 +372,7 @@
         <tr><td><span class="chip st-todo">Not started</span></td><td>D6. Grade-adjusted pace model: Minetti (lab) or a large-GPS-data model?</td><td class="muted">M2</td></tr>
         <tr><td><span class="chip st-todo">Not started</span></td><td>D7. Coming back after a break: 14-day threshold, 80 % first week?</td><td class="muted">M4 rebalancer</td></tr>
         <tr><td><span class="chip st-todo">Not started</span></td><td>D8. When a check-in disagrees with the watch, does the check-in win?</td><td class="muted">M4 step 10</td></tr>
-        <tr><td><span class="chip st-next">Next</span></td><td>D9. Your sex, in Settings (the rest of the profile is set by you or the coach later)</td><td class="muted">M2 training load</td></tr>
+        <tr><td><span class="chip st-next">Next</span></td><td>D9. Choose your sex in Settings (the rest of the profile is set by you or the coach later)</td><td class="muted">M2 training load</td></tr>
         <tr><td><span class="chip st-done">Done</span></td><td>D10. Runs without per-second heart rate: hide time-in-zones and HR chart (decided: hide)</td><td class="muted">M1 HR flags</td></tr>
       </table>
     </section>
@@ -397,7 +397,7 @@
     <table>
         <tr><td>HR zones as % of heart-rate reserve (Karvonen)</td><td class="muted">zones, time in zone</td><td><span class="badge src-R">Research</span> RULE-METRIC-01 — supported; should be labelled as estimates</td></tr>
         <tr><td>Max HR: your setting, else the higher of 208 − 0.7 × age and the highest HR held ≥ 5 s</td><td class="muted">settings, zones, load</td><td><span class="badge src-R">Research</span> RULE-METRIC-02 (Tanaka 2001)</td></tr>
-        <tr><td>Training load = TRIMP with male constants for everyone</td><td class="muted">dashboard</td><td><span class="badge src-R">Research</span> RULE-METRIC-03 — constants are sex-specific; app lacks your sex (M2)</td></tr>
+        <tr><td>Training load = TRIMP with constants for your sex (male ones while not set)</td><td class="muted">dashboard</td><td><span class="badge src-R">Research</span> RULE-METRIC-03 (constants are expert opinion)</td></tr>
         <tr><td>Resting HR: your setting, else the median of Apple Health&#x27;s last 7 daily readings, else 60</td><td class="muted">zones, load</td><td><span class="badge src-R">Research</span> RULE-METRIC-01</td></tr>
         <tr><td>Fitness / fatigue as 42 / 7-day averages</td><td class="muted">dashboard</td><td><span class="badge src-R">Research</span> RULE-METRIC-03 — convention; fine as a personal trend</td></tr>
         <tr><td>Race prediction: Riegel, exponent 1.06</td><td class="muted">dashboard</td><td><span class="badge src-R">Research</span> RULE-METRIC-04 — fine to half marathon; marathon too fast (M2)</td></tr>

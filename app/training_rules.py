@@ -9,6 +9,11 @@ research gives, so it can be tuned without hunting through the code.
 HR_GAP_FLAG_SECONDS = 30  # range 15–60
 HR_JUMP_FLAG_BPM_PER_S = 15  # range 10–20
 
+# RULE-METRIC-03: Banister TRIMP weighting (a, b) in a * exp(b * HR-reserve
+# fraction). Widely used; the research could not verify the primary source,
+# so treat them as expert opinion. Unset sex keeps the male pair.
+TRIMP_WEIGHTING = {"male": (0.64, 1.92), "female": (0.86, 1.67)}
+
 # RULE-METRIC-01: resting HR is the median of the watch's daily readings over
 # this many days (resting_hr_source: 7_day_median).
 RESTING_HR_WINDOW_DAYS = 7

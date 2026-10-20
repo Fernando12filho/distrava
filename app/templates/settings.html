@@ -26,6 +26,14 @@
           <input class="fld" type="number" step="0.1" name="weight_kg" id="weight-input" value="{{ '%.1f'|format(weight_value) if weight_value is not none else '' }}" />
         </div>
         <div class="field-row">
+          <div><div class="field-label">Sex</div><div class="field-help">selects the training-load formula · not set uses the male one</div></div>
+          <select name="sex" class="range-select">
+            <option value=""{{ ' selected' if not settings or not settings.sex }}>Not set</option>
+            <option value="male"{{ ' selected' if settings and settings.sex == 'male' }}>Male</option>
+            <option value="female"{{ ' selected' if settings and settings.sex == 'female' }}>Female</option>
+          </select>
+        </div>
+        <div class="field-row">
           <div><div class="field-label">Birth year</div><div class="field-help">for age-based estimates</div></div>
           <input class="fld wide" type="number" name="birth_year" value="{{ settings.birth_year if settings and settings.birth_year else '' }}" />
         </div>

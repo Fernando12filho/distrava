@@ -114,6 +114,8 @@ class UserSettings(Base):
     # recent export (RULE-METRIC-01), and the last day it covers.
     observed_resting_hr = Column(Integer, nullable=True)
     observed_resting_hr_on = Column(Date, nullable=True)
+    # "male" / "female": set only by the user; selects the TRIMP constants.
+    sex = Column(String, nullable=True)
 
 
 # Coach tables all carry the coach_ prefix: drop_coach_tables() relies on it to

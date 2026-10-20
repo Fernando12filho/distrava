@@ -458,6 +458,8 @@ def settings_page():
         settings.birth_year = int(birth_year) if birth_year else None
         settings.weight_kg = analytics.weight_to_kg(float(weight_input), units) if weight_input else None
         settings.units = units
+        sex = request.form.get("sex")
+        settings.sex = sex if sex in training_rules.TRIMP_WEIGHTING else None
         db.commit()
         if request.headers.get("X-Requested-With") == "fetch":
             return "", 204
@@ -539,13 +541,15 @@ def dashboard():
     settings = db.query(UserSettings).first()
     units = _get_units(settings)
     resting_hr, max_hr = _resolve_hr_profile(settings, today)
+    # RULE-METRIC-03: sex-specific constants; unset keeps the male pair.
+    sex = settings.sex if settings and settings.sex else "male"
 
     daily_totals = {}
     for a in activities:
         if a.avg_hr is None:
             continue
         day = a.local_start_time.date()
-        load = analytics.trimp(a.duration_seconds / 60, a.avg_hr, resting_hr, max_hr)
+        load = analytics.trimp(a.duration_seconds / 60, a.avg_hr, resting_hr, max_hr, gender=sex)
         daily_totals[day] = daily_totals.get(day, 0.0) + load
 
     training_load = 0.0

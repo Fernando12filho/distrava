@@ -2,6 +2,8 @@ from datetime import timedelta, timezone
 from math import exp
 from statistics import median
 
+from app.training_rules import TRIMP_WEIGHTING
+
 CTL_DAYS = 42
 ATL_DAYS = 7
 
@@ -102,11 +104,8 @@ def grade_adjusted_pace(raw_pace_sec_per_km, grade_percent):
 
 def trimp(duration_minutes, avg_hr, hr_rest, hr_max, gender="male"):
     delta_ratio = (avg_hr - hr_rest) / (hr_max - hr_rest)
-    if gender == "male":
-        weighting = 0.64 * exp(1.92 * delta_ratio)
-    else:
-        weighting = 0.86 * exp(1.67 * delta_ratio)
-    return duration_minutes * delta_ratio * weighting
+    scale, exponent = TRIMP_WEIGHTING[gender]
+    return duration_minutes * delta_ratio * scale * exp(exponent * delta_ratio)
 
 
 def ctl_atl(daily_loads):

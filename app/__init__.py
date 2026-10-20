@@ -13,7 +13,7 @@ from app.models import Base
 # existing table we add whatever's missing by hand instead of wiping the file.
 _SCHEMA_UPGRADES = {
     "activities": ["source_device", "utc_offset_minutes"],
-    "user_settings": ["weight_kg", "units", "observed_max_hr", "observed_resting_hr", "observed_resting_hr_on"],
+    "user_settings": ["weight_kg", "units", "observed_max_hr", "observed_resting_hr", "observed_resting_hr_on", "sex"],
     "coach_sessions": ["matched_activity_id"],
 }
 
