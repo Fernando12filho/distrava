@@ -43,6 +43,7 @@ your machine: no accounts, no subscriptions, no cloud.
 | HR zones in five distinct colours | [Y] |
 | Test first, then code (TDD) | [Y] |
 | Build order: M1 → M2 → M3, then the coach (M4) | [Y] |
+| Personal facts (sex, birth year) are set only by you. Your training profile (runs per week, gym days, split, goal, experience) can be set by you or created and changed by the AI coach — with your confirmation | [Y] 2026-10-20 |
 
 ## 3. Roadmap
 
@@ -74,9 +75,9 @@ _What Strava charges for, correct by the research and explained so you can trust
 | ✅ | Best efforts (400 m → marathon), splits, HR zones | Phase 1 |
 | ✅ | Training load (TRIMP / CTL / ATL), race predictions, VO2max estimate | Phase 1 |
 | ✅ | Check every metric against research | 2026-10-20 — findings below |
-| ⬜ | Profile: sex, goal, years running/lifting, runs and gym days per week | needed by RULE-METRIC-02/03, WEEK-01/02 |
+| ⏭ | Sex in Settings, used for training load | RULE-METRIC-03; the training profile moved to M4 (you or the coach set it) |
 | ✅ | Max HR: Tanaka 208 − 0.7 × age, replaced by your observed max | 2026-10-20; yours: 194 → 190 (observed 178 is lower) |
-| ⬜ | Resting HR from Apple Health (7-day median) instead of the default 60 | RULE-METRIC-01; you have no resting HR set |
+| ✅ | Resting HR from Apple Health (7-day median) instead of the default 60 | 2026-10-20; yours: 54 after your next re-import |
 | ⬜ | Training load with sex-specific TRIMP constants, shown as a personal trend | RULE-METRIC-03; today male constants for all |
 | ⬜ | Race predictions: marathon flagged as likely too fast | RULE-METRIC-04 |
 | ⬜ | "VO2max" relabelled as a race-equivalent score (VDOT); zones labelled as estimates | RULE-METRIC-05, METRIC-01 |
@@ -109,6 +110,7 @@ until M1–M3 are done._
 | ✅ | 3. Weekly board | Coach page: 7 day columns, add / move / remove sessions, Done / Partial / Skip, edit volumes |
 | ✅ | 4. Auto check-in | imported runs/rides offered as "Import matches · Confirm" |
 | ⬜ | 5. Rebalancer | RULE-REC-01/02/04, PROG-01/02, WEEK-01; decisions D1, D4, D7 |
+| ⬜ | Training profile: runs per week, gym days, split, goal, experience | set by you or created/changed by the coach (with your confirmation); feeds RULE-WEEK-01/02, LOAD-03 |
 | ⬜ | 6. Connect an AI provider | your own API key, stored in the OS keychain |
 | ⬜ | 7. Coach tools, preview, undo | the AI proposes, you accept or undo |
 | ⬜ | 8. Plan a week from scratch or from past weeks | RULE-WEEK-01..04 |
@@ -124,6 +126,7 @@ until M1–M3 are done._
 | HR zones as % of heart-rate reserve (Karvonen) | zones, time in zone | [R] RULE-METRIC-01 — supported; should be labelled as estimates |
 | Max HR: your setting, else the higher of 208 − 0.7 × age and the highest HR held ≥ 5 s | settings, zones, load | [R] RULE-METRIC-02 (Tanaka 2001) |
 | Training load = TRIMP with male constants for everyone | dashboard | [R] RULE-METRIC-03 — constants are sex-specific; app lacks your sex (M2) |
+| Resting HR: your setting, else the median of Apple Health's last 7 daily readings, else 60 | zones, load | [R] RULE-METRIC-01 |
 | Fitness / fatigue as 42 / 7-day averages | dashboard | [R] RULE-METRIC-03 — convention; fine as a personal trend |
 | Race prediction: Riegel, exponent 1.06 | dashboard | [R] RULE-METRIC-04 — fine to half marathon; marathon too fast (M2) |
 | VO2max estimate (Daniels VDOT) | dashboard | [R] RULE-METRIC-05 — not validated as VO2max; relabel (M2) |
@@ -169,7 +172,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | ⬜ | D6. Grade-adjusted pace model: Minetti (lab) or a large-GPS-data model? | M2 |
 | ⬜ | D7. Coming back after a break: 14-day threshold, 80 % first week? | M4 rebalancer |
 | ⬜ | D8. When a check-in disagrees with the watch, does the check-in win? | M4 step 10 |
-| ⏭ | D9. Fill in your profile (age, sex, runs/week, split, goal, experience) | M2 profile |
+| ⏭ | D9. Your sex, in Settings (the rest of the profile is set by you or the coach later) | M2 training load |
 | ✅ | D10. Runs without per-second heart rate: hide time-in-zones and HR chart (decided: hide) | M1 HR flags |
 
 ## 7. Log
@@ -190,6 +193,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-20 | M1: runs without per-second heart rate hide their zones and HR chart (D10); gaps and jumps get a note. Rule parameters now live in `app/training_rules.py` |
 | 2026-10-20 | You re-imported. Found that Apple's export writes every date in the export-time offset, so the claim "exact time zone from the watch" was wrong; winter/travel hour offset parked as low impact. Spot-check list sent |
 | 2026-10-20 | Spot-check: all match — M1 done. M2 started: max HR now Tanaka + observed max (yours 194 → 190); 7-day load 22.51 → 24.01 |
+| 2026-10-20 | Observed max repaired (127 → 178, backup kept). Resting HR now read from Apple Health (yours 54). Decided: the training profile is set by you or the coach |
 
 ## 8. Waiting on
 
@@ -199,7 +203,8 @@ From the research file's open questions. Each is asked when its milestone starts
 | ✅ | Point me to your Apple Health `export.zip` (read-only check of one sparse run) | you |
 | ✅ | Re-import `mydata/export 3.zip` on the Import page (about a minute) — fixes HR and times on all activities | you |
 | ✅ | Compare the spot-check list with the Fitness app | you |
-| ⏭ | OK to repair your observed max HR in `data/fitness.db` (127 → 178, after a backup)? | you |
+| ✅ | OK to repair your observed max HR in `data/fitness.db` (127 → 178, after a backup)? | you — done |
+| ⏭ | Re-import `mydata/export 3.zip` once more, to pick up your resting HR (54) | you |
 | ⏭ | Decision D9: your profile, before M2 starts | you |
 | ⬜ | Sync the GitHub board with this plan — start a session with `ai-jail --github --allow-host github.com --allow-host api.github.com claude` | you start it, I sync |
 | ⬜ | Push branch `coach-board` (local only) | you, or me in the session above |

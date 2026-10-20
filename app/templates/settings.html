@@ -18,7 +18,7 @@
           <input class="fld" type="number" name="max_hr" id="max-hr-input" value="{{ settings.max_hr if settings and settings.max_hr else '' }}" placeholder="{{ resolved_max_hr }}" />
         </div>
         <div class="field-row">
-          <div><div class="field-label">Resting heart rate</div><div class="field-help">bpm · used for zones and training load</div></div>
+          <div><div class="field-label">Resting heart rate</div><div class="field-help">bpm · used for zones and training load{{ ' · from ' ~ resting_hr_source if resting_hr_source }}</div></div>
           <input class="fld" type="number" name="resting_hr" id="resting-hr-input" value="{{ settings.resting_hr if settings and settings.resting_hr else '' }}" placeholder="{{ resolved_resting_hr }}" />
         </div>
         <div class="field-row">

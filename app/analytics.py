@@ -1,5 +1,6 @@
 from datetime import timedelta, timezone
 from math import exp
+from statistics import median
 
 CTL_DAYS = 42
 ATL_DAYS = 7
@@ -237,6 +238,15 @@ def local_offset_minutes(utc_naive, tz=None):
 # RULE-METRIC-02: Tanaka et al. 2001. 220 − age is not supported.
 def default_max_hr(birth_year, reference_year):
     return round(208 - 0.7 * (reference_year - birth_year))
+
+
+def recent_resting_hr(readings, days):
+    """(median bpm, latest date) over the `days` days ending at the latest reading."""
+    if not readings:
+        return None
+    latest = max(day for day, _bpm in readings)
+    window = [bpm for day, bpm in readings if (latest - day).days < days]
+    return float(median(window)), latest
 
 
 def sustained_max_hr(times, hr_values, min_seconds, max_gap_seconds):

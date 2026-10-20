@@ -32,7 +32,12 @@ DEFAULT_MAX_HR = 190
 
 
 def _resolve_hr_profile(settings, today):
-    resting_hr = settings.resting_hr if settings and settings.resting_hr else DEFAULT_RESTING_HR
+    if settings and settings.resting_hr:
+        resting_hr = settings.resting_hr
+    elif settings and settings.observed_resting_hr:
+        resting_hr = settings.observed_resting_hr
+    else:
+        resting_hr = DEFAULT_RESTING_HR
     if settings and settings.max_hr:
         return resting_hr, settings.max_hr
     if settings and settings.birth_year:
@@ -477,6 +482,11 @@ def settings_page():
         resolved_max_hr=resolved_max_hr,
         zones=analytics.hr_zone_bands(resolved_max_hr, resolved_resting_hr),
         resolved_resting_hr=resolved_resting_hr,
+        resting_hr_source=(
+            f"Apple Health, {training_rules.RESTING_HR_WINDOW_DAYS} days to {settings.observed_resting_hr_on:%b %d}"
+            if settings and not settings.resting_hr and settings.observed_resting_hr
+            else None
+        ),
         db_path=db_path,
         db_size_mb=db_size_mb,
         units=units,

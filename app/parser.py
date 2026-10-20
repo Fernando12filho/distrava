@@ -2,7 +2,7 @@ import csv
 import hashlib
 import io
 import zipfile
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from math import atan2, cos, radians, sin, sqrt
 
 import defusedxml.ElementTree as ET
@@ -47,6 +47,9 @@ DISTANCE_STATISTIC_TYPES = {
 # (found in real data: 12 samples for a 29-minute run), so averaging those
 # can be far off — 117.6 bpm against the watch's 155.9 for that run.
 HEART_RATE_STATISTIC_TYPE = "HKQuantityTypeIdentifierHeartRate"
+
+# One reading a day, measured by the watch. RULE-METRIC-01 uses its recent median.
+RESTING_HEART_RATE_TYPE = "HKQuantityTypeIdentifierRestingHeartRate"
 
 GPX_NS = {
     "gpx": "http://www.topografix.com/GPX/1/1",
@@ -117,6 +120,9 @@ def _collect_workout_windows(xml_bytes):
             birth_date = elem.get("HKCharacteristicTypeIdentifierDateOfBirth")
             if birth_date:
                 me_attrs["birth_year"] = int(birth_date.split("-")[0])
+        elif tag == "Record" and elem.get("type") == RESTING_HEART_RATE_TYPE:
+            day = date.fromisoformat(elem.get("startDate")[:10])
+            me_attrs.setdefault("resting_hr", []).append((day, float(elem.get("value"))))
         elif tag == "WorkoutStatistics":
             if elem.get("type") in DISTANCE_STATISTIC_TYPES:
                 pending_distance_meters = _to_meters(elem.get("sum"), elem.get("unit"))
@@ -393,6 +399,22 @@ def record_observed_max_hr(db_session, held):
         db_session.commit()
 
 
+def _record_resting_hr(db_session, readings):
+    recent = analytics.recent_resting_hr(readings, training_rules.RESTING_HR_WINDOW_DAYS)
+    if recent is None:
+        return
+    median, measured_on = recent
+    settings = db_session.query(UserSettings).first()
+    if settings is None:
+        settings = UserSettings()
+        db_session.add(settings)
+    # An older export imported later must not replace a more recent reading.
+    if settings.observed_resting_hr_on is None or measured_on >= settings.observed_resting_hr_on:
+        settings.observed_resting_hr = round(median)
+        settings.observed_resting_hr_on = measured_on
+        db_session.commit()
+
+
 def _maybe_set_birth_year(db_session, me_attrs):
     birth_year = me_attrs.get("birth_year")
     if birth_year is None:
@@ -469,6 +491,7 @@ def import_apple_health_zip(zip_path, db_session):
             skipped += 1
 
     _maybe_set_birth_year(db_session, me_attrs)
+    _record_resting_hr(db_session, me_attrs.get("resting_hr", []))
     return {"imported": imported, "skipped": skipped}
 
 

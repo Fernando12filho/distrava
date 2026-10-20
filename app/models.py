@@ -110,6 +110,10 @@ class UserSettings(Base):
     # Highest heart rate held for a few seconds in any workout (RULE-METRIC-02),
     # learned on import. Replaces the age estimate once it is higher.
     observed_max_hr = Column(Integer, nullable=True)
+    # Median of Apple Health's daily resting HR over the last 7 days of the most
+    # recent export (RULE-METRIC-01), and the last day it covers.
+    observed_resting_hr = Column(Integer, nullable=True)
+    observed_resting_hr_on = Column(Date, nullable=True)
 
 
 # Coach tables all carry the coach_ prefix: drop_coach_tables() relies on it to
