@@ -196,8 +196,10 @@ def test_build_daily_trimp_loads_fills_gaps_with_zero():
     assert loads == [50.0, 0.0, 30.0]
 
 
-def test_default_max_hr_uses_220_minus_age_formula():
-    assert analytics.default_max_hr(birth_year=1990, reference_year=2026) == 184
+@pytest.mark.parametrize("birth_year, expected", [(1990, 183), (2000, 190), (1966, 166)])
+def test_default_max_hr_uses_tanaka_formula(birth_year, expected):
+    # RULE-METRIC-02: 208 - 0.7 x age (Tanaka 2001) replaced 220 - age.
+    assert analytics.default_max_hr(birth_year=birth_year, reference_year=2026) == expected
 
 
 def test_value_at_time_returns_nearest_sample():

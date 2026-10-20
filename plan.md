@@ -75,7 +75,8 @@ _What Strava charges for, correct by the research and explained so you can trust
 | ✅ | Training load (TRIMP / CTL / ATL), race predictions, VO2max estimate | Phase 1 |
 | ✅ | Check every metric against research | 2026-10-20 — findings below |
 | ⬜ | Profile: sex, goal, years running/lifting, runs and gym days per week | needed by RULE-METRIC-02/03, WEEK-01/02 |
-| ⬜ | Max HR: Tanaka 208 − 0.7 × age, replaced by your observed max | RULE-METRIC-02; today 220 − age |
+| ✅ | Max HR: Tanaka 208 − 0.7 × age, replaced by your observed max | 2026-10-20; yours: 194 → 190 (observed 178 is lower) |
+| ⬜ | Resting HR from Apple Health (7-day median) instead of the default 60 | RULE-METRIC-01; you have no resting HR set |
 | ⬜ | Training load with sex-specific TRIMP constants, shown as a personal trend | RULE-METRIC-03; today male constants for all |
 | ⬜ | Race predictions: marathon flagged as likely too fast | RULE-METRIC-04 |
 | ⬜ | "VO2max" relabelled as a race-equivalent score (VDOT); zones labelled as estimates | RULE-METRIC-05, METRIC-01 |
@@ -121,7 +122,7 @@ until M1–M3 are done._
 | Rule | Used in | Source |
 |---|---|---|
 | HR zones as % of heart-rate reserve (Karvonen) | zones, time in zone | [R] RULE-METRIC-01 — supported; should be labelled as estimates |
-| Max HR fallback 220 − age | settings, zones, load | [R] RULE-METRIC-02 says **never use it** — replace with Tanaka (M2) |
+| Max HR: your setting, else the higher of 208 − 0.7 × age and the highest HR held ≥ 5 s | settings, zones, load | [R] RULE-METRIC-02 (Tanaka 2001) |
 | Training load = TRIMP with male constants for everyone | dashboard | [R] RULE-METRIC-03 — constants are sex-specific; app lacks your sex (M2) |
 | Fitness / fatigue as 42 / 7-day averages | dashboard | [R] RULE-METRIC-03 — convention; fine as a personal trend |
 | Race prediction: Riegel, exponent 1.06 | dashboard | [R] RULE-METRIC-04 — fine to half marathon; marathon too fast (M2) |
@@ -188,6 +189,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-20 | M1: cause found in your export — Apple omits per-second samples for some workouts. Importer now uses the watch's own HR summary; re-import fixes existing data |
 | 2026-10-20 | M1: runs without per-second heart rate hide their zones and HR chart (D10); gaps and jumps get a note. Rule parameters now live in `app/training_rules.py` |
 | 2026-10-20 | You re-imported. Found that Apple's export writes every date in the export-time offset, so the claim "exact time zone from the watch" was wrong; winter/travel hour offset parked as low impact. Spot-check list sent |
+| 2026-10-20 | Spot-check: all match — M1 done. M2 started: max HR now Tanaka + observed max (yours 194 → 190); 7-day load 22.51 → 24.01 |
 
 ## 8. Waiting on
 
@@ -196,7 +198,8 @@ From the research file's open questions. Each is asked when its milestone starts
 | ✅ | Run the research prompt, save `research/training-rules.md` | you |
 | ✅ | Point me to your Apple Health `export.zip` (read-only check of one sparse run) | you |
 | ✅ | Re-import `mydata/export 3.zip` on the Import page (about a minute) — fixes HR and times on all activities | you |
-| ⏭ | Compare the spot-check list with the Fitness app | you |
+| ✅ | Compare the spot-check list with the Fitness app | you |
+| ⏭ | OK to repair your observed max HR in `data/fitness.db` (127 → 178, after a backup)? | you |
 | ⏭ | Decision D9: your profile, before M2 starts | you |
 | ⬜ | Sync the GitHub board with this plan — start a session with `ai-jail --github --allow-host github.com --allow-host api.github.com claude` | you start it, I sync |
 | ⬜ | Push branch `coach-board` (local only) | you, or me in the session above |

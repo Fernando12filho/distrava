@@ -234,8 +234,25 @@ def local_offset_minutes(utc_naive, tz=None):
     return int(local.utcoffset().total_seconds() // 60)
 
 
+# RULE-METRIC-02: Tanaka et al. 2001. 220 − age is not supported.
 def default_max_hr(birth_year, reference_year):
-    return 220 - (reference_year - birth_year)
+    return round(208 - 0.7 * (reference_year - birth_year))
+
+
+def sustained_max_hr(times, hr_values, min_seconds, max_gap_seconds):
+    """Highest heart rate held across readings spanning at least min_seconds."""
+    readings = [(t, hr) for t, hr in zip(times, hr_values) if hr is not None]
+    best = None
+    for i, (start, _hr) in enumerate(readings):
+        lowest = readings[i][1]
+        for j in range(i + 1, len(readings)):
+            if readings[j][0] - readings[j - 1][0] > max_gap_seconds:
+                break
+            lowest = min(lowest, readings[j][1])
+            if readings[j][0] - start >= min_seconds:
+                best = lowest if best is None else max(best, lowest)
+                break
+    return best
 
 
 def value_at_time(times, values, target_time):

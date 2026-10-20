@@ -9,6 +9,10 @@ research gives, so it can be tuned without hunting through the code.
 HR_GAP_FLAG_SECONDS = 30  # range 15–60
 HR_JUMP_FLAG_BPM_PER_S = 15  # range 10–20
 
+# RULE-METRIC-02: an observed max HR replaces the age estimate once it is
+# higher, but only if held this long, to filter out sensor artefacts.
+HR_MAX_OBSERVED_MIN_SECONDS = 5  # range 5–30
+
 # Decision D10 (plan.md): below this share of the workout covered by
 # second-by-second heart rate, time-in-zones, the HR chart and per-split HR are
 # hidden rather than computed from a few samples. Real data clusters above 90 %

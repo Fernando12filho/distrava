@@ -34,12 +34,14 @@ DEFAULT_MAX_HR = 190
 def _resolve_hr_profile(settings, today):
     resting_hr = settings.resting_hr if settings and settings.resting_hr else DEFAULT_RESTING_HR
     if settings and settings.max_hr:
-        max_hr = settings.max_hr
-    elif settings and settings.birth_year:
-        max_hr = analytics.default_max_hr(settings.birth_year, today.year)
+        return resting_hr, settings.max_hr
+    if settings and settings.birth_year:
+        estimate = analytics.default_max_hr(settings.birth_year, today.year)
     else:
-        max_hr = DEFAULT_MAX_HR
-    return resting_hr, max_hr
+        estimate = DEFAULT_MAX_HR
+    # RULE-METRIC-02: a higher max actually reached replaces the estimate.
+    observed = settings.observed_max_hr if settings else None
+    return resting_hr, max(estimate, observed) if observed else estimate
 
 
 def get_db():

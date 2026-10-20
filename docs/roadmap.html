@@ -151,8 +151,8 @@
         <span class="mid">M2</span>
         <h2>Records &amp; dashboard</h2>
         <p class="summary">What Strava charges for, correct by the research and explained so you can trust it.</p>
-        <div class="progress"><span style="width:27%"></span></div>
-        <span class="count">3 / 11 done</span>
+        <div class="progress"><span style="width:33%"></span></div>
+        <span class="count">4 / 12 done</span>
       </header>
       <ul>
         <li class="item st-done">
@@ -175,10 +175,15 @@
           <span class="feature">Profile: sex, goal, years running/lifting, runs and gym days per week</span>
           <span class="notes">needed by RULE-METRIC-02/03, WEEK-01/02</span>
         </li>
+        <li class="item st-done">
+          <span class="chip st-done">Done</span>
+          <span class="feature">Max HR: Tanaka 208 − 0.7 × age, replaced by your observed max</span>
+          <span class="notes">2026-10-20; yours: 194 → 190 (observed 178 is lower)</span>
+        </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
-          <span class="feature">Max HR: Tanaka 208 − 0.7 × age, replaced by your observed max</span>
-          <span class="notes">RULE-METRIC-02; today 220 − age</span>
+          <span class="feature">Resting HR from Apple Health (7-day median) instead of the default 60</span>
+          <span class="notes">RULE-METRIC-01; you have no resting HR set</span>
         </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
@@ -343,7 +348,8 @@
         <tr><td><span class="chip st-done">Done</span></td><td>Run the research prompt, save <code>research/training-rules.md</code></td><td class="muted">you</td></tr>
         <tr><td><span class="chip st-done">Done</span></td><td>Point me to your Apple Health <code>export.zip</code> (read-only check of one sparse run)</td><td class="muted">you</td></tr>
         <tr><td><span class="chip st-done">Done</span></td><td>Re-import <code>mydata/export 3.zip</code> on the Import page (about a minute) — fixes HR and times on all activities</td><td class="muted">you</td></tr>
-        <tr><td><span class="chip st-next">Next</span></td><td>Compare the spot-check list with the Fitness app</td><td class="muted">you</td></tr>
+        <tr><td><span class="chip st-done">Done</span></td><td>Compare the spot-check list with the Fitness app</td><td class="muted">you</td></tr>
+        <tr><td><span class="chip st-next">Next</span></td><td>OK to repair your observed max HR in <code>data/fitness.db</code> (127 → 178, after a backup)?</td><td class="muted">you</td></tr>
         <tr><td><span class="chip st-next">Next</span></td><td>Decision D9: your profile, before M2 starts</td><td class="muted">you</td></tr>
         <tr><td><span class="chip st-todo">Not started</span></td><td>Sync the GitHub board with this plan — start a session with <code>ai-jail --github --allow-host github.com --allow-host api.github.com claude</code></td><td class="muted">you start it, I sync</td></tr>
         <tr><td><span class="chip st-todo">Not started</span></td><td>Push branch <code>coach-board</code> (local only)</td><td class="muted">you, or me in the session above</td></tr>
@@ -384,7 +390,7 @@
     <h3>Rules the app uses, and where they come from</h3>
     <table>
         <tr><td>HR zones as % of heart-rate reserve (Karvonen)</td><td class="muted">zones, time in zone</td><td><span class="badge src-R">Research</span> RULE-METRIC-01 — supported; should be labelled as estimates</td></tr>
-        <tr><td>Max HR fallback 220 − age</td><td class="muted">settings, zones, load</td><td><span class="badge src-R">Research</span> RULE-METRIC-02 says never use it — replace with Tanaka (M2)</td></tr>
+        <tr><td>Max HR: your setting, else the higher of 208 − 0.7 × age and the highest HR held ≥ 5 s</td><td class="muted">settings, zones, load</td><td><span class="badge src-R">Research</span> RULE-METRIC-02 (Tanaka 2001)</td></tr>
         <tr><td>Training load = TRIMP with male constants for everyone</td><td class="muted">dashboard</td><td><span class="badge src-R">Research</span> RULE-METRIC-03 — constants are sex-specific; app lacks your sex (M2)</td></tr>
         <tr><td>Fitness / fatigue as 42 / 7-day averages</td><td class="muted">dashboard</td><td><span class="badge src-R">Research</span> RULE-METRIC-03 — convention; fine as a personal trend</td></tr>
         <tr><td>Race prediction: Riegel, exponent 1.06</td><td class="muted">dashboard</td><td><span class="badge src-R">Research</span> RULE-METRIC-04 — fine to half marathon; marathon too fast (M2)</td></tr>

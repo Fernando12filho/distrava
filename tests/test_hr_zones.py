@@ -60,7 +60,8 @@ def test_time_in_zones_display_matches_snapshot():
     [
         (None, (60, 190)),
         (UserSettings(resting_hr=52), (52, 190)),
-        (UserSettings(birth_year=1990), (60, 184)),
+        # Was 184 (220 - age); changed on purpose to Tanaka per RULE-METRIC-02.
+        (UserSettings(birth_year=1990), (60, 183)),
         (UserSettings(resting_hr=50, max_hr=181, birth_year=1990), (50, 181)),
     ],
 )

@@ -14,7 +14,7 @@
       <div class="card-header"><div><div class="title">Profile</div><div class="card-subtitle">Used to compute heart-rate zones and training load</div></div></div>
       <div class="field-rows">
         <div class="field-row">
-          <div><div class="field-label">Max heart rate</div><div class="field-help">bpm · overrides 220−age estimate</div></div>
+          <div><div class="field-label">Max heart rate</div><div class="field-help">bpm · leave empty to use 208 − 0.7 × age, or your highest recorded max if higher</div></div>
           <input class="fld" type="number" name="max_hr" id="max-hr-input" value="{{ settings.max_hr if settings and settings.max_hr else '' }}" placeholder="{{ resolved_max_hr }}" />
         </div>
         <div class="field-row">

@@ -107,6 +107,9 @@ class UserSettings(Base):
     birth_year = Column(Integer, nullable=True)
     weight_kg = Column(Float, nullable=True)
     units = Column(String, nullable=True)
+    # Highest heart rate held for a few seconds in any workout (RULE-METRIC-02),
+    # learned on import. Replaces the age estimate once it is higher.
+    observed_max_hr = Column(Integer, nullable=True)
 
 
 # Coach tables all carry the coach_ prefix: drop_coach_tables() relies on it to

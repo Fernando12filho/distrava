@@ -7,7 +7,7 @@ from math import atan2, cos, radians, sin, sqrt
 
 import defusedxml.ElementTree as ET
 
-from app import analytics
+from app import analytics, training_rules
 from app.models import Activity, ActivityStream, BestEffort, UserSettings
 
 STANDARD_DISTANCES = [
@@ -300,6 +300,7 @@ def _persist_activity(
         db_session.add(ActivityStream(activity_id=activity.id, stream_data=stream_data))
         db_session.commit()
         update_best_efforts(db_session, activity, stream_data)
+        record_observed_max_hr(db_session, held_max_hr(stream_data))
     else:
         db_session.commit()
     return True
@@ -369,6 +370,27 @@ def _is_unsafe_zip_entry(name):
         return True
     parts = name.replace("\\", "/").split("/")
     return ".." in parts
+
+
+def held_max_hr(stream_data):
+    return analytics.sustained_max_hr(
+        stream_data["time"],
+        stream_data.get("hr", []),
+        training_rules.HR_MAX_OBSERVED_MIN_SECONDS,
+        training_rules.HR_GAP_FLAG_SECONDS,
+    )
+
+
+def record_observed_max_hr(db_session, held):
+    if held is None:
+        return
+    settings = db_session.query(UserSettings).first()
+    if settings is None:
+        settings = UserSettings()
+        db_session.add(settings)
+    if settings.observed_max_hr is None or held > settings.observed_max_hr:
+        settings.observed_max_hr = round(held)
+        db_session.commit()
 
 
 def _maybe_set_birth_year(db_session, me_attrs):

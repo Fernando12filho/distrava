@@ -13,7 +13,7 @@ from app.models import Base
 # existing table we add whatever's missing by hand instead of wiping the file.
 _SCHEMA_UPGRADES = {
     "activities": ["source_device", "utc_offset_minutes"],
-    "user_settings": ["weight_kg", "units"],
+    "user_settings": ["weight_kg", "units", "observed_max_hr"],
     "coach_sessions": ["matched_activity_id"],
 }
 
@@ -55,6 +55,21 @@ def _backfill_activity_offsets(engine, tz):
             conn.execute(
                 activities.update().where(activities.c.id == activity_id).values(utc_offset_minutes=offset)
             )
+
+
+# Workouts imported before observed max HR was tracked are scanned once, when
+# the column is added, so RULE-METRIC-02 applies to the whole history. The scan
+# finishes before the single write: writing mid-stream locks a database file.
+def _backfill_observed_max_hr(session_factory):
+    from app import parser
+    from app.models import ActivityStream
+
+    session = session_factory()
+    try:
+        held = [parser.held_max_hr(data) for (data,) in session.query(ActivityStream.stream_data).yield_per(50)]
+        parser.record_observed_max_hr(session, max((h for h in held if h is not None), default=None))
+    finally:
+        session.close()
 
 
 # The first coach model put exercises straight on the day ("cards"); it was
@@ -125,6 +140,8 @@ def create_app(config=None):
         _backfill_activity_offsets(engine, app.config.get("LOCAL_TIMEZONE"))
     app.engine = engine
     app.session_factory = sessionmaker(bind=engine)
+    if ("user_settings", "observed_max_hr") in added_columns:
+        _backfill_observed_max_hr(app.session_factory)
 
     from app.coach.catalog import seed_catalog
 
