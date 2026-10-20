@@ -8,8 +8,11 @@ No accounts, no subscriptions, data stays in the local SQLite file.
 This repo is the **active** Distrava project. The 2026-09-07 freeze was reversed
 on 2026-10-09. The native iOS app at `~/Desktop/Fernando/Distrava` is a
 **separate project** — never redirect work there or treat this repo as its
-reference. `plan.md` still describes the freeze and is stale until rewritten;
-current scope lives in GitHub milestones (below) and the coach spec.
+reference.
+
+**`plan.md` is the plan**: goals, milestones M1 → M2 → M3 → M4 (built in that
+order), status of every feature, and every rule the app follows with its source.
+Read it before starting work.
 
 ## Stack (locked — do not substitute)
 Flask, SQLAlchemy + SQLite, Jinja2 server templates (no frontend build step),
@@ -57,10 +60,22 @@ test files, build order). Follow its build order; reuse AC ids in test names.
   provider. CI and tests never call a real LLM — use the fake provider.
 - API keys live in the OS keychain, never in SQLite or logs. `.env` is gitignored.
 
+## Evidence
+- **Training advice needs research.** Any rule that tells the user how to train
+  (effort, recovery, spacing, volume, progression) must cite a study or guideline,
+  tagged [R] in `plan.md` §4. The user's own preferences are tagged [Y].
+  Assumptions are tagged [A] and must never ship as advice.
+- Research arrives as `research/training-rules.md` (generated from
+  `research/PROMPT.md`). Only cite sources listed there; never invent one.
+
 ## Workflow
+- After every piece of work: update `plan.md` (status, rules table, log), then run
+  `python scripts/build_roadmap.py`. `tests/test_roadmap.py` fails if
+  `docs/roadmap.html` is stale.
 - Work is tracked on GitHub `Fernando12filho/distrava`: issues with type + `area:`
   labels, milestones M1–M4 (M4 = Coach & trainer), Projects kanban. Find or
-  create the issue before starting; reference it with `Closes #N`.
+  create the issue before starting; reference it with `Closes #N`. Keep the board
+  in step with `plan.md` (needs a session started with `ai-jail --github`).
 - **Never add "Co-Authored-By: Claude" or any AI/model/brand attribution to commit
   messages.** No mentions of Claude, Anthropic, or any AI tool in commits, code
   comments, or docs in this repo.

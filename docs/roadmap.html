@@ -1,0 +1,317 @@
+<!doctype html>
+<!-- Generated from plan.md by scripts/build_roadmap.py. Do not edit by hand. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Distrava Roadmap</title>
+<style>
+  @font-face { font-family: "Inter"; font-weight: 400 800; src: url("../app/static/fonts/Inter-var.woff2") format("woff2"); }
+  @font-face { font-family: "JetBrains Mono"; font-weight: 400 700; src: url("../app/static/fonts/JetBrainsMono-var.woff2") format("woff2"); }
+  :root {
+    --bg: #0b0b0f; --surface: #16161c; --surface-2: #1e1e26; --input: #101015;
+    --border: #22222a; --border-strong: #2c2c36; --divider: #17171d;
+    --accent: #c4f82a; --text: #ececef; --text-2: #9c9ca6; --muted: #5e5e68;
+    --blue: #7fb2e8; --amber: #c9a46b;
+    --mono: "JetBrains Mono", ui-monospace, monospace; --sans: "Inter", system-ui, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); -webkit-font-smoothing: antialiased; padding: 40px 32px 80px; }
+  main { max-width: 1320px; margin: 0 auto; }
+  .top { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; padding-bottom: 28px; border-bottom: 1px solid var(--border); margin-bottom: 28px; }
+  .wordmark { font-weight: 800; font-size: 28px; letter-spacing: -0.03em; }
+  .wordmark span { color: var(--accent); }
+  .top h1 { font-weight: 600; font-size: 15px; color: var(--text-2); margin-top: 8px; }
+  .meta { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: right; line-height: 1.8; }
+  .legend { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; margin-top: 6px; }
+  .milestones { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 36px; }
+  .milestone { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; display: flex; flex-direction: column; overflow: hidden; }
+  .milestone header { padding: 18px 18px 14px; border-bottom: 1px solid var(--divider); }
+  .mid { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; color: var(--accent); }
+  .milestone h2 { font-size: 18px; font-weight: 600; letter-spacing: -0.02em; margin-top: 6px; }
+  .summary { font-size: 13px; color: var(--text-2); line-height: 1.5; margin-top: 6px; min-height: 40px; }
+  .progress { height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; margin-top: 12px; }
+  .progress span { display: block; height: 100%; background: var(--accent); }
+  .count { display: block; font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .milestone ul { list-style: none; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .item { background: var(--input); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .item.st-done { opacity: 0.6; }
+  .item.st-next, .item.st-in_progress { border-color: rgba(196, 248, 42, 0.45); }
+  .feature { font-size: 13px; line-height: 1.4; }
+  .notes { font-family: var(--mono); font-size: 10.5px; color: var(--muted); line-height: 1.5; }
+  .chip { align-self: flex-start; font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 7px; padding: 3px 7px; white-space: nowrap; }
+  .chip.st-done { color: var(--accent); background: rgba(196, 248, 42, 0.12); }
+  .chip.st-in_progress { color: var(--bg); background: var(--accent); }
+  .chip.st-next { color: var(--accent); border: 1px solid rgba(196, 248, 42, 0.5); }
+  .chip.st-research { color: var(--blue); border: 1px solid rgba(127, 178, 232, 0.45); }
+  .chip.st-todo { color: var(--muted); border: 1px solid var(--border-strong); }
+  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  .panel h3 { font-size: 16px; font-weight: 600; padding: 16px 18px; border-bottom: 1px solid var(--divider); }
+  .panel h3 small { font-family: var(--mono); font-size: 11px; font-weight: 400; color: var(--muted); margin-left: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td { padding: 10px 18px; border-bottom: 1px solid var(--divider); vertical-align: top; line-height: 1.5; }
+  tr:last-child td { border-bottom: none; }
+  td.muted { color: var(--text-2); }
+  code { font-family: var(--mono); font-size: 12px; color: var(--text-2); background: var(--surface-2); border-radius: 4px; padding: 1px 4px; }
+  .badge { display: inline-block; font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 7px; padding: 3px 7px; margin-right: 6px; white-space: nowrap; }
+  .src-R { color: var(--bg); background: var(--accent); }
+  .src-Y { color: var(--blue); border: 1px solid rgba(127, 178, 232, 0.5); }
+  .src-S { color: var(--text-2); background: var(--surface-2); }
+  .src-A { color: var(--amber); border: 1px solid rgba(201, 164, 107, 0.55); }
+  footer { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 28px; }
+  @media (max-width: 1100px) { .milestones { grid-template-columns: repeat(2, minmax(0, 1fr)); } .panels { grid-template-columns: 1fr; } }
+  @media (max-width: 640px) { body { padding: 24px 16px 60px; } .milestones { grid-template-columns: 1fr; } .meta { text-align: left; } .legend { justify-content: flex-start; } td { padding: 10px 12px; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div>
+      <div class="wordmark">D<span>I</span>STRAVA</div>
+      <h1>Roadmap · M1 → M2 → M3 → M4</h1>
+    </div>
+    <div class="meta">
+      Updated 2026-10-20 · from plan.md
+      <div class="legend"><span class="chip st-done">Done</span> <span class="chip st-in_progress">In progress</span> <span class="chip st-next">Next</span> <span class="chip st-todo">Not started</span> <span class="chip st-research">Needs research</span></div>
+      <div class="legend"><span class="badge src-R">Research</span> <span class="badge src-Y">Your decision</span> <span class="badge src-S">Coach spec</span> <span class="badge src-A">Assumption</span></div>
+    </div>
+  </div>
+
+  <div class="milestones">
+    <section class="milestone">
+      <header>
+        <span class="mid">M1</span>
+        <h2>Trust the data</h2>
+        <p class="summary">Your imports are complete and every date, time and distance is right.</p>
+        <div class="progress"><span style="width:57%"></span></div>
+        <span class="count">4 / 7 done</span>
+      </header>
+      <ul>
+        <li class="item st-done">
+          <span class="chip st-done">Done</span>
+          <span class="feature">Apple Health, GPX and CSV import</span>
+          <span class="notes">Phase 1</span>
+        </li>
+        <li class="item st-done">
+          <span class="chip st-done">Done</span>
+          <span class="feature">Duplicate detection; a second watch doesn&#x27;t double distance</span>
+          <span class="notes">Phase 1</span>
+        </li>
+        <li class="item st-done">
+          <span class="chip st-done">Done</span>
+          <span class="feature">Regression net: alarms if any existing number changes</span>
+          <span class="notes">2026-10-18</span>
+        </li>
+        <li class="item st-done">
+          <span class="chip st-done">Done</span>
+          <span class="feature">Activities shown and counted in local time, not UTC</span>
+          <span class="notes">2026-10-19</span>
+        </li>
+        <li class="item st-next">
+          <span class="chip st-next">Next</span>
+          <span class="feature">Activity list date filter in local time</span>
+          <span class="notes">small follow-up</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">Re-import guide: how to refresh your Apple Health export</span>
+          <span class="notes">also fixes time offsets exactly</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">Spot-check against Apple Fitness for a few known runs</span>
+          <span class="notes">proves the numbers; needs you</span>
+        </li>
+      </ul>
+    </section>
+    <section class="milestone">
+      <header>
+        <span class="mid">M2</span>
+        <h2>Records &amp; dashboard</h2>
+        <p class="summary">What Strava charges for, explained so you can trust it.</p>
+        <div class="progress"><span style="width:40%"></span></div>
+        <span class="count">2 / 5 done</span>
+      </header>
+      <ul>
+        <li class="item st-done">
+          <span class="chip st-done">Done</span>
+          <span class="feature">Best efforts (400 m → marathon), splits, HR zones</span>
+          <span class="notes">Phase 1</span>
+        </li>
+        <li class="item st-done">
+          <span class="chip st-done">Done</span>
+          <span class="feature">Training load (TRIMP / CTL / ATL), race predictions, VO2max estimate</span>
+          <span class="notes">Phase 1</span>
+        </li>
+        <li class="item st-research">
+          <span class="chip st-research">Needs research</span>
+          <span class="feature">Check every metric against the research file</span>
+          <span class="notes">research §E</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">&quot;What does this number mean?&quot; for each metric, with its source</span>
+          
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">PR history over time (not only the current best)</span>
+          
+        </li>
+      </ul>
+    </section>
+    <section class="milestone">
+      <header>
+        <span class="mid">M3</span>
+        <h2>Gym &amp; foundations</h2>
+        <p class="summary">The gym side gets the same depth as running.</p>
+        <div class="progress"><span style="width:20%"></span></div>
+        <span class="count">1 / 5 done</span>
+      </header>
+      <ul>
+        <li class="item st-done">
+          <span class="chip st-done">Done</span>
+          <span class="feature">Exercise catalog: 40 exercises, muscle groups, equipment</span>
+          <span class="notes">built for the coach</span>
+        </li>
+        <li class="item st-research">
+          <span class="chip st-research">Needs research</span>
+          <span class="feature">Replace the catalog&#x27;s easy/moderate/hard labels with a researched measure of effort</span>
+          <span class="notes">research §A</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">Log a gym session: sets, reps, weight</span>
+          <span class="notes">Apple Health only gives duration + HR</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">Strength progress per exercise and muscle group</span>
+          
+        </li>
+        <li class="item st-research">
+          <span class="chip st-research">Needs research</span>
+          <span class="feature">Mobility, stretching and meditation sessions</span>
+          <span class="notes">research §F</span>
+        </li>
+      </ul>
+    </section>
+    <section class="milestone">
+      <header>
+        <span class="mid">M4</span>
+        <h2>Coach &amp; trainer</h2>
+        <p class="summary">Spec: <code>Distrava Coach — Use Cases, Decisions &amp; Test Plan.md</code>. Paused after step 4 until M1–M3 are done and the research is back.</p>
+        <div class="progress"><span style="width:33%"></span></div>
+        <span class="count">4 / 12 done</span>
+      </header>
+      <ul>
+        <li class="item st-done">
+          <span class="chip st-done">Done</span>
+          <span class="feature">1. Regression net</span>
+          <span class="notes">listed under M1</span>
+        </li>
+        <li class="item st-done">
+          <span class="chip st-done">Done</span>
+          <span class="feature">2. Data model</span>
+          <span class="notes">weeks → sessions → exercises, check-ins, notes</span>
+        </li>
+        <li class="item st-done">
+          <span class="chip st-done">Done</span>
+          <span class="feature">3. Weekly board</span>
+          <span class="notes">Coach page: 7 day columns, add / move / remove sessions, Done / Partial / Skip, edit volumes</span>
+        </li>
+        <li class="item st-done">
+          <span class="chip st-done">Done</span>
+          <span class="feature">4. Auto check-in</span>
+          <span class="notes">imported runs/rides offered as &quot;Import matches · Confirm&quot;</span>
+        </li>
+        <li class="item st-research">
+          <span class="chip st-research">Needs research</span>
+          <span class="feature">5. Rebalancer</span>
+          <span class="notes">rules need sources — research §A–§D</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">6. Connect an AI provider</span>
+          <span class="notes">your own API key, stored in the OS keychain</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">7. Coach tools, preview, undo</span>
+          <span class="notes">the AI proposes, you accept or undo</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">8. Plan a week from scratch or from past weeks</span>
+          
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">9. Import a trainer&#x27;s PDF plan</span>
+          
+        </li>
+        <li class="item st-research">
+          <span class="chip st-research">Needs research</span>
+          <span class="feature">10. Post-workout check-in + trainer export</span>
+          <span class="notes">research §G</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">11. Exercise Q&amp;A and fact check</span>
+          <span class="notes">answer + confidence + basis</span>
+        </li>
+        <li class="item st-todo">
+          <span class="chip st-todo">Not started</span>
+          <span class="feature">12. Connect your own AI agent (MCP)</span>
+          
+        </li>
+      </ul>
+    </section>
+  </div>
+
+  <div class="panels">
+    <section class="panel">
+      <h3>Waiting on</h3>
+      <table>
+        <tr><td><span class="chip st-next">Next</span></td><td>Run the research prompt, save <code>research/training-rules.md</code></td><td class="muted">you</td></tr>
+        <tr><td><span class="chip st-todo">Not started</span></td><td>Sync the GitHub board with this plan — start a session with <code>ai-jail --github --allow-host github.com --allow-host api.github.com claude</code></td><td class="muted">you start it, I sync</td></tr>
+        <tr><td><span class="chip st-todo">Not started</span></td><td>Push branch <code>coach-board</code> (7 commits, local only)</td><td class="muted">you, or me in the session above</td></tr>
+      </table>
+    </section>
+    <section class="panel">
+      <h3>Research <small>research/PROMPT.md → research/training-rules.md</small></h3>
+      <table>
+        <tr><td><span class="chip st-next">Next</span></td><td>A. What makes a session &quot;hard&quot;</td><td class="muted">effort labels, rebalancer, check-ins</td></tr>
+        <tr><td><span class="chip st-next">Next</span></td><td>B. Recovery and spacing</td><td class="muted">rebalancer</td></tr>
+        <tr><td><span class="chip st-next">Next</span></td><td>C. A sensible week (targets)</td><td class="muted">planner, rebalancer</td></tr>
+        <tr><td><span class="chip st-next">Next</span></td><td>D. Skipped sessions and progression</td><td class="muted">rebalancer</td></tr>
+        <tr><td><span class="chip st-next">Next</span></td><td>E. Metrics already shown</td><td class="muted">M2 dashboard</td></tr>
+        <tr><td><span class="chip st-next">Next</span></td><td>F. Mobility, stretching, meditation</td><td class="muted">M3</td></tr>
+        <tr><td><span class="chip st-next">Next</span></td><td>G. Post-workout check-in</td><td class="muted">M4 step 10</td></tr>
+      </table>
+    </section>
+  </div>
+
+  <section class="panel">
+    <h3>Rules the app uses, and where they come from</h3>
+    <table>
+        <tr><td>HR zones as % of heart-rate reserve (Karvonen)</td><td class="muted">zones, time in zone</td><td><span class="badge src-R">Research</span> Karvonen 1957; Apple Watch default — to verify (research §E1)</td></tr>
+        <tr><td>Max HR fallback 220 − age</td><td class="muted">settings</td><td><span class="badge src-R">Research</span> widely used, known to be imprecise — to verify (§E2)</td></tr>
+        <tr><td>Training load = TRIMP; fitness/fatigue = 42/7-day averages</td><td class="muted">dashboard</td><td><span class="badge src-R">Research</span> Banister impulse-response model — to verify (§E3)</td></tr>
+        <tr><td>Race prediction: Riegel, exponent 1.06</td><td class="muted">dashboard</td><td><span class="badge src-R">Research</span> Riegel 1981 — to verify (§E4)</td></tr>
+        <tr><td>VO2max estimate (Daniels VDOT formula)</td><td class="muted">dashboard</td><td><span class="badge src-R">Research</span> Daniels &amp; Gilbert — to verify (§E5)</td></tr>
+        <tr><td>Grade-adjusted pace: +3.3 % per 1 % grade</td><td class="muted">activity detail</td><td><span class="badge src-A">Assumption</span> no source recorded — to verify (§E6)</td></tr>
+        <tr><td>Best-effort distances mirror Strava</td><td class="muted">records</td><td><span class="badge src-Y">Your decision</span> </td></tr>
+        <tr><td>Match an import to a session: same type, same day, ±25 %</td><td class="muted">coach</td><td><span class="badge src-Y">Your decision</span> proposed by me, you approved</td></tr>
+        <tr><td>A run one day off asks instead of matching</td><td class="muted">coach</td><td><span class="badge src-Y">Your decision</span> proposed by me, you approved</td></tr>
+        <tr><td>Exercise intensity easy / moderate / hard</td><td class="muted">catalog</td><td><span class="badge src-A">Assumption</span> my judgement — to replace (§A)</td></tr>
+        <tr><td>Session templates (e.g. &quot;Chest &amp; Triceps&quot; = bench, incline, dips, pushdown)</td><td class="muted">coach</td><td><span class="badge src-A">Assumption</span> my choice — to review</td></tr>
+        <tr><td>Default volumes (e.g. running day = 8 km)</td><td class="muted">coach</td><td><span class="badge src-A">Assumption</span> my choice — to review</td></tr>
+    </table>
+  </section>
+
+  <footer>Generated from plan.md by scripts/build_roadmap.py — edit plan.md, then run the script.</footer>
+</main>
+</body>
+</html>

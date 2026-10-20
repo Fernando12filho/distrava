@@ -1,173 +1,156 @@
-# Plan — Distrava (Phase 1)
+# Plan — Distrava
 
-## Goal
-Reproduce Strava's paid run-analysis features locally. No GPS tracking, no social
-features, no accounts. Import from Apple Health, analyze offline, view in a desktop
-window powered by PyWebView + Flask.
+_Living document. Updated at the end of every piece of work. Last update: 2026-10-20._
 
----
+**See it visually:** open `docs/roadmap.html` in a browser. It is generated from
+this file (`python scripts/build_roadmap.py`), so the two never disagree.
 
-## Database Schema
-
-### activities
-| column | type | notes |
-|---|---|---|
-| id | INTEGER PK | |
-| activity_type | TEXT | 'Run', 'Walk', 'Cycle', etc. |
-| start_time | DATETIME | UTC |
-| end_time | DATETIME | UTC |
-| duration_seconds | INTEGER | |
-| distance_meters | FLOAT | |
-| avg_hr | FLOAT | nullable |
-| max_hr | FLOAT | nullable |
-| elevation_gain_meters | FLOAT | nullable |
-| source | TEXT | 'apple_health', 'gpx', 'csv' |
-| source_id | TEXT | Apple Health workout UUID if available |
-| dedup_key | TEXT UNIQUE | hash(activity_type+start_time+duration_seconds) |
-| created_at | DATETIME | |
-
-### activity_streams
-| column | type | notes |
-|---|---|---|
-| id | INTEGER PK | |
-| activity_id | INTEGER FK | CASCADE DELETE |
-| stream_data | JSON | {hr: [], pace: [], elevation: [], distance: [], lat: [], lon: [], time: []} — `time` is the unified sorted set of elapsed-seconds offsets across all metrics; `hr`/`distance`/`elevation`/`lat`/`lon` are same-length arrays with `null` where that metric has no reading at that offset (Apple Health samples HR/distance independently and only has `lat`/`lon`/route-derived `elevation` for workouts with a linked GPS route file; GPX streams — both direct .gpx uploads and Apple Health route files — have no nulls since every trackpoint carries all metrics together) |
-
-### best_efforts
-| column | type | notes |
-|---|---|---|
-| id | INTEGER PK | |
-| distance_label | TEXT | '5K', '10K', 'Half Marathon', etc. |
-| distance_meters | FLOAT | canonical distance |
-| activity_id | INTEGER FK | activity where this PR was set |
-| duration_seconds | FLOAT | best time for this distance |
-| pace_per_km_seconds | FLOAT | derived from duration/distance |
-| achieved_at | DATETIME | = activity start_time |
-
-### hr_zones
-| column | type | notes |
-|---|---|---|
-| id | INTEGER PK | |
-| zone_number | INTEGER | 1–5 |
-| label | TEXT | 'Zone 1 (Recovery)', etc. |
-| min_bpm | INTEGER | |
-| max_bpm | INTEGER | |
-
-### exercises
-| column | type | notes |
-|---|---|---|
-| id | INTEGER PK | |
-| name | TEXT | |
-| muscle_group | TEXT | |
-| category | TEXT | (seeded, unused in Phase 1 UI) |
-
-### user_settings
-| column | type | notes |
-|---|---|---|
-| id | INTEGER PK | single row (id=1 in practice) |
-| resting_hr | INTEGER | nullable, defaults to 60 if unset |
-| max_hr | INTEGER | nullable, falls back to `220 - age` via birth_year if unset |
-| birth_year | INTEGER | nullable, used only for the max_hr fallback |
-
-Added during Step 6: TRIMP/CTL/ATL and HR-zone defaults need a resting/max HR
-input that wasn't in the original schema.
+How to read this file:
+- **Status:** ✅ done · 🔨 in progress · ⏭ next · ⬜ not started · 🔬 needs research first
+- **Source** (for every rule the app follows):
+  **[R]** research — a study or guideline is named ·
+  **[Y]** your decision ·
+  **[S]** written in the coach spec, no source given yet ·
+  **[A]** an assumption made while building — must be confirmed or replaced
 
 ---
 
-## TDD Order of Work
+## 1. What we want to achieve
 
-### Step 1 — Test infrastructure
-- [x] `pytest.ini` — configure test paths, markers
-- [x] `tests/conftest.py` — in-memory SQLite DB, Flask test client, model factories
-- [x] `tests/fixtures/` — build minimal sample XML, GPX, CSV, ZIP files
+A private desktop app for a runner who also trains in the gym. Your data stays on
+your machine: no accounts, no subscriptions, no cloud.
 
-### Step 2 — Models (test first)
-- [x] Write `tests/test_models.py`
-- [x] Write `app/models.py` until all model tests pass
+- **Specialist in running + gym**, plus the foundations under every sport:
+  strength, stretching, mobility, meditation.
+- **Not for beginners or the unmotivated.** The value is: knowing where to go
+  next, answering exercise doubts, and insights about your running.
+- **Built for you first, others later.** No onboarding or packaging work yet,
+  but nothing personal is hard-coded, so it can be shared one day.
+- **Training advice must be backed by research.** See §2.
 
-### Step 3 — Parser (test first)
-- [x] Write `tests/test_parser.py`
-- [x] Write `app/parser.py` until all parser tests pass
+## 2. Principles (apply to every feature)
 
-### Step 4 — Analytics (test first)
-- [x] Write `tests/test_analytics.py`
-- [x] Write `app/analytics.py` until all analytics tests pass
+| Rule | Source |
+|---|---|
+| Training advice needs a named study or guideline [R]; your own preferences are fine labelled [Y]; assumptions [A] never ship as advice | [Y] |
+| Data stays local; the only network call allowed is the AI provider you choose | [Y] |
+| The AI never computes numbers — code calculates, the AI only explains | [Y] |
+| You own the plan: nothing changes without your confirmation | [S] |
+| No pressure: no streaks on coach screens, no red "missed" states | [S] |
+| Numbers show at most 2 decimals, everywhere | [Y] |
+| Every blocking action shows a loading state | [Y] |
+| HR zones in five distinct colours | [Y] |
+| Test first, then code (TDD) | [Y] |
+| Build order: M1 → M2 → M3, then the coach (M4) | [Y] |
 
-### Step 5 — Routes (test first)
-- [x] Write `tests/test_routes.py`
-- [x] Write `app/routes.py` + `app/__init__.py` until all route tests pass
+## 3. Roadmap
 
-### Step 6 — Templates
-- [x] `base.html`, `import.html`, `activity_list.html`, `activity_detail.html`, `dashboard.html`, `settings.html`
-- [x] Chart.js vendored to `app/static/chart.js` (v4.5.1, no CDN)
-- [x] Added `user_settings` table (resting_hr, max_hr, birth_year) — not in original schema, needed for TRIMP/CTL/ATL/HR-zone defaults
-- [x] Wired best-effort computation into the import pipeline (`parser.update_best_efforts`)
-- [x] Smoke-test visually via `python run.py` + PyWebView — native WebView2 window
-      opened and served `/`, `/activities`, `/dashboard`, and static assets (200s)
+Milestones are the ones you set on GitHub on Oct 9. The features inside M1–M3
+are my proposal — tell me what to add or remove.
 
-### Step 7 — Desktop wrapper
-- [x] `run.py` — starts Flask in background thread, opens PyWebView window
+### M1 — Trust the data
+_Your imports are complete and every date, time and distance is right._
 
----
+| Status | Feature | Notes |
+|---|---|---|
+| ✅ | Apple Health, GPX and CSV import | Phase 1 |
+| ✅ | Duplicate detection; a second watch doesn't double distance | Phase 1 |
+| ✅ | Regression net: alarms if any existing number changes | 2026-10-18 |
+| ✅ | Activities shown and counted in local time, not UTC | 2026-10-19 |
+| ⏭ | Activity list date filter in local time | small follow-up |
+| ⬜ | Re-import guide: how to refresh your Apple Health export | also fixes time offsets exactly |
+| ⬜ | Spot-check against Apple Fitness for a few known runs | proves the numbers; needs you |
 
-## Test Plan Summary
+### M2 — Records & dashboard
+_What Strava charges for, explained so you can trust it._
 
-### test_models.py
-- Activity row created with all fields
-- ActivityStream FK → Activity, CASCADE DELETE works
-- Unique constraint on dedup_key prevents duplicate insert
-- BestEffort FK → Activity
+| Status | Feature | Notes |
+|---|---|---|
+| ✅ | Best efforts (400 m → marathon), splits, HR zones | Phase 1 |
+| ✅ | Training load (TRIMP / CTL / ATL), race predictions, VO2max estimate | Phase 1 |
+| 🔬 | Check every metric against the research file | research §E |
+| ⬜ | "What does this number mean?" for each metric, with its source | |
+| ⬜ | PR history over time (not only the current best) | |
 
-### test_parser.py
-- Minimal Apple Health XML → correct Activity rows
-- Two-pass: HR records bucketed into correct workout window
-- Records outside all workout windows are discarded (no crash)
-- Dedup within one parse: overlapping workouts → keeps one
-- Dedup across re-imports: importing same zip twice → no new rows
-- GPX file → Activity + stream
-- CSV file → Activity (no stream)
-- Zip path traversal entry → raises error, no file written
-- Zip missing export.xml → clean user-facing error
-- Defusedxml: entity-expansion attempt → caught
+### M3 — Gym & foundations
+_The gym side gets the same depth as running._
 
-### test_analytics.py
-- Best effort: correct 5K from known stream
-- Best effort: activity shorter than target → no result (no crash)
-- Best effort: new PR replaces old; non-PR does not overwrite
-- HR zones: time-in-zone sums to total duration
-- HR zones: sample on boundary → correct zone
-- Splits: 1km splits correct from known distance stream
-- Splits: partial final split included
-- Grade-adjusted pace: flat → same as raw
-- Grade-adjusted pace: uphill → slower adjusted pace
-- TRIMP: known HR + duration → expected value
-- CTL/ATL: day-1 value equals that day's load
-- CTL/ATL: decays correctly with zero-activity days
-- Riegel: known 5K time → expected 10K within tolerance
-- VO2max: known pace + HR → expected value within tolerance
+| Status | Feature | Notes |
+|---|---|---|
+| ✅ | Exercise catalog: 40 exercises, muscle groups, equipment | built for the coach |
+| 🔬 | Replace the catalog's easy/moderate/hard labels with a researched measure of effort | research §A |
+| ⬜ | Log a gym session: sets, reps, weight | Apple Health only gives duration + HR |
+| ⬜ | Strength progress per exercise and muscle group | |
+| 🔬 | Mobility, stretching and meditation sessions | research §F |
 
-### test_routes.py
-- GET / → 302 to /activities
-- GET /activities → 200
-- GET /activities?type=Run → filtered results
-- GET /activities?from=&to= → date-filtered results
-- GET /activities/<id> → 200 for existing
-- GET /activities/<id> → 404 for missing
-- GET /activities/<id>/stream.json → valid JSON with expected keys
-- POST /import valid zip → 200 + summary
-- POST /import invalid file type → 400
-- POST /import oversized → 413
+### M4 — Coach & trainer
+_Spec: `Distrava Coach — Use Cases, Decisions & Test Plan.md`. Paused after step 4
+until M1–M3 are done and the research is back._
 
----
+| Status | Feature | Notes |
+|---|---|---|
+| ✅ | 1. Regression net | listed under M1 |
+| ✅ | 2. Data model | weeks → sessions → exercises, check-ins, notes |
+| ✅ | 3. Weekly board | Coach page: 7 day columns, add / move / remove sessions, Done / Partial / Skip, edit volumes |
+| ✅ | 4. Auto check-in | imported runs/rides offered as "Import matches · Confirm" |
+| 🔬 | 5. Rebalancer | rules need sources — research §A–§D |
+| ⬜ | 6. Connect an AI provider | your own API key, stored in the OS keychain |
+| ⬜ | 7. Coach tools, preview, undo | the AI proposes, you accept or undo |
+| ⬜ | 8. Plan a week from scratch or from past weeks | |
+| ⬜ | 9. Import a trainer's PDF plan | |
+| 🔬 | 10. Post-workout check-in + trainer export | research §G |
+| ⬜ | 11. Exercise Q&A and fact check | answer + confidence + basis |
+| ⬜ | 12. Connect your own AI agent (MCP) | |
 
-## Out of Scope (Phase 1)
-- GPS route map display
-- Segment leaderboards
-- Social / following / clubs
-- Live tracking
-- Strava API sync
-- Garmin / Fitbit / Wahoo import (Phase 2)
-- Incremental import (Phase 2)
-- AI-generated workout summaries (Phase 3)
-- Mobile app
-- Packaging / PyInstaller distribution (after Phase 1 is stable)
+## 4. Rules the app uses today, and where they come from
+
+| Rule | Used in | Source |
+|---|---|---|
+| HR zones as % of heart-rate reserve (Karvonen) | zones, time in zone | [R] Karvonen 1957; Apple Watch default — to verify (research §E1) |
+| Max HR fallback 220 − age | settings | [R] widely used, known to be imprecise — to verify (§E2) |
+| Training load = TRIMP; fitness/fatigue = 42/7-day averages | dashboard | [R] Banister impulse-response model — to verify (§E3) |
+| Race prediction: Riegel, exponent 1.06 | dashboard | [R] Riegel 1981 — to verify (§E4) |
+| VO2max estimate (Daniels VDOT formula) | dashboard | [R] Daniels & Gilbert — to verify (§E5) |
+| Grade-adjusted pace: +3.3 % per 1 % grade | activity detail | [A] no source recorded — to verify (§E6) |
+| Best-effort distances mirror Strava | records | [Y] |
+| Match an import to a session: same type, same day, ±25 % | coach | [Y] proposed by me, you approved |
+| A run one day off asks instead of matching | coach | [Y] proposed by me, you approved |
+| Exercise intensity easy / moderate / hard | catalog | [A] my judgement — to replace (§A) |
+| Session templates (e.g. "Chest & Triceps" = bench, incline, dips, pushdown) | coach | [A] my choice — to review |
+| Default volumes (e.g. running day = 8 km) | coach | [A] my choice — to review |
+
+## 5. Research
+
+**You:** run the prompt in `research/PROMPT.md` in a normal Claude chat with
+research turned on, and save the answer as `research/training-rules.md`.
+**Then I:** turn each rule into [R] entries in §4, replace every [A] that the
+research answers, and only then build the rebalancer.
+
+| Status | Topic | What it decides |
+|---|---|---|
+| ⏭ | A. What makes a session "hard" | effort labels, rebalancer, check-ins |
+| ⏭ | B. Recovery and spacing | rebalancer |
+| ⏭ | C. A sensible week (targets) | planner, rebalancer |
+| ⏭ | D. Skipped sessions and progression | rebalancer |
+| ⏭ | E. Metrics already shown | M2 dashboard |
+| ⏭ | F. Mobility, stretching, meditation | M3 |
+| ⏭ | G. Post-workout check-in | M4 step 10 |
+
+## 6. Log
+
+| Date | What happened |
+|---|---|
+| 2026-09-07 | Phase 1 frozen; work moved to a native iOS app |
+| 2026-10-09 | Freeze reversed: this Flask app is Distrava again; iOS is a separate project. Milestones M1–M4 set |
+| 2026-10-18 | Coach spec written. CLAUDE.md rewritten. Regression net, data model |
+| 2026-10-18 | Coach board built (sessions, not exercises, after your mockup feedback) |
+| 2026-10-19 | Auto check-in; volume editing; local-time fix |
+| 2026-10-20 | Coach paused. Decided: order M1 → M2 → M3 → M4, research-backed advice, built for you first. Research prompt written. This plan and the roadmap page created |
+
+## 7. Waiting on
+
+| Status | Item | Who |
+|---|---|---|
+| ⏭ | Run the research prompt, save `research/training-rules.md` | you |
+| ⬜ | Sync the GitHub board with this plan — start a session with `ai-jail --github --allow-host github.com --allow-host api.github.com claude` | you start it, I sync |
+| ⬜ | Push branch `coach-board` (7 commits, local only) | you, or me in the session above |
