@@ -4,6 +4,9 @@ Copy everything below the line into a new Claude chat (with web search / researc
 turned on). Fill in the "About me" block first. Save the answer as
 `research/training-rules.md` in this repo.
 
+Topics A–G were run on 2026-10-20. Topic H (goals) was added later and has its
+own follow-up prompt at the end of this file. Run only that one.
+
 ---
 
 I'm building Distrava, a private desktop training app for a recreational runner
@@ -119,3 +122,100 @@ Write a single Markdown file named `training-rules.md` with:
 3. **"Not supported"**: popular rules the evidence does *not* back, so the app
    avoids them.
 4. **Open questions** where research couldn't decide and I have to choose.
+
+---
+
+## Follow-up prompt — topic H (goals the first round didn't cover)
+
+Copy everything below the line into a new chat (with web search / research turned
+on). Fill in the "About me" block first. Save the answer as
+`research/training-rules-H.md`. I'll merge it into `training-rules.md` after you
+check it.
+
+---
+
+I'm building Distrava, a private desktop training app for a recreational runner
+who also trains in the gym. The app only gives training advice that is backed by
+evidence. A first research round already produced rules on session hardness,
+recovery, weekly volume, progression, metrics, mobility and check-ins. This round
+covers goals that first round didn't.
+
+The example goal the app has to handle: **"Run a marathon, with no hurry on the
+date, and gain a little weight at the same time."**
+
+## About me (the user the rules are for)
+- Age: ___ · Sex: ___ · Height: ___ cm · Weight: ___ kg
+- Running: ___ runs/week, usually ___ km; longest recent run ___ km
+- Gym: ___ sessions/week
+- Goal: marathon (no fixed date) + gain about ___ kg over ___ months
+- Experience: ___ years running, ___ years lifting; marathons finished: ___
+
+## How to research
+Same standard as before:
+- Prefer, in order: systematic reviews and meta-analyses; position stands
+  (ACSM, ISSN, IOC, NSCA, etc.); randomized controlled trials; large
+  observational studies. Use expert opinion only when nothing else exists, and
+  say so.
+- **Only cite sources you actually found and checked.** Give authors, year,
+  title, journal and a DOI or URL for each. Never invent one.
+- Say who was studied, and point out when evidence comes from elite athletes or
+  bodybuilders rather than recreational adults.
+- "No good evidence" is a useful answer. Give ranges, not magic numbers.
+- **No medical or diet-prescription claims.** The app is not a dietitian. Say
+  where it should stop and refer to a professional (e.g. signs of disordered
+  eating, low energy availability / RED-S).
+
+## Questions
+
+### H. Goals: gaining weight, marathon + muscle together, body inputs
+1. **Gaining weight as lean mass.** What energy surplus, and what rate of weight
+   gain (% of body weight per week or month), favours muscle over fat in trained
+   recreational adults? How much protein per kg per day, and does timing matter?
+   Can an app give these as ranges without becoming diet advice?
+2. **Marathon training and muscle gain at the same time.** Does endurance
+   training reduce hypertrophy or strength gains (the interference effect), and
+   does that depend on running volume, intensity, or how sessions are spaced?
+   Is "build muscle and train for a marathon" realistic, or should one goal lead
+   in phases? What does the evidence say about energy needs when both run
+   together?
+3. **A marathon build with no deadline.** For a recreational runner, how long
+   should a build be, how should the weekly long run and total volume
+   progress, and what peak weekly volume is reasonable? Which parts are
+   evidence and which are coaching tradition?
+4. **Height, weight and age as inputs.** Which rules actually need them (e.g.
+   estimating energy expenditure with an equation such as Mifflin–St Jeor, and
+   how accurate that is)? Which popular uses should the app avoid (e.g. BMI
+   targets for athletes)?
+5. **Tracking body weight.** How often to weigh in, and how to smooth daily
+   noise (water, glycogen) before deciding a trend is real.
+6. **ACSM 2026 resistance-training update** (Med Sci Sports Exerc, DOI
+   10.1249/MSS.0000000000003897), which replaces the 2009 position stand. Do its
+   recommendations change weekly sets per muscle (≥ 10 hard sets to grow), rest
+   between sessions for the same muscle (48 h), or reps in reserve? List each
+   change against those three numbers.
+
+## Output format
+Use exactly the same shape as the first round:
+
+1. A summary table: rule id · one-line rule · evidence strength · applies to
+   (planner / rebalancer / dashboard / check-in / profile).
+2. One section per rule, ids `RULE-GOAL-<NN>` for questions 1–5 and
+   `RULE-ACSM26-<NN>` for question 6:
+
+```
+### RULE-GOAL-<NN>: <short name>
+- Rule: <plain sentence the app can follow>
+- Parameters: <numbers with units and a range>
+- Applies to: <feature>
+- Evidence strength: <strong | moderate | weak | expert opinion | none>
+- Population studied: <who>
+- Sources:
+  - <Authors, Year. Title. Journal. DOI/URL>
+- Caveats: <limits, when it doesn't apply>
+- Confidence for a recreational adult: <high | medium | low> — <why>
+```
+
+3. "Not supported": popular rules the evidence does not back.
+4. "Refer out": answers that should make the app stop advising and suggest a
+   professional.
+5. Open questions where I have to choose.

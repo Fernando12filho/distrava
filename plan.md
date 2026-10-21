@@ -164,7 +164,7 @@ Received 2026-10-20: `research/training-rules.md` — 30 rules, from the prompt 
 | ✅ | F. Mobility, stretching, meditation — RULE-MOB-01..03 | M3 |
 | ✅ | G. Post-workout check-in — RULE-CHECK-01..02 | M4 step 10 |
 | ⬜ | ACSM 2026 resistance-training update (replaces the 2009 stand) | check before the weekly hard-sets view · #24 |
-| ⬜ | H. Goals the research doesn't cover yet: gaining weight (surplus, rate), marathon training + muscle gain together, height/weight as inputs | needed before the coach can plan your example goal (M4) |
+| ⏭ | H. Goals the research doesn't cover yet: gaining weight (surplus, rate), marathon training + muscle gain together, a no-deadline marathon build, height/weight as inputs, weigh-in trends; also covers the ACSM 2026 check (#24) | prompt written 2026-10-20, waiting for you to run it; needed before the coach can plan your example goal (M4) |
 
 ## 6. Decisions needed
 
@@ -209,6 +209,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-20 | GitHub synced with this plan: 18 issues created (#16–#33) for every open row; #8, #12, #14 closed as done; #6 moved to M2 |
 | 2026-10-20 | Added #7 (device sync research, M1) and #9 (dashboard questions, M2) to this plan |
 | 2026-10-20 | M3 started. You set the coach's purpose: it keeps, adjusts or builds your week from your goal, profile and trainer's plan, always with your OK; no default split (D3). Gym log built (#18): sets come from the plan, you correct anything |
+| 2026-10-20 | Topic H research prompt written (goals + ACSM 2026 check) |
 
 ## 8. Waiting on
 
@@ -223,7 +224,8 @@ From the research file's open questions. Each is asked when its milestone starts
 | ⏭ | Decision D9: your profile, before M2 starts | you |
 | ⏭ | OK the teleport rule, and a one-time recompute of your PR table (backup first)? | you |
 | ✅ | Sync the GitHub issues with this plan | done 2026-10-20 |
-| ⏭ | OK to add topic H (weight gain, marathon + muscle gain, height/weight) to `research/PROMPT.md` for you to run | you |
+| ✅ | OK to add topic H to `research/PROMPT.md` | you — added 2026-10-20 |
+| ⏭ | Run the topic H follow-up prompt (end of `research/PROMPT.md`), save it as `research/training-rules-H.md` | you |
 | ⬜ | Board columns (Projects kanban): the token has no `project` scope — run `gh auth refresh -s project` outside the jail, then I can move cards | you |
 | ✅ | Issues #7 and #9: add them to this plan | you — added to M1 and M2 |
 | ✅ | Push branch `coach-board` — already merged into `main`, which is pushed | — |
