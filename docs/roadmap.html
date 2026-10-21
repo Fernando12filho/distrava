@@ -288,8 +288,8 @@
         <span class="mid">M4</span>
         <h2>Coach &amp; trainer</h2>
         <p class="summary">Spec: <code>Distrava Coach — Use Cases, Decisions &amp; Test Plan.md</code>. Resumed 2026-10-21 (paused after step 4 on 2026-10-20): the rest of M3 needs a coach that can plan.</p>
-        <div class="progress"><span style="width:31%"></span></div>
-        <span class="count">4 / 13 done</span>
+        <div class="progress"><span style="width:38%"></span></div>
+        <span class="count">5 / 13 done</span>
       </header>
       <ul>
         <li class="item st-done">
@@ -312,10 +312,10 @@
           <span class="feature">4. Auto check-in</span>
           <span class="notes">imported runs/rides offered as &quot;Import matches · Confirm&quot;</span>
         </li>
-        <li class="item st-in_progress">
-          <span class="chip st-in_progress">In progress</span>
+        <li class="item st-done">
+          <span class="chip st-done">Done</span>
           <span class="feature">5. Rebalancer</span>
-          <span class="notes">2026-10-21: &quot;Week check&quot; on the Coach page — hard-run cap and spacing (RULE-REC-02), same-muscle spacing (REC-01), hard legs before a hard run (REC-04, D4); a run is hard on your rating or heart rate (LOAD-02, D1); each session can be planned easy/hard; a skipped session is dropped and can move only to a free later day that fits (PROG-01). Still to do: options when you come back from a break (D7), distance jumps (PROG-02), easy/hard balance (WEEK-01) · #25</span>
+          <span class="notes">2026-10-21: &quot;Week check&quot; on the Coach page — hard-run cap and spacing (RULE-REC-02), same-muscle spacing (REC-01), hard legs before a hard run (REC-04, D4); a run is hard on your rating or heart rate (LOAD-02, D1); each session can be planned easy/hard; a skipped session is dropped and can move only to a free later day that fits (PROG-01). Part 2: after 10+ days off it offers easing the rest of the week to 60–90 % of planned volume, your pick, with one-tap undo (PROG-04, D7); notes running distance 20 % / 30 % above your last 2 weeks (PROG-02); notes more hard runs than suggested (WEEK-01, by count) · #25</span>
         </li>
         <li class="item st-in_progress">
           <span class="chip st-in_progress">In progress</span>
@@ -444,8 +444,11 @@
         <tr><td>No hard legs (legs, glutes, full body) in the 24 h before a hard run</td><td class="muted">coach week check</td><td><span class="badge src-R">Research</span> RULE-REC-04 + D4 (expert opinion, low confidence)</td></tr>
         <tr><td>Sessions have a day but no time: the day before counts as within 24 h</td><td class="muted">coach week check</td><td><span class="badge src-A">Assumption</span> needed to apply the hour rules to day-only sessions</td></tr>
         <tr><td>A skipped session is dropped; it may move only to a free later day that breaks no spacing rule</td><td class="muted">coach week check</td><td><span class="badge src-R">Research</span> RULE-PROG-01 — a design choice, no study (said on screen)</td></tr>
+        <tr><td>This week&#x27;s running distance (imported so far + planned to come) vs the mean of the last 2 weeks: noted above +20 %, &quot;big jump&quot; above +30 %; no 10 % cap</td><td class="muted">coach week check</td><td><span class="badge src-R">Research</span> RULE-PROG-02 (weak–moderate; Buist 2008 found the 10 % rule changed nothing)</td></tr>
+        <tr><td>After 10+ days without a workout, offer easing the rest of the week to 60 / 70 / 80 / 90 % of planned volume (run distance, ride time, gym sets; never reps); undo restores it</td><td class="muted">coach week check</td><td><span class="badge src-R">Research</span> RULE-PROG-04 + D7 (you choose; thresholds are judgement calls)</td></tr>
+        <tr><td>More hard runs than max(1, 20 % of the week&#x27;s runs) gets a note</td><td class="muted">coach week check</td><td><span class="badge src-R">Research</span> RULE-WEEK-01 (counted by session; D2 still open for the dashboard)</td></tr>
         <tr><td>Session templates (one leg day in the gym split)</td><td class="muted">coach</td><td><span class="badge src-R">Research</span> RULE-WEEK-04 — runners need 2 strength days with heavy legs — review (M3)</td></tr>
-        <tr><td>Default volumes (e.g. running day = 8 km)</td><td class="muted">coach</td><td><span class="badge src-A">Assumption</span> no source — derive from your recent weeks (M4)</td></tr>
+        <tr><td>Default volumes (e.g. running day = 8 km)</td><td class="muted">coach</td><td><span class="badge src-A">Assumption</span> no source — derive from your recent weeks (M4). On your data it makes this week&#x27;s plan 65 % above your last 2 weeks</td></tr>
     </table>
   </section>
 

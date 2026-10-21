@@ -253,6 +253,36 @@
 
       <div class="week-check-card">
         <span class="eyebrow">Week check</span>
+        {% set prog = week_check.progression %}
+        {% if prog.eased %}
+        <div class="week-check-item">
+          <span class="week-check-text">Eased to {{ prog.eased }}% after your break.</span>
+          <form method="post" action="{{ url_for('coach.undo_ease', week=week_start.isoformat()) }}" class="week-check-moves">
+            <button type="submit" class="quiet-btn">Undo</button>
+          </form>
+        </div>
+        {% elif prog.return_options %}
+        <div class="week-check-item">
+          <span class="week-check-text">Back after {{ prog.days_off }} days off. Ease into the rest of this week?</span>
+          <form method="post" action="{{ url_for('coach.ease_week', week=week_start.isoformat()) }}" class="week-check-moves">
+            <span class="week-check-meta">Planned volume to</span>
+            {% for o in prog.return_options %}<button type="submit" name="factor" value="{{ o.factor }}" class="quiet-btn">{{ o.percent }}%</button>{% endfor %}
+          </form>
+          <span class="week-check-meta">Or leave it as planned · RULE-PROG-04</span>
+        </div>
+        {% endif %}
+        {% if prog.distance and prog.distance.level %}
+        <div class="week-check-item">
+          <span class="week-check-text">{{ 'A big jump in running distance' if prog.distance.level == 'big' else 'More running than usual' }}: {{ prog.distance.this_week }} this week, {{ prog.distance.pct }}% above your last {{ prog.baseline_weeks }} weeks' average of {{ prog.distance.baseline }}.</span>
+          <span class="week-check-meta">RULE-PROG-02</span>
+        </div>
+        {% endif %}
+        {% if prog.balance and prog.balance.note %}
+        <div class="week-check-item">
+          <span class="week-check-text">{{ prog.balance.hard }} of {{ prog.balance.runs }} runs are hard; the research suggests about {{ prog.balance.suggested_hard }}, with the rest easy.</span>
+          <span class="week-check-meta">RULE-WEEK-01</span>
+        </div>
+        {% endif %}
         {% for c in week_check.conflicts %}
         <div class="week-check-item">
           <span class="week-check-text">{{ c.text }}</span>
@@ -272,10 +302,13 @@
           {% endif %}
         </div>
         {% endfor %}
-        {% call explain('RULE-REC-01, RULE-REC-02, RULE-REC-04, RULE-LOAD-02, RULE-PROG-01 · Ratamess 2009 · Schoenfeld, Grgic & Krieger 2019 · Seiler 2010 · Seiler & Kjerland 2006') %}
+        {% call explain('RULE-REC-01, RULE-REC-02, RULE-REC-04, RULE-LOAD-02, RULE-PROG-01, RULE-PROG-02, RULE-PROG-04, RULE-WEEK-01 · Ratamess 2009 · Schoenfeld, Grgic & Krieger 2019 · Seiler 2010 · Seiler & Kjerland 2006 · Nielsen 2014 · Buist 2008 · Mujika & Padilla 2000 · Stöggl & Sperlich 2014') %}
         <p>The week is checked for: at most {{ week_rules.cap }} hard runs, {{ week_rules.runs_h }} h apart (RULE-REC-02); {{ week_rules.muscle_h }} h before a muscle group is trained hard again (RULE-REC-01); no hard legs in the {{ week_rules.legs_h }} h before a hard run (RULE-REC-04 — expert opinion, low confidence). Sessions have a day but no time, so the day before counts as within 24 h.</p>
         <p>A done session is hard from what you did: a rating of {{ week_rules.srpe_hard }} or more, or {{ week_rules.z3_minutes }}+ minutes above an estimated threshold heart rate (RULE-LOAD-02). Before that, its planned effort decides. Sessions with neither never clash.</p>
         <p>A skipped session is dropped rather than made up, and can move only to a free later day that breaks none of these rules (RULE-PROG-01). That is a design choice, not a research finding: no study has compared the options.</p>
+        <p>This week's running distance (imported runs so far plus planned runs to come) is compared with your last {{ prog.baseline_weeks }} weeks: more injuries were seen when weekly distance rose by more than 20–30 %, though no safe line is proven, and a strict 10 % rule made no difference in a trial (RULE-PROG-02).</p>
+        <p>After a break you can ease into the rest of the week; how much is your call, since the research gives a range (60–90 %) rather than one number (RULE-PROG-04). Undo puts every changed session back.</p>
+        <p>Most runs are best kept easy: at 3–4 runs a week about one hard run (RULE-WEEK-01). Counted by sessions here, since planned runs have no heart-rate time yet.</p>
         {% endcall %}
       </div>
 

@@ -80,3 +80,20 @@ MIN_HOURS_SAME_MUSCLE_HARD = 48  # range 48–72, expert opinion
 
 # RULE-REC-04 + decision D4: no hard legs in the 24 h before a hard run.
 MIN_HOURS_HARD_LEGS_BEFORE_HARD_RUN = 24  # range 24–48, expert opinion
+
+# RULE-WEEK-01: most running easy. By session count (planned runs have no
+# heart-rate time yet), so a note appears only when more runs are hard than
+# the larger of these two allow.
+EASY_SHARE_TARGET = 0.80  # range 0.70–0.90
+HARD_RUNS_PER_WEEK = 1  # range 1–2 at 3–4 runs/wk
+
+# RULE-PROG-02: this week's running distance against the mean of the previous
+# weeks. No strict 10 % cap: an RCT found the 10 % rule changed nothing (Buist 2008).
+DISTANCE_INCREASE_NOTE_PCT = 20  # range 20–30
+DISTANCE_INCREASE_BIG_PCT = 30  # range 30–40
+DISTANCE_BASELINE_WEEKS = 2  # range 2–4
+
+# RULE-PROG-04 + decision D7: after a break this long the coach offers easing
+# into the week, and you pick how much. Both are judgement calls in the research.
+RETURN_BREAK_MIN_DAYS = 10  # range 10–21
+RETURN_WEEK_FACTORS = (0.6, 0.7, 0.8, 0.9)  # range 0.6–0.9, expert opinion

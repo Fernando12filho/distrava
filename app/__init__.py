@@ -15,6 +15,7 @@ _SCHEMA_UPGRADES = {
     "activities": ["source_device", "utc_offset_minutes", "session_rpe"],
     "user_settings": ["weight_kg", "units", "observed_max_hr", "observed_resting_hr", "observed_resting_hr_on", "sex"],
     "coach_sessions": ["matched_activity_id", "planned_effort"],
+    "coach_weeks": ["eased_factor", "eased_snapshot"],
 }
 
 
