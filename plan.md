@@ -176,13 +176,13 @@ From the research file's open questions. Each is asked when its milestone starts
 
 | Status | Decision | Needed for |
 |---|---|---|
-| ⬜ | D1. "Hard run" without a lab test: effort rating, heart rate, or either? | M3, M4 rebalancer |
+| ✅ | D1. "Hard run" without a lab test (decided 2026-10-21: either — your rating ≥ 5, or 10+ min above the estimated threshold zone; RULE-LOAD-02) | M4 rebalancer |
 | ⬜ | D2. Show the 80/20 easy/hard split by time or by number of runs? | M4 planner |
 | ✅ | D3. Leg days (decided: no default split — you or the coach manage it; the coach may propose a 2nd leg day, you approve) | M3 templates |
-| ⬜ | D4. Gap after hard legs before a hard run: 24 h or 48 h? | M4 rebalancer |
+| ✅ | D4. Gap after hard legs before a hard run (decided 2026-10-21: 24 h, RULE-REC-04) | M4 rebalancer |
 | ⬜ | D5. Training-load constants: keep 42/7 days, or fit your own later? | M2 · #17 |
 | ✅ | D6. Grade-adjusted pace model (decided: remove it for now) | M2 |
-| ⬜ | D7. Coming back after a break: 14-day threshold, 80 % first week? | M4 rebalancer |
+| ✅ | D7. Coming back after a break (decided 2026-10-21: no fixed number — the coach shows you the research options, 60–90 % first week, and you choose each time; RULE-PROG-04) | M4 rebalancer |
 | ⬜ | D8. When a check-in disagrees with the watch, does the check-in win? | M4 step 10 |
 | ✅ | D9. Choose your sex in Settings (the rest of the profile is set by you or the coach later) | M2 training load |
 | ✅ | D10. Runs without per-second heart rate: hide time-in-zones and HR chart (decided: hide) | M1 HR flags |
@@ -218,6 +218,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-21 | #19 kept open: the effort rating works, but its UI will be redone later. #20 done: the catalog's fixed easy/moderate/hard labels and the board's "Load" bars removed (RULE-LOAD-04) |
 | 2026-10-21 | #21 done: weekly hard sets per muscle group on the Coach page, with its rule and sources. Your data has no logged sets yet, so it shows empty until you log a gym session |
 | 2026-10-21 | Build order changed (your decision): the coach comes next, since the rest of M3 needs it. Training profile (#26) in Settings; next is the rebalancer (#25), which needs D1, D4, D7 |
+| 2026-10-21 | D1 (either signal), D4 (24 h) and D7 (coach offers options, you choose) decided |
 
 ## 8. Waiting on
 
