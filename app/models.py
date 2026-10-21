@@ -172,6 +172,10 @@ class CoachWeek(Base):
     week_start = Column(Date, unique=True, nullable=False)
     goal = Column(String, nullable=True)
     created_at = Column(DateTime, default=_utc_now)
+    # D7: the factor you chose to ease back in after a break, and each changed
+    # item's volume beforehand, so one undo restores the week exactly (AC-10).
+    eased_factor = Column(Float, nullable=True)
+    eased_snapshot = Column(JSON, nullable=True)
 
     sessions = relationship(
         "CoachSession",

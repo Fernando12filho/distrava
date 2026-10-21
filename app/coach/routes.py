@@ -1,10 +1,11 @@
+from collections import defaultdict
 from datetime import date, datetime, timedelta
 
 from flask import Blueprint, abort, redirect, render_template, request, url_for
 from sqlalchemy import func
 
 from app import analytics
-from app.coach import board, hard_sets, rebalancer, set_log, volume
+from app.coach import board, hard_sets, progression, rebalancer, set_log, volume
 from app.coach.catalog import SESSION_TEMPLATES
 from app.coach.matcher import SESSION_ACTIVITY_TYPES, match_sessions
 from app.coach.week import DAYS_PER_WEEK, week_start_for
@@ -19,10 +20,12 @@ from app.models import (
     CoachWeek,
     UserSettings,
 )
-from app.routes import _effort_view, _get_units, _hr_quality, _resolve_hr_profile, get_db
+from app.routes import _effort_view, _get_units, _hr_quality, _resolve_hr_profile, _trim2, get_db
 from app.training_rules import (
     HARD_SET_MAX_RIR,
     SETS_PER_MUSCLE_IMPROVE_MIN,
+    DISTANCE_BASELINE_WEEKS,
+    RETURN_WEEK_FACTORS,
     SETS_PER_MUSCLE_MAINTAIN_MIN,
     Z3_BOUNDARY_FRACTION_HRR,
 )
@@ -223,6 +226,91 @@ def _day_label(day_index):
     return board.DOW_LABELS[day_index % DAYS_PER_WEEK].title() + (" (last week)" if day_index < 0 else "")
 
 
+def _run_meters(db, start, end):
+    """Imported running distance between two local dates (end excluded)."""
+    # start_time is UTC; a day of margin each side, then filter on local dates.
+    window = (datetime.combine(start - timedelta(days=1), datetime.min.time()), datetime.combine(end + timedelta(days=1), datetime.min.time()))
+    runs = db.query(Activity).filter(Activity.activity_type == "Run", Activity.start_time >= window[0], Activity.start_time < window[1])
+    return sum(a.distance_meters or 0.0 for a in runs if start <= a.local_start_time.date() < end)
+
+
+def _last_workout_date(db, today):
+    recent = db.query(Activity).filter(Activity.start_time < datetime.combine(today + timedelta(days=2), datetime.min.time()))
+    dates = [a.local_start_time.date() for a in recent.order_by(Activity.start_time.desc()).limit(5)]
+    done = db.query(CoachSession).filter(CoachSession.status.in_(("done", "partial")))
+    dates += [s.week.week_start + timedelta(days=s.day_index) for s in done]
+    dates = [d for d in dates if d <= today]
+    return max(dates) if dates else None
+
+
+# Ease-back scaling (D7) touches training volume only, not mobility or rest.
+_EASE_KINDS = ("run", "ride", "gym")
+
+
+def _easable_items(week, today_index):
+    return [
+        item
+        for s in week.sessions
+        if s.status == "planned" and s.kind in _EASE_KINDS and s.day_index >= today_index
+        for item in s.items
+        if progression.scale_item(_plan_of(item), RETURN_WEEK_FACTORS[0])
+    ]
+
+
+def _distance_label(meters, units):
+    value, unit = analytics.convert_distance(meters, units)
+    return f"{_trim2(value)} {unit}"
+
+
+def _progression_view(db, week_start, today, today_index, rebalancer_sessions):
+    week = db.query(CoachWeek).filter_by(week_start=week_start).first()
+    units = _get_units(db.query(UserSettings).first())
+    week_end = week_start + timedelta(days=DAYS_PER_WEEK)
+
+    # RULE-PROG-02: imported runs so far plus planned runs still to come.
+    planned_ahead = sum(
+        item.distance_meters or 0.0
+        for s in (week.sessions if week else [])
+        if s.kind == "run" and s.status == "planned" and s.day_index >= today_index
+        for item in s.items
+    )
+    this_week = _run_meters(db, week_start, min(week_end, today + timedelta(days=1))) + planned_ahead
+    previous = [
+        _run_meters(db, week_start - timedelta(days=DAYS_PER_WEEK * k), week_start - timedelta(days=DAYS_PER_WEEK * (k - 1)))
+        for k in range(1, DISTANCE_BASELINE_WEEKS + 1)
+    ]
+    change = progression.distance_change(this_week, previous)
+    distance = (
+        {
+            "level": change["level"],
+            "pct": _trim2(change["pct"]),
+            "this_week": _distance_label(change["this_week_meters"], units),
+            "baseline": _distance_label(change["baseline_meters"], units),
+        }
+        if change
+        else None
+    )
+
+    # RULE-PROG-04 + D7: offered only for the current week, once, with volume left.
+    days_off = progression.break_days(_last_workout_date(db, today), today)
+    is_this_week = week_start == week_start_for(today)
+    can_ease = bool(week and is_this_week and week.eased_factor is None and _easable_items(week, today_index))
+    options = progression.return_options(days_off) if can_ease else []
+
+    # RULE-WEEK-01, by session count.
+    balance = progression.run_balance(
+        [rebalancer.effort(s)["hard"] for s in rebalancer_sessions if s["kind"] == "run" and s["day_index"] >= 0 and s["status"] != "skipped"]
+    )
+    return {
+        "distance": distance,
+        "baseline_weeks": DISTANCE_BASELINE_WEEKS,
+        "days_off": days_off,
+        "return_options": options,
+        "eased": round(week.eased_factor * 100) if week and week.eased_factor else None,
+        "balance": balance,
+    }
+
+
 def _week_check(db, week_start, today):
     sessions = _rebalancer_week(db, week_start)
     by_id = {s["id"]: s for s in sessions}
@@ -248,7 +336,13 @@ def _week_check(db, week_start, today):
         for s in sessions
         if s["status"] == "skipped" and s["day_index"] >= 0
     ]
-    return {"conflicts": conflicts, "skipped": skipped, "today_index": today_index, "sessions": sessions}
+    return {
+        "conflicts": conflicts,
+        "skipped": skipped,
+        "today_index": today_index,
+        "sessions": sessions,
+        "progression": _progression_view(db, week_start, today, today_index, sessions),
+    }
 
 
 def _activity_view(activity):
@@ -487,6 +581,61 @@ def reschedule_session(session_id):
     session.status = "planned"
     db.commit()
     return redirect(_board_url(week_start, session.id), code=303)
+
+
+def _week_or_404(db, raw):
+    try:
+        week_start = date.fromisoformat(raw)
+    except ValueError:
+        abort(404)
+    week = db.query(CoachWeek).filter_by(week_start=week_start).first()
+    if week is None:
+        abort(404)
+    return week
+
+
+# D7: scale the rest of the week's planned volume by the factor you picked,
+# keeping each changed value so undo can put it back exactly (AC-10).
+@bp.route("/weeks/<week>/ease", methods=["POST"])
+def ease_week(week):
+    db = get_db()
+    coach_week = _week_or_404(db, week)
+    try:
+        factor = float(request.form.get("factor", ""))
+    except ValueError:
+        abort(400)
+    if factor not in RETURN_WEEK_FACTORS:
+        abort(400)
+    check = _week_check(db, coach_week.week_start, date.today())
+    if not check["progression"]["return_options"]:
+        abort(400)
+    snapshot = {}
+    for item in _easable_items(coach_week, check["today_index"]):
+        changes = progression.scale_item(_plan_of(item), factor)
+        snapshot[str(item.id)] = {field: getattr(item, field) for field in changes}
+        for field, value in changes.items():
+            setattr(item, field, value)
+    coach_week.eased_factor = factor
+    coach_week.eased_snapshot = snapshot
+    db.commit()
+    return redirect(_board_url(coach_week.week_start), code=303)
+
+
+@bp.route("/weeks/<week>/ease/undo", methods=["POST"])
+def undo_ease(week):
+    db = get_db()
+    coach_week = _week_or_404(db, week)
+    if coach_week.eased_factor is None:
+        abort(400)
+    for item_id, values in (coach_week.eased_snapshot or {}).items():
+        item = db.get(CoachSessionItem, int(item_id))
+        if item is not None:
+            for field, value in values.items():
+                setattr(item, field, value)
+    coach_week.eased_factor = None
+    coach_week.eased_snapshot = None
+    db.commit()
+    return redirect(_board_url(coach_week.week_start), code=303)
 
 
 @bp.route("/sessions/<int:session_id>/status", methods=["POST"])

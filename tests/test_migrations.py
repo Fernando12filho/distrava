@@ -301,3 +301,22 @@ def test_restart_keeps_best_efforts_rows():
     session = sessionmaker(bind=engine)()
     assert session.query(BestEffort).count() == 10
     session.close()
+
+
+def test_existing_coach_weeks_table_gains_the_easing_columns():
+    engine = _engine()
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "CREATE TABLE coach_weeks (id INTEGER PRIMARY KEY, week_start DATE NOT NULL UNIQUE, "
+                "goal VARCHAR, created_at DATETIME)"
+            )
+        )
+        conn.execute(text("INSERT INTO coach_weeks (week_start) VALUES ('2026-10-19')"))
+
+    create_app({"TESTING": True, "ENGINE": engine})
+
+    columns = {c["name"] for c in inspect(engine).get_columns("coach_weeks")}
+    assert {"eased_factor", "eased_snapshot"} <= columns
+    with engine.connect() as conn:
+        assert conn.execute(text("SELECT week_start FROM coach_weeks")).scalar() == "2026-10-19"
