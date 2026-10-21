@@ -123,6 +123,37 @@
 
   <form id="wipe-form" method="post" action="{{ url_for('main.settings_wipe') }}"></form>
 
+  <section class="card" id="ai">
+    <div class="card-header"><div><div class="title">AI coach</div><div class="card-subtitle">Anthropic · your own API key, kept in the macOS keychain · the only data that ever leaves this machine</div></div></div>
+    {% if ai.message %}<p class="ai-message">{{ ai.message }}</p>{% endif %}
+    <div class="field-rows">
+      <div class="field-row">
+        <div><div class="field-label">API key</div><div class="field-help">{{ 'Connected · ' ~ ai.masked if ai.connected else 'Not connected' }}{% if not ai.available %} · no keychain on this computer{% endif %}</div></div>
+        {% if ai.connected %}
+        <div class="ai-actions">
+          <button type="button" id="ai-test-btn" class="btn btn-secondary" data-url="{{ url_for('coach.test_connection') }}" data-loading-label="Testing…">Test connection</button>
+          <form method="post" action="{{ url_for('coach.delete_key') }}"><button type="submit" class="btn btn-secondary">Remove key</button></form>
+        </div>
+        {% else %}
+        <form method="post" action="{{ url_for('coach.save_key') }}" class="ai-actions">
+          <input class="fld text" type="password" name="api_key" autocomplete="off" spellcheck="false" placeholder="sk-ant-…" aria-label="Anthropic API key"{% if not ai.available %} disabled{% endif %} />
+          <button type="submit" class="btn btn-primary"{% if not ai.available %} disabled{% endif %}>Save</button>
+        </form>
+        {% endif %}
+      </div>
+      <p id="ai-test-result" class="ai-message" aria-live="polite" hidden></p>
+      <div class="field-row">
+        <div><div class="field-label">Spend this month</div><div class="field-help">{{ ai.month.calls }} · {{ ai.month.tokens }} tokens</div></div>
+        <span class="ai-cost">{{ ai.month.cost }}</span>
+      </div>
+      <div class="field-row">
+        <div><div class="field-label">All time</div><div class="field-help">{{ ai.all.calls }} · {{ ai.all.tokens }} tokens{% if ai.all.unpriced %} · {{ ai.all.unpriced }} with no price on file{% endif %}</div></div>
+        <span class="ai-cost">{{ ai.all.cost }}</span>
+      </div>
+      <p class="field-help ai-note">An estimate from Anthropic's published prices; the Anthropic console has the exact bill.</p>
+    </div>
+  </section>
+
   <section class="card about-row">
     <div class="about-left">
       <div class="wordmark" style="font-size:20px;">D<span class="accent-letter">I</span>STRAVA</div>
@@ -141,5 +172,6 @@
 <script src="{{ url_for('static', filename='settings.js') }}"></script>
 <script>
   initSettingsForm("{{ url_for('main.settings_page') }}");
+  initAiTest();
 </script>
 {% endblock %}

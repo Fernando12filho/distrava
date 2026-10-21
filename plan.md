@@ -43,6 +43,8 @@ your machine: no accounts, no subscriptions, no cloud.
 | HR zones in five distinct colours | [Y] |
 | Test first, then code (TDD) | [Y] |
 | Build order: M1 → M2 → M3 up to #21, then the coach (M4) until it can plan a week with you, then back to the rest of M3 (#22, #23, #11), which needs it to be tested | [Y] 2026-10-21 (was M1 → M2 → M3 → M4) |
+| The API key lives only in the OS keychain (macOS now, via the built-in `security` tool; `keyring` for other systems when the app is shared). With no keychain the coach stays off — the key is never saved anywhere else | [Y] 2026-10-21 |
+| Every AI call is recorded with its tokens and an estimated cost, and shown in Settings | [Y] 2026-10-21 |
 | Personal facts (sex, birth year) are set only by you. Your training profile (runs per week, gym days, split, goal, experience) can be set by you or created and changed by the AI coach — with your confirmation | [Y] 2026-10-20 |
 
 ## 3. Roadmap
@@ -115,7 +117,7 @@ _Spec: `Distrava Coach — Use Cases, Decisions & Test Plan.md`. Resumed 2026-10
 | ✅ | 4. Auto check-in | imported runs/rides offered as "Import matches · Confirm" |
 | ✅ | 5. Rebalancer | 2026-10-21: "Week check" on the Coach page — hard-run cap and spacing (RULE-REC-02), same-muscle spacing (REC-01), hard legs before a hard run (REC-04, D4); a run is hard on your rating or heart rate (LOAD-02, D1); each session can be planned easy/hard; a skipped session is dropped and can move only to a free later day that fits (PROG-01). Part 2: after 10+ days off it offers easing the rest of the week to 60–90 % of planned volume, your pick, with one-tap undo (PROG-04, D7); notes running distance 20 % / 30 % above your last 2 weeks (PROG-02); notes more hard runs than suggested (WEEK-01, by count) · #25 |
 | 🔨 | Training profile: runs per week, gym days, split, goal, experience | 2026-10-21: editable in Settings ("Training profile" card); empty means not said yet, no default split. Coach-proposed changes come with step 7 previews (#28). Feeds RULE-WEEK-01/02, LOAD-03 · #26 |
-| ⬜ | 6. Connect an AI provider | your own API key, stored in the OS keychain · #27 |
+| ✅ | 6. Connect an AI provider | 2026-10-21: Anthropic, your own API key in the macOS keychain (never SQLite, logs or the page — only "•••• last 4"); Settings card to save, test (loading state) and remove it; every call recorded with its model, tokens and an estimated cost, with this month / all-time totals. Model per task in config (Haiku 5.5 for the connection test, Opus 5.5 default, with Anthropic's refusal fallback). No new dependencies. Tests use a fake provider and can't reach the network or your keychain · #27 |
 | ⬜ | 7. Coach tools, preview, undo | the AI proposes, you accept or undo · #28 |
 | ⬜ | 8. Plan a week from scratch or from past weeks | RULE-WEEK-01..04 · #29 |
 | ⬜ | 9. Import a trainer's PDF plan | #30 |
@@ -228,6 +230,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-21 | #21 done: weekly hard sets per muscle group on the Coach page, with its rule and sources. Your data has no logged sets yet, so it shows empty until you log a gym session |
 | 2026-10-21 | Build order changed (your decision): the coach comes next, since the rest of M3 needs it. Training profile (#26) in Settings; next is the rebalancer (#25), which needs D1, D4, D7 |
 | 2026-10-21 | D1 (either signal), D4 (24 h) and D7 (coach offers options, you choose) decided |
+| 2026-10-21 | AI provider connected (#27): Anthropic key in the macOS keychain, Settings card with test and spend totals; no API call made yet — waiting for your key |
 | 2026-10-21 | Rebalancer done (#25): ease back in after a break (your pick, with undo), distance-jump and easy/hard notes. On your data: this week's plan is 21 km against a 12.72 km average (+65.11 %), mostly from the 8 km default per running day |
 | 2026-10-21 | Rebalancer, part 1 (#25): sessions can be planned easy/hard (your choice over guessing from the exercise); the Coach page checks the week's spacing and offers fitting days for a skipped session. On your data: no clashes; your skipped Thursday legs day has no free later day, so it is dropped |
 
@@ -245,6 +248,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | ⏭ | OK the teleport rule, and a one-time recompute of your PR table (backup first)? | you |
 | ✅ | Sync the GitHub issues with this plan | done 2026-10-20 |
 | ✅ | OK to add topic H to `research/PROMPT.md` | you — added 2026-10-20 |
+| ⏭ | Paste your Anthropic key in Settings → AI coach and press Test connection (costs well under $0.01). Then delete the key from `strava-copy/.env`; optionally create a fresh key and revoke the old one, since it sat in plain text since July | you |
 | ⏭ | Run the topic H follow-up prompt (end of `research/PROMPT.md`), save it as `research/training-rules-H.md` | you |
 | ⬜ | Board columns (Projects kanban): the token has no `project` scope — run `gh auth refresh -s project` outside the jail, then I can move cards | you |
 | ✅ | Issues #7 and #9: add them to this plan | you — added to M1 and M2 |

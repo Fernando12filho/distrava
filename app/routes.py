@@ -20,6 +20,7 @@ from flask import (
 from sqlalchemy import func
 
 from app import analytics, parser, training_rules
+from app.coach import assistant
 from app.coach import profile as training_profile
 from app.models import Activity, ActivityStream, BestEffort, TrainingProfile, UserSettings
 
@@ -545,6 +546,7 @@ def settings_page():
         "settings.html",
         settings=settings,
         profile=profile,
+        ai=assistant.settings_view(db, date.today(), request.args.get("ai")),
         resolved_max_hr=resolved_max_hr,
         zones=analytics.hr_zone_bands(resolved_max_hr, resolved_resting_hr),
         resolved_resting_hr=resolved_resting_hr,

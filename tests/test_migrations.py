@@ -90,6 +90,7 @@ COACH_TABLES = {
     "coach_notes",
     "coach_set_logs",
     "coach_profile",
+    "coach_llm_calls",
 }
 
 

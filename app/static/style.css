@@ -1700,6 +1700,29 @@ a.recent-row:hover {
   resize: vertical;
 }
 
+.ai-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-message {
+  margin: 0;
+  padding: 0 24px 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.ai-cost {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-note {
+  padding: 0 24px 16px;
+}
+
 .fld:focus {
   outline: none;
   border-color: var(--accent);

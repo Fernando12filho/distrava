@@ -164,6 +164,28 @@ class CoachExercise(Base):
     is_custom = Column(Boolean, nullable=False, default=False)
 
 
+# One row per call to the AI provider, successful or not, so you can see what
+# the coach uses and costs. Never the key, prompt or reply: only counts.
+class CoachLlmCall(Base):
+    __tablename__ = "coach_llm_calls"
+
+    id = Column(Integer, primary_key=True)
+    created_at = Column(DateTime, nullable=False, default=_utc_now)
+    task = Column(String, nullable=False)
+    provider = Column(String, nullable=False)
+    requested_model = Column(String, nullable=False)
+    model = Column(String, nullable=True)
+    input_tokens = Column(Integer, nullable=False, default=0)
+    output_tokens = Column(Integer, nullable=False, default=0)
+    cache_read_tokens = Column(Integer, nullable=False, default=0)
+    cache_write_tokens = Column(Integer, nullable=False, default=0)
+    # Estimated from the price table at the time; None for an unpriced model.
+    cost_usd = Column(Float, nullable=True)
+    stop_reason = Column(String, nullable=True)
+    error_kind = Column(String, nullable=True)
+    request_id = Column(String, nullable=True)
+
+
 class CoachWeek(Base):
     __tablename__ = "coach_weeks"
     __table_args__ = (CheckConstraint("strftime('%w', week_start) = '1'", name="week_starts_monday"),)
