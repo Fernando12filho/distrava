@@ -113,7 +113,7 @@ _Spec: `Distrava Coach — Use Cases, Decisions & Test Plan.md`. Resumed 2026-10
 | ✅ | 2. Data model | weeks → sessions → exercises, check-ins, notes |
 | ✅ | 3. Weekly board | Coach page: 7 day columns, add / move / remove sessions, Done / Partial / Skip, edit volumes |
 | ✅ | 4. Auto check-in | imported runs/rides offered as "Import matches · Confirm" |
-| ⬜ | 5. Rebalancer | RULE-REC-01/02/04, PROG-01/02, WEEK-01; decisions D1, D4, D7 · #25 |
+| 🔨 | 5. Rebalancer | 2026-10-21: "Week check" on the Coach page — hard-run cap and spacing (RULE-REC-02), same-muscle spacing (REC-01), hard legs before a hard run (REC-04, D4); a run is hard on your rating or heart rate (LOAD-02, D1); each session can be planned easy/hard; a skipped session is dropped and can move only to a free later day that fits (PROG-01). Still to do: options when you come back from a break (D7), distance jumps (PROG-02), easy/hard balance (WEEK-01) · #25 |
 | 🔨 | Training profile: runs per week, gym days, split, goal, experience | 2026-10-21: editable in Settings ("Training profile" card); empty means not said yet, no default split. Coach-proposed changes come with step 7 previews (#28). Feeds RULE-WEEK-01/02, LOAD-03 · #26 |
 | ⬜ | 6. Connect an AI provider | your own API key, stored in the OS keychain · #27 |
 | ⬜ | 7. Coach tools, preview, undo | the AI proposes, you accept or undo · #28 |
@@ -149,6 +149,12 @@ _Spec: `Distrava Coach — Use Cases, Decisions & Test Plan.md`. Resumed 2026-10
 | Hard sets per muscle per week: 10+ is the growth range, about 3 maintains | coach | [R] RULE-WEEK-02 (Schoenfeld 2017; pending the ACSM 2026 check, #24) |
 | Any number of sessions per muscle is fine; only the weekly total is compared | coach | [R] RULE-WEEK-03 (Schoenfeld 2019) |
 | Each exercise counts toward its one catalog muscle group (no partial credit for helper muscles) | coach | [A] simplest count; the research gives no rule for it |
+| A run is hard on your rating ≥ 5 or 10+ min above 85 % of heart-rate reserve; nothing recorded → its planned easy/hard; neither → never clashes | coach week check | [R] RULE-LOAD-02, RULE-LOAD-04 + D1 (cut-off unvalidated, boundary an estimate) |
+| At most 2 hard runs a week, 48 h apart | coach week check | [R] RULE-REC-02 (weak) |
+| 48 h before a muscle group is trained hard again (full body overlaps every group) | coach week check | [R] RULE-REC-01 (expert opinion) |
+| No hard legs (legs, glutes, full body) in the 24 h before a hard run | coach week check | [R] RULE-REC-04 + D4 (expert opinion, low confidence) |
+| Sessions have a day but no time: the day before counts as within 24 h | coach week check | [A] needed to apply the hour rules to day-only sessions |
+| A skipped session is dropped; it may move only to a free later day that breaks no spacing rule | coach week check | [R] RULE-PROG-01 — a design choice, no study (said on screen) |
 | Session templates (one leg day in the gym split) | coach | [R] RULE-WEEK-04 — runners need 2 strength days with heavy legs — review (M3) |
 | Default volumes (e.g. running day = 8 km) | coach | [A] no source — derive from your recent weeks (M4) |
 
@@ -219,6 +225,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-21 | #21 done: weekly hard sets per muscle group on the Coach page, with its rule and sources. Your data has no logged sets yet, so it shows empty until you log a gym session |
 | 2026-10-21 | Build order changed (your decision): the coach comes next, since the rest of M3 needs it. Training profile (#26) in Settings; next is the rebalancer (#25), which needs D1, D4, D7 |
 | 2026-10-21 | D1 (either signal), D4 (24 h) and D7 (coach offers options, you choose) decided |
+| 2026-10-21 | Rebalancer, part 1 (#25): sessions can be planned easy/hard (your choice over guessing from the exercise); the Coach page checks the week's spacing and offers fitting days for a skipped session. On your data: no clashes; your skipped Thursday legs day has no free later day, so it is dropped |
 
 ## 8. Waiting on
 

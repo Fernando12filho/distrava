@@ -434,3 +434,15 @@ def test_weight_to_kg_metric_passes_through():
 
 def test_weight_to_kg_imperial_converts_pounds_back():
     assert analytics.weight_to_kg(158.73, "imperial") == pytest.approx(72.0, abs=0.01)
+
+
+def test_rule_load_02_minutes_above_counts_time_at_or_over_the_line():
+    times = [0, 60, 120, 180, 240]
+    hr = [150, 172, 175, 160, 180]
+
+    assert analytics.minutes_above(times, hr, 170) == 2.0
+
+
+def test_minutes_above_skips_missing_samples():
+    # Like time_in_zone, each sample covers the time until the next one.
+    assert analytics.minutes_above([0, 60, 120], [None, 180, 180], 170) == 1.0

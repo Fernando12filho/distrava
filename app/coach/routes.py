@@ -4,13 +4,28 @@ from flask import Blueprint, abort, redirect, render_template, request, url_for
 from sqlalchemy import func
 
 from app import analytics
-from app.coach import board, hard_sets, set_log, volume
+from app.coach import board, hard_sets, rebalancer, set_log, volume
 from app.coach.catalog import SESSION_TEMPLATES
 from app.coach.matcher import SESSION_ACTIVITY_TYPES, match_sessions
 from app.coach.week import DAYS_PER_WEEK, week_start_for
-from app.models import Activity, CoachExercise, CoachSession, CoachSessionItem, CoachSetLog, CoachWeek, UserSettings
-from app.routes import _effort_view, _get_units, get_db
-from app.training_rules import HARD_SET_MAX_RIR, SETS_PER_MUSCLE_IMPROVE_MIN, SETS_PER_MUSCLE_MAINTAIN_MIN
+from app.models import (
+    PLANNED_EFFORTS,
+    Activity,
+    ActivityStream,
+    CoachExercise,
+    CoachSession,
+    CoachSessionItem,
+    CoachSetLog,
+    CoachWeek,
+    UserSettings,
+)
+from app.routes import _effort_view, _get_units, _hr_quality, _resolve_hr_profile, get_db
+from app.training_rules import (
+    HARD_SET_MAX_RIR,
+    SETS_PER_MUSCLE_IMPROVE_MIN,
+    SETS_PER_MUSCLE_MAINTAIN_MIN,
+    Z3_BOUNDARY_FRACTION_HRR,
+)
 
 bp = Blueprint("coach", __name__, url_prefix="/coach")
 
@@ -97,6 +112,7 @@ def _session_view(session, units):
         "kind_label": KIND_LABELS[session.kind],
         "focus": session.focus,
         "status": session.status,
+        "planned_effort": session.planned_effort,
         "summary": board.session_summary(session.kind, items, units),
         "exercises": items,
         "distance_meters": sum(i["distance_meters"] or 0 for i in items) or None,
@@ -123,6 +139,116 @@ def _week_logged_sets(db, week_start):
         for item in session.items
         for logged in item.logged_sets
     ]
+
+
+# RULE-LOAD-02 + D1: minutes above the estimated threshold, or None when the
+# workout has too little second-by-second heart rate to say (D10).
+def _z3_minutes(activity, stream, resting_hr, max_hr):
+    if stream is None or not stream.stream_data.get("hr"):
+        return None
+    shown, _note = _hr_quality(activity, stream)
+    if not shown:
+        return None
+    boundary = resting_hr + Z3_BOUNDARY_FRACTION_HRR * (max_hr - resting_hr)
+    return analytics.minutes_above(stream.stream_data["time"], stream.stream_data["hr"], boundary)
+
+
+def _rebalancer_session(session, day_offset, activity, stream, hr_profile):
+    """Plain dict for the pure rebalancer; day_offset shifts last week's days negative."""
+    logged = [(item.exercise.muscle_group, s.rir) for item in session.items for s in item.logged_sets]
+    groups = {item.exercise.muscle_group for item in session.items} - {None, "none"}
+    return {
+        "id": session.id,
+        "day_index": session.day_index + day_offset,
+        "position": session.position,
+        "kind": session.kind,
+        "status": session.status,
+        "focus": session.focus,
+        "planned_effort": session.planned_effort,
+        "srpe": activity.session_rpe if activity else None,
+        "z3_minutes": _z3_minutes(activity, stream, *hr_profile) if activity else None,
+        "muscle_groups": groups,
+        "hard_set_groups": {g for g, rir in logged if set_log.is_hard(rir)} - {None, "none"},
+        "rated_set_groups": {g for g, rir in logged if rir is not None} - {None, "none"},
+    }
+
+
+# The week plus last week's final days, which still count for spacing.
+_LOOKBACK_DAYS = 2
+
+
+def _rebalancer_week(db, week_start):
+    weeks = [(week_start, 0), (week_start - timedelta(days=DAYS_PER_WEEK), -DAYS_PER_WEEK)]
+    sessions = []
+    for start, offset in weeks:
+        week = db.query(CoachWeek).filter_by(week_start=start).first()
+        if week is None:
+            continue
+        sessions += [s for s in week.sessions if offset == 0 or s.day_index >= DAYS_PER_WEEK - _LOOKBACK_DAYS]
+    activity_ids = [s.matched_activity_id for s in sessions if s.matched_activity_id]
+    activities = {a.id: a for a in db.query(Activity).filter(Activity.id.in_(activity_ids))} if activity_ids else {}
+    streams = (
+        {st.activity_id: st for st in db.query(ActivityStream).filter(ActivityStream.activity_id.in_(activity_ids))}
+        if activity_ids
+        else {}
+    )
+    hr_profile = _resolve_hr_profile(db.query(UserSettings).first(), date.today())
+    return [
+        _rebalancer_session(
+            s,
+            0 if s.week.week_start == week_start else -DAYS_PER_WEEK,
+            activities.get(s.matched_activity_id),
+            streams.get(s.matched_activity_id),
+            hr_profile,
+        )
+        for s in sessions
+    ]
+
+
+_CONFLICT_TEXT = {
+    ("RULE-REC-02", "cap"): "More than {cap} hard runs this week",
+    ("RULE-REC-02", "close"): "Two hard runs less than {runs_h} h apart",
+    ("RULE-REC-01", "close"): "{groups} trained hard twice within {muscle_h} h",
+    ("RULE-REC-04", "close"): "Hard legs in the {legs_h} h before a hard run",
+}
+_CONFLICT_VALUES = {
+    "cap": rebalancer.MAX_HARD_RUNS_PER_WEEK,
+    "runs_h": rebalancer.MIN_HOURS_BETWEEN_HARD_RUNS,
+    "muscle_h": rebalancer.MIN_HOURS_SAME_MUSCLE_HARD,
+    "legs_h": rebalancer.MIN_HOURS_HARD_LEGS_BEFORE_HARD_RUN,
+}
+
+
+def _day_label(day_index):
+    return board.DOW_LABELS[day_index % DAYS_PER_WEEK].title() + (" (last week)" if day_index < 0 else "")
+
+
+def _week_check(db, week_start, today):
+    sessions = _rebalancer_week(db, week_start)
+    by_id = {s["id"]: s for s in sessions}
+    conflicts = [
+        {
+            "rule": c["rule"],
+            "text": _CONFLICT_TEXT[(c["rule"], c["reason"])].format(
+                groups=", ".join(c["groups"]).replace("_", " ").capitalize(), **_CONFLICT_VALUES
+            ),
+            "sessions": [f"{_day_label(by_id[i]['day_index'])} {by_id[i]['focus']}" for i in c["session_ids"]],
+        }
+        for c in rebalancer.check_week(sessions)
+    ]
+    this_week = week_start == week_start_for(today)
+    # Past weeks are history: nothing left to move into.
+    today_index = today.weekday() if this_week else (-1 if week_start > today else DAYS_PER_WEEK)
+    skipped = [
+        {
+            "id": s["id"],
+            "label": f"{_day_label(s['day_index'])} {s['focus']}",
+            "options": [(d, _day_label(d)) for d in rebalancer.move_options(sessions, s["id"], today_index)],
+        }
+        for s in sessions
+        if s["status"] == "skipped" and s["day_index"] >= 0
+    ]
+    return {"conflicts": conflicts, "skipped": skipped, "today_index": today_index, "sessions": sessions}
 
 
 def _activity_view(activity):
@@ -238,6 +364,12 @@ def board_page():
         today=today,
         today_sessions=today_sessions,
         hard_sets=hard_sets.weekly_hard_sets(_week_logged_sets(db, week_start)),
+        week_check=_week_check(db, week_start, today),
+        week_rules={
+            **_CONFLICT_VALUES,
+            "srpe_hard": rebalancer.SRPE_HARD_MIN,
+            "z3_minutes": rebalancer.Z3_MIN_MINUTES_HARD,
+        },
         hard_set_max_rir=HARD_SET_MAX_RIR,
         sets_improve_min=SETS_PER_MUSCLE_IMPROVE_MIN,
         sets_maintain_min=SETS_PER_MUSCLE_MAINTAIN_MIN,
@@ -320,6 +452,41 @@ def move_session(session_id):
     if _is_fetch():
         return "", 204
     return redirect(_board_url(session.week.week_start, session.id), code=303)
+
+
+@bp.route("/sessions/<int:session_id>/planned-effort", methods=["POST"])
+def set_planned_effort(session_id):
+    db = get_db()
+    session = _get_session(db, session_id)
+    value = request.form.get("effort", "")
+    if value and value not in PLANNED_EFFORTS:
+        abort(400)
+    session.planned_effort = value or None
+    db.commit()
+    if _is_fetch():
+        return "", 204
+    return redirect(_board_url(session.week.week_start, session.id), code=303)
+
+
+# RULE-PROG-01: a skipped session moves only to a day the rebalancer allows; the
+# same check that offers the day runs again here, so a stale page can't stack it.
+@bp.route("/sessions/<int:session_id>/reschedule", methods=["POST"])
+def reschedule_session(session_id):
+    db = get_db()
+    session = _get_session(db, session_id)
+    if session.status != "skipped":
+        abort(400)
+    day_index = _day_index(request.form.get("day_index"))
+    week_start = session.week.week_start
+    check = _week_check(db, week_start, date.today())
+    allowed = rebalancer.move_options(check["sessions"], session.id, check["today_index"])
+    if day_index not in allowed:
+        abort(400)
+    session.position = _next_position(db, session.week_id, day_index)
+    session.day_index = day_index
+    session.status = "planned"
+    db.commit()
+    return redirect(_board_url(week_start, session.id), code=303)
 
 
 @bp.route("/sessions/<int:session_id>/status", methods=["POST"])

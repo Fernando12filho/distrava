@@ -64,3 +64,19 @@ SRPE_ANCHORS = {2: "Easy", 3: "Moderate", 4: "Somewhat hard", 5: "Hard", 7: "Ver
 # enough to maintain in young adults. Pending the ACSM 2026 check (#24).
 SETS_PER_MUSCLE_IMPROVE_MIN = 10  # range 10–20
 SETS_PER_MUSCLE_MAINTAIN_MIN = 3  # range 1–4
+
+# RULE-LOAD-02 + decision D1: a run is hard when your rating reaches
+# SRPE_HARD_MIN OR this many minutes are above the threshold zone. Without a
+# lab test the boundary is estimated from heart-rate reserve (an estimate).
+Z3_MIN_MINUTES_HARD = 10  # range 5–20, unvalidated
+Z3_BOUNDARY_FRACTION_HRR = 0.85  # range 0.80–0.90
+
+# RULE-REC-02: hard runs per week and the gap between them.
+MAX_HARD_RUNS_PER_WEEK = 2  # range 1–2 at 3–4 runs/wk; up to 3 above 5
+MIN_HOURS_BETWEEN_HARD_RUNS = 48  # range 48–72
+
+# RULE-REC-01: gap before the same muscle group is trained hard again.
+MIN_HOURS_SAME_MUSCLE_HARD = 48  # range 48–72, expert opinion
+
+# RULE-REC-04 + decision D4: no hard legs in the 24 h before a hard run.
+MIN_HOURS_HARD_LEGS_BEFORE_HARD_RUN = 24  # range 24–48, expert opinion

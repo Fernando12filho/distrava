@@ -186,6 +186,7 @@ def test_existing_coach_sessions_table_gains_the_matched_activity_column():
 
     columns = {c["name"] for c in inspect(engine).get_columns("coach_sessions")}
     assert "matched_activity_id" in columns
+    assert "planned_effort" in columns
     with engine.connect() as conn:
         assert conn.execute(text("SELECT focus FROM coach_sessions")).scalar() == "Running day"
 

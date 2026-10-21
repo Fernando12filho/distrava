@@ -107,6 +107,16 @@ def time_in_zone(times, hr_values, zones):
     return zone_seconds
 
 
+# RULE-LOAD-02: time at or above a heart-rate line, sampled the same way as
+# time_in_zone so the two never disagree.
+def minutes_above(times, hr_values, bpm):
+    seconds = 0.0
+    for i in range(len(times) - 1):
+        if hr_values[i] is not None and hr_values[i] >= bpm:
+            seconds += times[i + 1] - times[i]
+    return round(seconds / 60, 2)
+
+
 def km_splits(times, distances, split_meters=1000.0):
     total_distance = distances[-1]
     splits = []

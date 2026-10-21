@@ -142,6 +142,7 @@ class TrainingProfile(Base):
 
 SESSION_STATUSES = ("planned", "done", "partial", "skipped", "moved")
 SESSION_KINDS = ("run", "ride", "gym", "mobility", "rest")
+PLANNED_EFFORTS = ("easy", "hard")
 
 
 def _utc_now():
@@ -201,6 +202,10 @@ class CoachSession(Base):
     # and "wipe all data" deletes activities without knowing about the coach,
     # so readers must tolerate an id that no longer resolves.
     matched_activity_id = Column(Integer, nullable=True)
+    # "easy" / "hard", set by you or proposed by the coach. Only used until the
+    # session is done: then what you did decides (RULE-LOAD-04). Not a CHECK
+    # constraint, since ALTER TABLE ADD COLUMN can't add one to old databases.
+    planned_effort = Column(String, nullable=True)
 
     week = relationship("CoachWeek", back_populates="sessions")
     items = relationship(

@@ -2468,6 +2468,49 @@ a.recent-row:hover {
   font-variant-numeric: tabular-nums;
 }
 
+.week-check-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 16px;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.week-check-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.week-check-meta,
+.planned-effort-help {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.week-check-moves {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.planned-effort {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 0 22px 14px;
+}
+
+.planned-effort-label {
+  font-size: 13px;
+}
+
 .today-session {
   display: flex;
   align-items: center;
