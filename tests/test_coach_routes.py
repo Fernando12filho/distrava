@@ -100,6 +100,16 @@ def test_selecting_a_session_lists_its_exercises(client, db_session):
     assert re.search(r'name="reps"[^>]*value="6"', html)
 
 
+def test_ac_rule_load_04_exercise_rows_show_no_intensity_bars(client, db_session):
+    _add(client, "legs_glutes", day_index=1)
+    session = _only_session(db_session)
+
+    html = client.get(f"/coach/?session={session.id}").get_data(as_text=True)
+
+    assert "Back squat" in html
+    assert "intensity-bars" not in html
+
+
 def test_selecting_a_session_from_another_week_is_ignored(client, db_session):
     _add(client, "chest_triceps", day_index=3)
     session = _only_session(db_session)

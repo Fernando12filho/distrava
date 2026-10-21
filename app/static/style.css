@@ -2263,7 +2263,7 @@ a.recent-row:hover {
 .exercise-header-row,
 .exercise-row {
   display: grid;
-  grid-template-columns: 1fr 210px 100px 56px 70px;
+  grid-template-columns: 1fr 210px 100px 70px;
   align-items: center;
   gap: 12px;
   padding: 11px 22px;
@@ -2354,22 +2354,6 @@ a.recent-row:hover {
 .exercise-actions {
   display: flex;
   justify-content: flex-end;
-}
-
-.intensity-bars {
-  display: inline-flex;
-  gap: 2px;
-}
-
-.intensity-bars i {
-  width: 4px;
-  height: 10px;
-  border-radius: 1px;
-  background: var(--divider-header);
-}
-
-.intensity-bars i.on {
-  background: var(--text-secondary);
 }
 
 .detail-hint {

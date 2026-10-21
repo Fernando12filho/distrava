@@ -37,6 +37,28 @@ def _apply_schema_upgrades(engine):
     return added
 
 
+# Columns the app stopped using. Left in place a NOT NULL one would reject every
+# new row, so they are dropped (SQLite 3.35+ does this in place). Only coach
+# tables may appear here: pre-coach tables never change shape.
+_RETIRED_COLUMNS = {
+    # RULE-LOAD-04: hardness comes from what was done, not a label per exercise.
+    "coach_exercises": ["intensity"],
+}
+
+
+def _drop_retired_columns(engine):
+    inspector = inspect(engine)
+    existing_tables = set(inspector.get_table_names())
+    with engine.begin() as conn:
+        for table_name, retired in _RETIRED_COLUMNS.items():
+            if table_name not in existing_tables:
+                continue
+            existing_columns = {col["name"] for col in inspector.get_columns(table_name)}
+            for column_name in retired:
+                if column_name in existing_columns:
+                    conn.execute(text(f"ALTER TABLE {table_name} DROP COLUMN {column_name}"))
+
+
 # Activities imported before offsets were recorded only know their UTC start.
 # Runs once, when the column is first added: Apple Health and GPX rows get the
 # offset of the given timezone (the computer's own when tz is None) at that
@@ -136,6 +158,7 @@ def create_app(config=None):
     _retire_card_era_coach_tables(engine)
     Base.metadata.create_all(engine)
     added_columns = _apply_schema_upgrades(engine)
+    _drop_retired_columns(engine)
     if ("activities", "utc_offset_minutes") in added_columns:
         _backfill_activity_offsets(engine, app.config.get("LOCAL_TIMEZONE"))
     app.engine = engine

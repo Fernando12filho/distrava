@@ -189,6 +189,52 @@ def test_existing_coach_sessions_table_gains_the_matched_activity_column():
         assert conn.execute(text("SELECT focus FROM coach_sessions")).scalar() == "Running day"
 
 
+def test_ac_rule_load_04_existing_exercises_lose_the_intensity_column():
+    engine = _engine()
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE coach_exercises (
+                    id INTEGER PRIMARY KEY,
+                    slug VARCHAR UNIQUE,
+                    name VARCHAR NOT NULL,
+                    category VARCHAR NOT NULL,
+                    muscle_group VARCHAR,
+                    equipment VARCHAR,
+                    intensity VARCHAR NOT NULL,
+                    activity_type VARCHAR,
+                    is_custom BOOLEAN NOT NULL
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO coach_exercises (name, category, intensity, is_custom) "
+                "VALUES ('Sled push', 'strength', 'hard', 1)"
+            )
+        )
+
+    app = create_app({"TESTING": True, "ENGINE": engine})
+
+    columns = {c["name"] for c in inspect(engine).get_columns("coach_exercises")}
+    assert "intensity" not in columns
+    session = app.session_factory()
+    session.add(CoachExercise(name="Partner carry", category="strength", is_custom=True))
+    session.commit()
+    names = {e.name for e in session.query(CoachExercise).filter_by(is_custom=True)}
+    assert names == {"Sled push", "Partner carry"}
+    assert session.query(CoachExercise).filter(CoachExercise.slug.isnot(None)).count() > 0
+    session.close()
+
+
+def test_only_coach_tables_ever_lose_a_column():
+    from app import _RETIRED_COLUMNS, COACH_TABLE_PREFIX
+
+    assert all(table.startswith(COACH_TABLE_PREFIX) for table in _RETIRED_COLUMNS)
+
+
 def _card_era_engine(checkin_rows=0):
     """A database created by the first coach model, before sessions existed."""
     engine = _engine()

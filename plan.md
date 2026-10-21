@@ -97,7 +97,7 @@ _The gym side gets the same depth as running._
 | ✅ | Exercise catalog: 40 exercises, muscle groups, equipment | built for the coach |
 | ✅ | Log a gym session: sets, reps, weight, reps in reserve | 2026-10-20: a gym session on the board now matches the day's strength import; once done, each exercise starts as its planned sets × reps and you change anything (reps, weight, reps in reserve, add/remove sets). "Hard set" only when you enter ≤ 3 in reserve (RULE-LOAD-03) · #18 |
 | 🔨 | Session effort (sRPE) after every run and lift | Works; **UI to redo later, issue stays open** (2026-10-21). 2026-10-20: a 0–10 "How hard was the whole session?" on every activity page and on a matched coach session (same value); shows easy/moderate/hard and load = rating × minutes; kept on re-import. RULE-LOAD-01 · #19 |
-| ⬜ | Retire the catalog's easy/moderate/hard labels: effort comes from what you did | RULE-LOAD-04 · #20 |
+| ✅ | Retire the catalog's easy/moderate/hard labels: effort comes from what you did | 2026-10-21: the 40 exercises no longer carry a fixed label; the board's "Load" bars are gone; your database drops the old column on next start (custom exercises kept). Hard = your session rating or reps in reserve. RULE-LOAD-04 · #20 |
 | ⬜ | Weekly hard sets per muscle group | RULE-WEEK-02/03 · #21 |
 | ⬜ | Session templates become starting points only — no default split | D3 decided: the coach proposes a 2nd heavy-leg day when your goal calls for it (RULE-WEEK-04), you approve · #22 |
 | ⬜ | Strength progress: hard sets per muscle group over the weeks | merged into the weekly hard-sets row; logged weights are kept for later · #23 |
@@ -141,7 +141,7 @@ until M1–M3 are done._
 | A best effort can't include a gap over 15 s that covers more than 2× the run's typical speed | records, PRs | [A] from your data, pending your OK |
 | Match an import to a session: same type, same day, ±25 % | coach | [Y] proposed by me, you approved |
 | A run one day off asks instead of matching | coach | [Y] proposed by me, you approved |
-| Exercise intensity easy / moderate / hard | catalog | [R] RULE-LOAD-04 says effort must come from what you did — retire (M3) |
+| No fixed easy / moderate / hard per exercise: "hard" comes only from your session rating or reps in reserve | catalog, coach | [R] RULE-LOAD-04 (retired 2026-10-21) |
 | Session effort: your 0–10 rating; load = rating × minutes; ≤ 2 easy, 3–4 moderate, ≥ 5 hard (cut-offs are the scale's labels, a convention) | activity page, coach | [R] RULE-LOAD-01 |
 | A logged set is "hard" only when you enter ≤ 3 reps in reserve; without an entry it is neither | gym log | [R] RULE-LOAD-03, RULE-LOAD-04 |
 | A gym session matches a strength workout (traditional or functional) on the same day, whatever its length | coach | [Y] 2026-10-20: the plan, not the import, says what was done |
@@ -212,7 +212,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-20 | M3 started. You set the coach's purpose: it keeps, adjusts or builds your week from your goal, profile and trainer's plan, always with your OK; no default split (D3). Gym log built (#18): sets come from the plan, you correct anything |
 | 2026-10-20 | Topic H research prompt written (goals + ACSM 2026 check) |
 | 2026-10-20 | Session effort (#19): rate any run or lift 0–10; load and easy/moderate/hard shown with their rule. D1 not needed yet — it only matters for the rebalancer |
-| 2026-10-21 | #19 kept open: the effort rating works, but its UI will be redone later. #20 started |
+| 2026-10-21 | #19 kept open: the effort rating works, but its UI will be redone later. #20 done: the catalog's fixed easy/moderate/hard labels and the board's "Load" bars removed (RULE-LOAD-04) |
 
 ## 8. Waiting on
 

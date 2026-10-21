@@ -14,7 +14,13 @@ def test_every_entry_uses_the_fixed_vocabularies():
         assert entry["category"] in catalog.CATEGORIES, entry["slug"]
         assert entry["muscle_group"] in catalog.MUSCLE_GROUPS, entry["slug"]
         assert entry["equipment"] in catalog.EQUIPMENT, entry["slug"]
-        assert entry["intensity"] in catalog.INTENSITIES, entry["slug"]
+
+
+def test_ac_rule_load_04_catalog_carries_no_fixed_intensity():
+    # "Leg day" is not hard by itself: hardness comes from what was done.
+    for entry in catalog.CATALOG:
+        assert "intensity" not in entry, entry["slug"]
+    assert not hasattr(catalog, "INTENSITIES")
 
 
 def test_catalog_covers_running_gym_and_foundations():
@@ -88,7 +94,7 @@ def test_seed_is_idempotent(db_session):
 
 
 def test_seed_refreshes_catalog_rows_that_drifted(db_session):
-    db_session.add(CoachExercise(slug="bench_press", name="Bench", category="strength", muscle_group="push", intensity="hard"))
+    db_session.add(CoachExercise(slug="bench_press", name="Bench", category="strength", muscle_group="push"))
     db_session.commit()
 
     catalog.seed_catalog(db_session)
@@ -99,7 +105,7 @@ def test_seed_refreshes_catalog_rows_that_drifted(db_session):
 
 
 def test_seed_leaves_custom_exercises_alone(db_session):
-    db_session.add(CoachExercise(name="Sled push", category="strength", intensity="hard", is_custom=True))
+    db_session.add(CoachExercise(name="Sled push", category="strength", is_custom=True))
     db_session.commit()
 
     catalog.seed_catalog(db_session)

@@ -119,7 +119,7 @@
       <div class="session-effort">{{ effort_panel(selected.matched.effort, next=url_for('coach.board_page', week=week_start.isoformat(), session=selected.id)) }}</div>
       {% endif %}
       {% if selected.exercises %}
-      <div class="exercise-header-row"><span>Exercise</span><span>Volume</span><span>Muscle</span><span>Load</span><span></span></div>
+      <div class="exercise-header-row"><span>Exercise</span><span>Volume</span><span>Muscle</span><span></span></div>
       {% for item in selected.exercises %}
       <div class="exercise-row">
         <span>{{ item.name }}</span>
@@ -147,9 +147,6 @@
         </form>
         {% endif %}
         <span class="exercise-muscle">{{ item.muscle|replace('_', ' ') }}</span>
-        <span class="intensity-bars" title="{{ item.intensity }}">
-          {% for level in range(1, 4) %}<i class="{{ 'on' if level <= item.intensity_level }}"></i>{% endfor %}
-        </span>
         <form method="post" action="{{ url_for('coach.delete_item', item_id=item.id) }}" class="exercise-actions">
           <button type="submit" class="quiet-btn">Remove</button>
         </form>

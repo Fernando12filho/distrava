@@ -237,8 +237,8 @@
         <span class="mid">M3</span>
         <h2>Gym &amp; foundations</h2>
         <p class="summary">The gym side gets the same depth as running.</p>
-        <div class="progress"><span style="width:25%"></span></div>
-        <span class="count">2 / 8 done</span>
+        <div class="progress"><span style="width:38%"></span></div>
+        <span class="count">3 / 8 done</span>
       </header>
       <ul>
         <li class="item st-done">
@@ -256,10 +256,10 @@
           <span class="feature">Session effort (sRPE) after every run and lift</span>
           <span class="notes">Works; <strong>UI to redo later, issue stays open</strong> (2026-10-21). 2026-10-20: a 0–10 &quot;How hard was the whole session?&quot; on every activity page and on a matched coach session (same value); shows easy/moderate/hard and load = rating × minutes; kept on re-import. RULE-LOAD-01 · #19</span>
         </li>
-        <li class="item st-todo">
-          <span class="chip st-todo">Not started</span>
+        <li class="item st-done">
+          <span class="chip st-done">Done</span>
           <span class="feature">Retire the catalog&#x27;s easy/moderate/hard labels: effort comes from what you did</span>
-          <span class="notes">RULE-LOAD-04 · #20</span>
+          <span class="notes">2026-10-21: the 40 exercises no longer carry a fixed label; the board&#x27;s &quot;Load&quot; bars are gone; your database drops the old column on next start (custom exercises kept). Hard = your session rating or reps in reserve. RULE-LOAD-04 · #20</span>
         </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
@@ -430,7 +430,7 @@
         <tr><td>A best effort can&#x27;t include a gap over 15 s that covers more than 2× the run&#x27;s typical speed</td><td class="muted">records, PRs</td><td><span class="badge src-A">Assumption</span> from your data, pending your OK</td></tr>
         <tr><td>Match an import to a session: same type, same day, ±25 %</td><td class="muted">coach</td><td><span class="badge src-Y">Your decision</span> proposed by me, you approved</td></tr>
         <tr><td>A run one day off asks instead of matching</td><td class="muted">coach</td><td><span class="badge src-Y">Your decision</span> proposed by me, you approved</td></tr>
-        <tr><td>Exercise intensity easy / moderate / hard</td><td class="muted">catalog</td><td><span class="badge src-R">Research</span> RULE-LOAD-04 says effort must come from what you did — retire (M3)</td></tr>
+        <tr><td>No fixed easy / moderate / hard per exercise: &quot;hard&quot; comes only from your session rating or reps in reserve</td><td class="muted">catalog, coach</td><td><span class="badge src-R">Research</span> RULE-LOAD-04 (retired 2026-10-21)</td></tr>
         <tr><td>Session effort: your 0–10 rating; load = rating × minutes; ≤ 2 easy, 3–4 moderate, ≥ 5 hard (cut-offs are the scale&#x27;s labels, a convention)</td><td class="muted">activity page, coach</td><td><span class="badge src-R">Research</span> RULE-LOAD-01</td></tr>
         <tr><td>A logged set is &quot;hard&quot; only when you enter ≤ 3 reps in reserve; without an entry it is neither</td><td class="muted">gym log</td><td><span class="badge src-R">Research</span> RULE-LOAD-03, RULE-LOAD-04</td></tr>
         <tr><td>A gym session matches a strength workout (traditional or functional) on the same day, whatever its length</td><td class="muted">coach</td><td><span class="badge src-Y">Your decision</span> 2026-10-20: the plan, not the import, says what was done</td></tr>

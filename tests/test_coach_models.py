@@ -24,7 +24,6 @@ def exercise(db_session):
         category="strength",
         muscle_group="chest",
         equipment="barbell",
-        intensity="hard",
     )
     db_session.add(exercise)
     db_session.commit()
@@ -236,11 +235,15 @@ def test_note_tags_default_to_empty(db_session):
     assert db_session.query(CoachNote).one().tags == []
 
 
+def test_ac_rule_load_04_exercises_have_no_intensity_column():
+    assert "intensity" not in CoachExercise.__table__.columns
+
+
 def test_custom_exercise_needs_no_catalog_slug(db_session):
     db_session.add_all(
         [
-            CoachExercise(name="Trainer's sled push", category="strength", intensity="hard", is_custom=True),
-            CoachExercise(name="Partner carry", category="strength", intensity="hard", is_custom=True),
+            CoachExercise(name="Trainer's sled push", category="strength", is_custom=True),
+            CoachExercise(name="Partner carry", category="strength", is_custom=True),
         ]
     )
     db_session.commit()
@@ -249,7 +252,7 @@ def test_custom_exercise_needs_no_catalog_slug(db_session):
 
 
 def test_catalog_slugs_are_unique(db_session, exercise):
-    db_session.add(CoachExercise(slug="bench_press", name="Dup", category="strength", intensity="hard"))
+    db_session.add(CoachExercise(slug="bench_press", name="Dup", category="strength"))
 
     with pytest.raises(IntegrityError):
         db_session.commit()

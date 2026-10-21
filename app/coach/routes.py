@@ -5,7 +5,7 @@ from sqlalchemy import func
 
 from app import analytics
 from app.coach import board, set_log, volume
-from app.coach.catalog import INTENSITIES, SESSION_TEMPLATES
+from app.coach.catalog import SESSION_TEMPLATES
 from app.coach.matcher import SESSION_ACTIVITY_TYPES, match_sessions
 from app.coach.week import DAYS_PER_WEEK, week_start_for
 from app.models import Activity, CoachExercise, CoachSession, CoachSessionItem, CoachSetLog, CoachWeek, UserSettings
@@ -74,8 +74,6 @@ def _session_view(session, units):
             "id": item.id,
             "name": item.exercise.name,
             "muscle": item.exercise.muscle_group,
-            "intensity": item.exercise.intensity,
-            "intensity_level": INTENSITIES.index(item.exercise.intensity) + 1,
             "sets": item.sets,
             "reps": item.reps,
             "duration_seconds": item.duration_seconds,

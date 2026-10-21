@@ -46,7 +46,7 @@ Recommendation for v1: bring-your-own API key plus an MCP server for external ag
 | D3 | How the user reviews coach output | Apply silently · confirm dialog · preview on the board | Preview: proposed cards appear faded, with Accept / Undo and a "why" line | User sees exactly what changes, in place; nothing changes without consent |
 | D4 | How a PDF plan is read | Text extraction + LLM to a fixed schema · LLM vision on page images · OCR | Text extraction (e.g. pdfplumber) → LLM fills a JSON schema → validator → review screen | Cheapest reliable path; scanned PDFs fall back to OCR later |
 | D5 | Where fact checks come from | Model knowledge only · web search when provider supports it · curated source list | Model knowledge with explicit confidence; web search optional | Keeps tokens low; "low confidence" is an honest answer |
-| D6 | Exercise data | Free text from the LLM · local exercise catalog with ids | Local catalog; LLM maps names to catalog ids; unknown → custom exercise | Rebalancing needs muscle groups and intensity per exercise, which free text can't guarantee |
+| D6 | Exercise data | Free text from the LLM · local exercise catalog with ids | Local catalog; LLM maps names to catalog ids; unknown → custom exercise | Rebalancing needs muscle groups per exercise, which free text can't guarantee. Hardness is not a catalog field: it comes from what was done (RULE-LOAD-04) |
 
 Still open: which providers to support first, whether sets/reps are logged in v1 or only done/skip, and which activity sources feed auto-matching (FIT/GPX import, Garmin, others).
 
@@ -61,7 +61,7 @@ Simple actions skip the model entirely; anything the model proposes must pass co
 | Tool | Kind | What it does |
 | --- | --- | --- |
 | `get_week(week)` | read | Compact summary: day, card ids, exercise ids, status |
-| `get_exercise(id)` | read | Catalog entry: muscles, equipment, intensity |
+| `get_exercise(id)` | read | Catalog entry: muscles, equipment |
 | `get_load()` | read | CTL / ATL / TSB and recent volume, computed by existing code |
 | `get_checkins(from, to)` | read | Post-workout answers and notes |
 | `propose_week(days)` | write | Full week from scratch, preset or PDF — the only bulk write |

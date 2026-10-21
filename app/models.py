@@ -145,7 +145,6 @@ class CoachExercise(Base):
     category = Column(String, nullable=False)
     muscle_group = Column(String, nullable=True)
     equipment = Column(String, nullable=True)
-    intensity = Column(String, nullable=False)
     activity_type = Column(String, nullable=True)
     is_custom = Column(Boolean, nullable=False, default=False)
 
