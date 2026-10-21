@@ -58,3 +58,9 @@ SRPE_EASY_MAX = 2  # range 2–3
 SRPE_HARD_MIN = 5  # range 5–6
 SRPE_DELAY_MIN = 30  # range 10–30: rate about this long after finishing
 SRPE_ANCHORS = {2: "Easy", 3: "Moderate", 4: "Somewhat hard", 5: "Hard", 7: "Very hard"}
+
+# RULE-WEEK-02: hard sets per muscle group per week. 10+ is the growth band
+# (Schoenfeld 2017 compared < 5, 5–9 and 10+; no upper limit found); about 3 is
+# enough to maintain in young adults. Pending the ACSM 2026 check (#24).
+SETS_PER_MUSCLE_IMPROVE_MIN = 10  # range 10–20
+SETS_PER_MUSCLE_MAINTAIN_MIN = 3  # range 1–4

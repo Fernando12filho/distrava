@@ -4,12 +4,13 @@ from flask import Blueprint, abort, redirect, render_template, request, url_for
 from sqlalchemy import func
 
 from app import analytics
-from app.coach import board, set_log, volume
+from app.coach import board, hard_sets, set_log, volume
 from app.coach.catalog import SESSION_TEMPLATES
 from app.coach.matcher import SESSION_ACTIVITY_TYPES, match_sessions
 from app.coach.week import DAYS_PER_WEEK, week_start_for
 from app.models import Activity, CoachExercise, CoachSession, CoachSessionItem, CoachSetLog, CoachWeek, UserSettings
 from app.routes import _effort_view, _get_units, get_db
+from app.training_rules import HARD_SET_MAX_RIR, SETS_PER_MUSCLE_IMPROVE_MIN, SETS_PER_MUSCLE_MAINTAIN_MIN
 
 bp = Blueprint("coach", __name__, url_prefix="/coach")
 
@@ -110,6 +111,18 @@ def _session_view(session, units):
 def _week_sessions(db, week_start, units):
     week = db.query(CoachWeek).filter_by(week_start=week_start).first()
     return [_session_view(s, units) for s in week.sessions] if week else []
+
+
+def _week_logged_sets(db, week_start):
+    week = db.query(CoachWeek).filter_by(week_start=week_start).first()
+    if week is None:
+        return []
+    return [
+        {"muscle_group": item.exercise.muscle_group, "rir": logged.rir, "session_id": session.id}
+        for session in week.sessions
+        for item in session.items
+        for logged in item.logged_sets
+    ]
 
 
 def _activity_view(activity):
@@ -224,6 +237,10 @@ def board_page():
         templates=[(key, t["focus"]) for key, t in SESSION_TEMPLATES.items()],
         today=today,
         today_sessions=today_sessions,
+        hard_sets=hard_sets.weekly_hard_sets(_week_logged_sets(db, week_start)),
+        hard_set_max_rir=HARD_SET_MAX_RIR,
+        sets_improve_min=SETS_PER_MUSCLE_IMPROVE_MIN,
+        sets_maintain_min=SETS_PER_MUSCLE_MAINTAIN_MIN,
         provider_connected=False,
         user_statuses=USER_STATUSES,
         distance_unit=analytics.convert_distance(0.0, units)[1],

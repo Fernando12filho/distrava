@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_effort.html" import effort_panel %}
+{% from "_explain.html" import explain %}
 {% set status_labels = {"planned": "Planned", "done": "✓ Done", "partial": "◐ Partial", "skipped": "Skipped", "moved": "Moved"} %}
 {% set status_buttons = [("done", "Done"), ("partial", "Partial"), ("skipped", "Skip")] %}
 
@@ -215,6 +216,27 @@
         {% else %}
         <p class="today-empty">Nothing planned today.</p>
         {% endfor %}
+      </div>
+
+      <div class="hard-sets-card">
+        <span class="eyebrow">Hard sets {{ 'this week' if is_this_week else 'week ' ~ week_number }}</span>
+        {% for g in hard_sets.groups %}
+        <div class="hard-sets-row" data-muscle="{{ g.muscle_group }}">
+          <span class="hard-sets-muscle">{{ g.muscle_group|replace('_', ' ') }}</span>
+          <span class="hard-sets-meta">{% if g.sessions %}{{ g.sessions }} session{{ 's' if g.sessions != 1 }}{% endif %}{% if g.range %} · {{ g.range }} range{% endif %}</span>
+          <span class="hard-sets-count">{{ g.hard_sets }}</span>
+        </div>
+        {% else %}
+        <p class="today-empty">No sets logged this week.</p>
+        {% endfor %}
+        {% if hard_sets.unrated %}
+        <p class="hard-sets-note">{{ hard_sets.unrated }} set{{ 's' if hard_sets.unrated != 1 }} without reps in reserve, so not counted.</p>
+        {% endif %}
+        {% call explain('RULE-WEEK-02, RULE-WEEK-03, RULE-LOAD-03 · Schoenfeld, Ogborn & Krieger 2017 · Schoenfeld, Grgic & Krieger 2019') %}
+        <p>A set counts as hard when you end it with {{ hard_set_max_rir }} or fewer reps in reserve. Each exercise counts toward its main muscle group only.</p>
+        <p>Studies of muscle growth compared under 5, 5–9 and {{ sets_improve_min }}+ hard sets per muscle a week: {{ sets_improve_min }}+ grew the most, with no upper limit found. About {{ sets_maintain_min }} a week keeps what you have, if the weights stay the same.</p>
+        <p>How many sessions you spread them over doesn't matter when the weekly total is the same. Still to be checked against the 2026 ACSM update.</p>
+        {% endcall %}
       </div>
 
       {% if not provider_connected %}

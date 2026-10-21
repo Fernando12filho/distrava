@@ -98,7 +98,7 @@ _The gym side gets the same depth as running._
 | ✅ | Log a gym session: sets, reps, weight, reps in reserve | 2026-10-20: a gym session on the board now matches the day's strength import; once done, each exercise starts as its planned sets × reps and you change anything (reps, weight, reps in reserve, add/remove sets). "Hard set" only when you enter ≤ 3 in reserve (RULE-LOAD-03) · #18 |
 | 🔨 | Session effort (sRPE) after every run and lift | Works; **UI to redo later, issue stays open** (2026-10-21). 2026-10-20: a 0–10 "How hard was the whole session?" on every activity page and on a matched coach session (same value); shows easy/moderate/hard and load = rating × minutes; kept on re-import. RULE-LOAD-01 · #19 |
 | ✅ | Retire the catalog's easy/moderate/hard labels: effort comes from what you did | 2026-10-21: the 40 exercises no longer carry a fixed label; the board's "Load" bars are gone; your database drops the old column on next start (custom exercises kept). Hard = your session rating or reps in reserve. RULE-LOAD-04 · #20 |
-| ⬜ | Weekly hard sets per muscle group | RULE-WEEK-02/03 · #21 |
+| ✅ | Weekly hard sets per muscle group | 2026-10-21: Coach page, beside the week — hard sets per muscle group, in how many sessions, and "growth" (10+) or "maintenance" (3+) range; sets without reps in reserve are listed as not counted, never guessed. The 10 / 3 bands still need the ACSM 2026 check (#24). RULE-WEEK-02/03 · #21 |
 | ⬜ | Session templates become starting points only — no default split | D3 decided: the coach proposes a 2nd heavy-leg day when your goal calls for it (RULE-WEEK-04), you approve · #22 |
 | ⬜ | Strength progress: hard sets per muscle group over the weeks | merged into the weekly hard-sets row; logged weights are kept for later · #23 |
 | ⬜ | Mobility, stretching and meditation sessions, with honest claims only | RULE-MOB-01/02/03 · #11 |
@@ -146,6 +146,9 @@ until M1–M3 are done._
 | A logged set is "hard" only when you enter ≤ 3 reps in reserve; without an entry it is neither | gym log | [R] RULE-LOAD-03, RULE-LOAD-04 |
 | A gym session matches a strength workout (traditional or functional) on the same day, whatever its length | coach | [Y] 2026-10-20: the plan, not the import, says what was done |
 | A finished gym session starts as a copy of its plan, set by set; editing the plan later never changes it | gym log | [Y] 2026-10-20 |
+| Hard sets per muscle per week: 10+ is the growth range, about 3 maintains | coach | [R] RULE-WEEK-02 (Schoenfeld 2017; pending the ACSM 2026 check, #24) |
+| Any number of sessions per muscle is fine; only the weekly total is compared | coach | [R] RULE-WEEK-03 (Schoenfeld 2019) |
+| Each exercise counts toward its one catalog muscle group (no partial credit for helper muscles) | coach | [A] simplest count; the research gives no rule for it |
 | Session templates (one leg day in the gym split) | coach | [R] RULE-WEEK-04 — runners need 2 strength days with heavy legs — review (M3) |
 | Default volumes (e.g. running day = 8 km) | coach | [A] no source — derive from your recent weeks (M4) |
 
@@ -213,6 +216,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-20 | Topic H research prompt written (goals + ACSM 2026 check) |
 | 2026-10-20 | Session effort (#19): rate any run or lift 0–10; load and easy/moderate/hard shown with their rule. D1 not needed yet — it only matters for the rebalancer |
 | 2026-10-21 | #19 kept open: the effort rating works, but its UI will be redone later. #20 done: the catalog's fixed easy/moderate/hard labels and the board's "Load" bars removed (RULE-LOAD-04) |
+| 2026-10-21 | #21 done: weekly hard sets per muscle group on the Coach page, with its rule and sources. Your data has no logged sets yet, so it shows empty until you log a gym session |
 
 ## 8. Waiting on
 
