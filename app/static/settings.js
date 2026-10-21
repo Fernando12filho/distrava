@@ -28,7 +28,12 @@ function initSettingsForm(postUrl) {
   async function autosave() {
     const formData = new FormData(form);
     try {
-      await fetch(postUrl, { method: "POST", body: formData, headers: { "X-Requested-With": "fetch" } });
+      const response = await fetch(postUrl, { method: "POST", body: formData, headers: { "X-Requested-With": "fetch" } });
+      if (!response.ok) {
+        // The server saves nothing when one value is invalid, so say which.
+        saveStatus.textContent = "Not saved · " + (await response.text());
+        return;
+      }
       markSaved();
     } catch (err) {
       /* keep dirty status; next edit will retry */

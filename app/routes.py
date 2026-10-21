@@ -20,7 +20,8 @@ from flask import (
 from sqlalchemy import func
 
 from app import analytics, parser, training_rules
-from app.models import Activity, ActivityStream, BestEffort, UserSettings
+from app.coach import profile as training_profile
+from app.models import Activity, ActivityStream, BestEffort, TrainingProfile, UserSettings
 
 bp = Blueprint("main", __name__)
 
@@ -494,7 +495,19 @@ def settings_page():
     db = get_db()
     settings = db.query(UserSettings).first()
 
+    profile = db.query(TrainingProfile).first()
+
     if request.method == "POST":
+        try:
+            profile_values = training_profile.parse_profile(request.form)
+        except ValueError as err:
+            return str(err), 400
+        if any(field in request.form for field in training_profile.FIELDS):
+            if profile is None:
+                profile = TrainingProfile()
+                db.add(profile)
+            for field, value in profile_values.items():
+                setattr(profile, field, value)
         if settings is None:
             settings = UserSettings()
             db.add(settings)
@@ -531,6 +544,7 @@ def settings_page():
     return render_template(
         "settings.html",
         settings=settings,
+        profile=profile,
         resolved_max_hr=resolved_max_hr,
         zones=analytics.hr_zone_bands(resolved_max_hr, resolved_resting_hr),
         resolved_resting_hr=resolved_resting_hr,

@@ -122,6 +122,20 @@ class UserSettings(Base):
     sex = Column(String, nullable=True)
 
 
+# Kept apart from user_settings: personal facts are set only by you, while the
+# coach may propose changes to this (with your OK).
+class TrainingProfile(Base):
+    __tablename__ = "coach_profile"
+
+    id = Column(Integer, primary_key=True)
+    runs_per_week = Column(Integer, nullable=True)
+    gym_days_per_week = Column(Integer, nullable=True)
+    split = Column(String, nullable=True)
+    goal = Column(Text, nullable=True)
+    years_running = Column(Integer, nullable=True)
+    years_lifting = Column(Integer, nullable=True)
+
+
 # Coach tables all carry the coach_ prefix: drop_coach_tables() relies on it to
 # migrate down without touching a single pre-coach table. The unused legacy
 # `exercises` table is left alone for the same reason.

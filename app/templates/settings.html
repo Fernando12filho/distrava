@@ -41,6 +41,36 @@
     </section>
 
     <section class="card">
+      <div class="card-header"><div><div class="title">Training profile</div><div class="card-subtitle">How you train today · set by you, or changed by the coach once you accept · empty means not said yet</div></div></div>
+      <div class="field-rows">
+        <div class="field-row">
+          <div><div class="field-label">Runs per week</div><div class="field-help">0–14</div></div>
+          <input class="fld" type="number" min="0" max="14" step="1" name="runs_per_week" value="{{ profile.runs_per_week if profile and profile.runs_per_week is not none else '' }}" />
+        </div>
+        <div class="field-row">
+          <div><div class="field-label">Gym days per week</div><div class="field-help">0–7</div></div>
+          <input class="fld" type="number" min="0" max="7" step="1" name="gym_days_per_week" value="{{ profile.gym_days_per_week if profile and profile.gym_days_per_week is not none else '' }}" />
+        </div>
+        <div class="field-row">
+          <div><div class="field-label">Split</div><div class="field-help">your own words, e.g. upper / lower · no default</div></div>
+          <input class="fld text" type="text" maxlength="80" name="split" value="{{ profile.split if profile and profile.split else '' }}" />
+        </div>
+        <div class="field-row">
+          <div><div class="field-label">Goal</div><div class="field-help">what you are training for, in your words</div></div>
+          <textarea class="fld text" maxlength="300" rows="2" name="goal">{{ profile.goal if profile and profile.goal else '' }}</textarea>
+        </div>
+        <div class="field-row">
+          <div><div class="field-label">Years running</div><div class="field-help">0 if under a year</div></div>
+          <input class="fld" type="number" min="0" max="80" step="1" name="years_running" value="{{ profile.years_running if profile and profile.years_running is not none else '' }}" />
+        </div>
+        <div class="field-row">
+          <div><div class="field-label">Years lifting</div><div class="field-help">0 if under a year · newer lifters tend to misjudge reps in reserve (RULE-LOAD-03)</div></div>
+          <input class="fld" type="number" min="0" max="80" step="1" name="years_lifting" value="{{ profile.years_lifting if profile and profile.years_lifting is not none else '' }}" />
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
       <div class="card-header"><div><div class="title">Heart rate zones</div><div class="card-subtitle">% of heart-rate reserve (max − resting) · Karvonen method · estimates</div></div></div>
       <div class="hr-zones-list" id="hr-zones-list">
         {% for z in zones %}

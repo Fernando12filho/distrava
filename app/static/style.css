@@ -1693,6 +1693,13 @@ a.recent-row:hover {
   width: 150px;
 }
 
+.fld.text {
+  width: min(280px, 100%);
+  font-family: inherit;
+  text-align: left;
+  resize: vertical;
+}
+
 .fld:focus {
   outline: none;
   border-color: var(--accent);

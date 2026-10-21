@@ -42,7 +42,7 @@ your machine: no accounts, no subscriptions, no cloud.
 | Every blocking action shows a loading state | [Y] |
 | HR zones in five distinct colours | [Y] |
 | Test first, then code (TDD) | [Y] |
-| Build order: M1 → M2 → M3, then the coach (M4) | [Y] |
+| Build order: M1 → M2 → M3 up to #21, then the coach (M4) until it can plan a week with you, then back to the rest of M3 (#22, #23, #11), which needs it to be tested | [Y] 2026-10-21 (was M1 → M2 → M3 → M4) |
 | Personal facts (sex, birth year) are set only by you. Your training profile (runs per week, gym days, split, goal, experience) can be set by you or created and changed by the AI coach — with your confirmation | [Y] 2026-10-20 |
 
 ## 3. Roadmap
@@ -104,8 +104,8 @@ _The gym side gets the same depth as running._
 | ⬜ | Mobility, stretching and meditation sessions, with honest claims only | RULE-MOB-01/02/03 · #11 |
 
 ### M4 — Coach & trainer
-_Spec: `Distrava Coach — Use Cases, Decisions & Test Plan.md`. Paused after step 4
-until M1–M3 are done._
+_Spec: `Distrava Coach — Use Cases, Decisions & Test Plan.md`. Resumed 2026-10-21
+(paused after step 4 on 2026-10-20): the rest of M3 needs a coach that can plan._
 
 | Status | Feature | Notes |
 |---|---|---|
@@ -114,7 +114,7 @@ until M1–M3 are done._
 | ✅ | 3. Weekly board | Coach page: 7 day columns, add / move / remove sessions, Done / Partial / Skip, edit volumes |
 | ✅ | 4. Auto check-in | imported runs/rides offered as "Import matches · Confirm" |
 | ⬜ | 5. Rebalancer | RULE-REC-01/02/04, PROG-01/02, WEEK-01; decisions D1, D4, D7 · #25 |
-| ⬜ | Training profile: runs per week, gym days, split, goal, experience | set by you or created/changed by the coach (with your confirmation); feeds RULE-WEEK-01/02, LOAD-03 · #26 |
+| 🔨 | Training profile: runs per week, gym days, split, goal, experience | 2026-10-21: editable in Settings ("Training profile" card); empty means not said yet, no default split. Coach-proposed changes come with step 7 previews (#28). Feeds RULE-WEEK-01/02, LOAD-03 · #26 |
 | ⬜ | 6. Connect an AI provider | your own API key, stored in the OS keychain · #27 |
 | ⬜ | 7. Coach tools, preview, undo | the AI proposes, you accept or undo · #28 |
 | ⬜ | 8. Plan a week from scratch or from past weeks | RULE-WEEK-01..04 · #29 |
@@ -217,6 +217,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-20 | Session effort (#19): rate any run or lift 0–10; load and easy/moderate/hard shown with their rule. D1 not needed yet — it only matters for the rebalancer |
 | 2026-10-21 | #19 kept open: the effort rating works, but its UI will be redone later. #20 done: the catalog's fixed easy/moderate/hard labels and the board's "Load" bars removed (RULE-LOAD-04) |
 | 2026-10-21 | #21 done: weekly hard sets per muscle group on the Coach page, with its rule and sources. Your data has no logged sets yet, so it shows empty until you log a gym session |
+| 2026-10-21 | Build order changed (your decision): the coach comes next, since the rest of M3 needs it. Training profile (#26) in Settings; next is the rebalancer (#25), which needs D1, D4, D7 |
 
 ## 8. Waiting on
 
