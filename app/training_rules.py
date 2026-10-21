@@ -44,3 +44,9 @@ HR_DETAIL_MIN_COVERAGE = 0.5
 
 # Between the two, the detail is shown with a note that heart rate has gaps.
 HR_GAPS_NOTE_BELOW = 0.9
+
+# RULE-LOAD-03: a working set is "hard" when it ends with at most this many
+# reps in reserve. The research range is 2–4; 3 is the convention hypertrophy
+# studies approximate. Only the user's own reps-in-reserve entry decides it
+# (RULE-LOAD-04), so a set without one is neither hard nor easy.
+HARD_SET_MAX_RIR = 3  # range 2–4

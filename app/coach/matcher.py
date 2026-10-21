@@ -1,4 +1,4 @@
-"""Check-in matcher (UC-09): pair imported activities with planned cardio sessions.
+"""Check-in matcher (UC-09): pair imported activities with planned sessions.
 
 Pure code — no tokens, no guessing. A session gets a "match" only when exactly
 one activity fits it and that activity fits nothing else; any doubt (two
@@ -10,7 +10,13 @@ from collections import Counter
 
 TOLERANCE = 0.25
 
-SESSION_ACTIVITY_TYPES = {"run": "Run", "ride": "Cycle"}
+# Apple Health records a gym session as either strength type, depending on
+# which the user picked on the watch.
+SESSION_ACTIVITY_TYPES = {
+    "run": ("Run",),
+    "ride": ("Cycle",),
+    "gym": ("TraditionalStrengthTraining", "FunctionalStrengthTraining"),
+}
 
 
 def _within(planned, actual, tolerance):
@@ -20,8 +26,12 @@ def _within(planned, actual, tolerance):
 
 
 def _fits(session, activity, tolerance):
-    if activity["activity_type"] != SESSION_ACTIVITY_TYPES[session["kind"]]:
+    if activity["activity_type"] not in SESSION_ACTIVITY_TYPES[session["kind"]]:
         return False
+    # A gym plan lists exercises, not the length of the visit, so there is no
+    # volume to compare against.
+    if session["kind"] == "gym":
+        return True
     if session["distance_meters"]:
         return _within(session["distance_meters"], activity["distance_meters"], tolerance)
     if session["duration_seconds"]:

@@ -95,12 +95,12 @@ _The gym side gets the same depth as running._
 | Status | Feature | Notes |
 |---|---|---|
 | ✅ | Exercise catalog: 40 exercises, muscle groups, equipment | built for the coach |
-| ⬜ | Log a gym session: sets, reps, weight, reps in reserve | RULE-LOAD-03; Apple Health only gives duration + HR · #18 |
+| ✅ | Log a gym session: sets, reps, weight, reps in reserve | 2026-10-20: a gym session on the board now matches the day's strength import; once done, each exercise starts as its planned sets × reps and you change anything (reps, weight, reps in reserve, add/remove sets). "Hard set" only when you enter ≤ 3 in reserve (RULE-LOAD-03) · #18 |
 | ⬜ | Session effort (sRPE) after every run and lift | RULE-LOAD-01 · #19 |
 | ⬜ | Retire the catalog's easy/moderate/hard labels: effort comes from what you did | RULE-LOAD-04 · #20 |
 | ⬜ | Weekly hard sets per muscle group | RULE-WEEK-02/03 · #21 |
-| ⬜ | Review session templates: 2 strength days with heavy legs for runners | RULE-WEEK-04 · #22 |
-| ⬜ | Strength progress per exercise and muscle group | #23 |
+| ⬜ | Session templates become starting points only — no default split | D3 decided: the coach proposes a 2nd heavy-leg day when your goal calls for it (RULE-WEEK-04), you approve · #22 |
+| ⬜ | Strength progress: hard sets per muscle group over the weeks | merged into the weekly hard-sets row; logged weights are kept for later · #23 |
 | ⬜ | Mobility, stretching and meditation sessions, with honest claims only | RULE-MOB-01/02/03 · #11 |
 
 ### M4 — Coach & trainer
@@ -142,6 +142,9 @@ until M1–M3 are done._
 | Match an import to a session: same type, same day, ±25 % | coach | [Y] proposed by me, you approved |
 | A run one day off asks instead of matching | coach | [Y] proposed by me, you approved |
 | Exercise intensity easy / moderate / hard | catalog | [R] RULE-LOAD-04 says effort must come from what you did — retire (M3) |
+| A logged set is "hard" only when you enter ≤ 3 reps in reserve; without an entry it is neither | gym log | [R] RULE-LOAD-03, RULE-LOAD-04 |
+| A gym session matches a strength workout (traditional or functional) on the same day, whatever its length | coach | [Y] 2026-10-20: the plan, not the import, says what was done |
+| A finished gym session starts as a copy of its plan, set by set; editing the plan later never changes it | gym log | [Y] 2026-10-20 |
 | Session templates (one leg day in the gym split) | coach | [R] RULE-WEEK-04 — runners need 2 strength days with heavy legs — review (M3) |
 | Default volumes (e.g. running day = 8 km) | coach | [A] no source — derive from your recent weeks (M4) |
 
@@ -160,7 +163,8 @@ Received 2026-10-20: `research/training-rules.md` — 30 rules, from the prompt 
 | ✅ | E. Metrics already shown — RULE-METRIC-01..07 | M2 fixes |
 | ✅ | F. Mobility, stretching, meditation — RULE-MOB-01..03 | M3 |
 | ✅ | G. Post-workout check-in — RULE-CHECK-01..02 | M4 step 10 |
-| ⬜ | ACSM 2026 resistance-training update (replaces the 2009 stand) | check before M3 · #24 |
+| ⬜ | ACSM 2026 resistance-training update (replaces the 2009 stand) | check before the weekly hard-sets view · #24 |
+| ⬜ | H. Goals the research doesn't cover yet: gaining weight (surplus, rate), marathon training + muscle gain together, height/weight as inputs | needed before the coach can plan your example goal (M4) |
 
 ## 6. Decisions needed
 
@@ -170,7 +174,7 @@ From the research file's open questions. Each is asked when its milestone starts
 |---|---|---|
 | ⬜ | D1. "Hard run" without a lab test: effort rating, heart rate, or either? | M3, M4 rebalancer |
 | ⬜ | D2. Show the 80/20 easy/hard split by time or by number of runs? | M4 planner |
-| ⬜ | D3. Keep your gym split, or nudge toward 2 leg days a week for running? | M3 templates |
+| ✅ | D3. Leg days (decided: no default split — you or the coach manage it; the coach may propose a 2nd leg day, you approve) | M3 templates |
 | ⬜ | D4. Gap after hard legs before a hard run: 24 h or 48 h? | M4 rebalancer |
 | ⬜ | D5. Training-load constants: keep 42/7 days, or fit your own later? | M2 · #17 |
 | ✅ | D6. Grade-adjusted pace model (decided: remove it for now) | M2 |
@@ -204,6 +208,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-20 | Records page built. Found impossible PRs (400 m in 18 s) from chunked distance in 2020–21 exports; a teleport rule removes them and keeps real pauses |
 | 2026-10-20 | GitHub synced with this plan: 18 issues created (#16–#33) for every open row; #8, #12, #14 closed as done; #6 moved to M2 |
 | 2026-10-20 | Added #7 (device sync research, M1) and #9 (dashboard questions, M2) to this plan |
+| 2026-10-20 | M3 started. You set the coach's purpose: it keeps, adjusts or builds your week from your goal, profile and trainer's plan, always with your OK; no default split (D3). Gym log built (#18): sets come from the plan, you correct anything |
 
 ## 8. Waiting on
 
@@ -218,6 +223,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | ⏭ | Decision D9: your profile, before M2 starts | you |
 | ⏭ | OK the teleport rule, and a one-time recompute of your PR table (backup first)? | you |
 | ✅ | Sync the GitHub issues with this plan | done 2026-10-20 |
+| ⏭ | OK to add topic H (weight gain, marathon + muscle gain, height/weight) to `research/PROMPT.md` for you to run | you |
 | ⬜ | Board columns (Projects kanban): the token has no `project` scope — run `gh auth refresh -s project` outside the jail, then I can move cards | you |
 | ✅ | Issues #7 and #9: add them to this plan | you — added to M1 and M2 |
 | ✅ | Push branch `coach-board` — already merged into `main`, which is pushed | — |

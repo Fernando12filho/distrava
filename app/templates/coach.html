@@ -152,6 +152,45 @@
       </div>
       {% endfor %}
       {% endif %}
+      {% if selected.has_log %}
+      <div class="set-log">
+        <div class="set-log-head">
+          <h3 class="set-log-title">What you did</h3>
+          <p class="set-log-help">Starts from the plan. Change anything that went differently; weight and reps in reserve are optional.
+            A set counts as hard only when you leave 3 or fewer reps in reserve (RULE-LOAD-03).</p>
+        </div>
+        {% for item in selected.exercises if item.shape in ('sets_reps', 'sets_seconds') %}
+        <div class="set-log-exercise">
+          <div class="set-log-name">{{ item.name }} <span class="set-log-planned">planned {{ item.volume }}</span></div>
+          <div class="set-row set-row-head">
+            <span>Set</span><span>{{ 'Seconds' if item.log_kind == 'seconds' else 'Reps' }}</span><span>Weight · {{ weight_unit }}</span><span>Reps in reserve</span><span></span><span></span>
+          </div>
+          {% for s in item.logged %}
+          <div class="set-row">
+            <form method="post" action="{{ url_for('coach.edit_set', set_id=s.id) }}" class="set-form" data-saving-form>
+              <span class="set-num">{{ s.set_number }}</span>
+              {% if item.log_kind == 'seconds' %}
+              <input class="volume-input" type="number" name="seconds" min="1" max="3600" value="{{ s.seconds }}" aria-label="Seconds, set {{ s.set_number }}" />
+              {% else %}
+              <input class="volume-input" type="number" name="reps" min="0" max="100" value="{{ s.reps }}" aria-label="Reps, set {{ s.set_number }}" />
+              {% endif %}
+              <input class="volume-input wide" type="text" inputmode="decimal" name="weight" value="{{ s.weight }}" placeholder="—" aria-label="Weight in {{ weight_unit }}, set {{ s.set_number }}" />
+              <input class="volume-input" type="number" name="rir" min="0" max="10" value="{{ s.rir }}" placeholder="—" aria-label="Reps in reserve, set {{ s.set_number }}" />
+              <span>{% if s.hard %}<span class="hard-tag" title="RULE-LOAD-03: ended with 3 or fewer reps in reserve">Hard set</span>{% endif %}</span>
+              <button type="submit" class="quiet-btn">Save</button>
+            </form>
+            <form method="post" action="{{ url_for('coach.delete_set', set_id=s.id) }}" data-saving-form>
+              <button type="submit" class="quiet-btn">Remove</button>
+            </form>
+          </div>
+          {% endfor %}
+          <form method="post" action="{{ url_for('coach.add_set', item_id=item.id) }}" class="set-add" data-saving-form>
+            <button type="submit" class="quiet-btn">+ Add set</button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
     </section>
     {% else %}
     <div class="detail-hint">Tap a session to see its exercises</div>

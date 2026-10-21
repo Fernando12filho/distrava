@@ -88,6 +88,7 @@ COACH_TABLES = {
     "coach_session_items",
     "coach_checkins",
     "coach_notes",
+    "coach_set_logs",
 }
 
 

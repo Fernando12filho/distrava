@@ -110,9 +110,35 @@ def test_only_planned_sessions_get_suggestions(status):
     assert match_sessions([_session(status=status)], [_activity()]) == {}
 
 
-@pytest.mark.parametrize("kind", ["gym", "mobility", "rest"])
-def test_non_cardio_sessions_are_never_matched(kind):
+@pytest.mark.parametrize("kind", ["mobility", "rest"])
+def test_mobility_and_rest_sessions_are_never_matched(kind):
     assert match_sessions([_session(kind=kind, distance=None)], [_activity()]) == {}
+
+
+@pytest.mark.parametrize("activity_type", ["TraditionalStrengthTraining", "FunctionalStrengthTraining"])
+def test_a_gym_session_matches_a_strength_workout_on_the_same_day(activity_type):
+    gym = _session(kind="gym", distance=None)
+    workout = _activity(activity_type=activity_type, distance=0.0, duration=3000)
+
+    assert match_sessions([gym], [workout]) == {1: {"kind": "match", "activity_ids": [10]}}
+
+
+def test_a_gym_session_ignores_the_seconds_of_its_timed_exercises():
+    # A 3 × 45 s plank says nothing about how long the whole gym visit was.
+    gym = _session(kind="gym", distance=None, duration=135)
+    workout = _activity(activity_type="TraditionalStrengthTraining", distance=0.0, duration=3000)
+
+    assert match_sessions([gym], [workout]) == {1: {"kind": "match", "activity_ids": [10]}}
+
+
+def test_a_gym_session_never_matches_a_run():
+    assert match_sessions([_session(kind="gym", distance=None)], [_activity()]) == {}
+
+
+def test_a_run_session_never_matches_a_strength_workout():
+    workout = _activity(activity_type="TraditionalStrengthTraining", distance=0.0)
+
+    assert match_sessions([_session()], [workout]) == {}
 
 
 def test_an_activity_already_confirmed_elsewhere_is_not_offered_again():

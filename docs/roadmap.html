@@ -237,8 +237,8 @@
         <span class="mid">M3</span>
         <h2>Gym &amp; foundations</h2>
         <p class="summary">The gym side gets the same depth as running.</p>
-        <div class="progress"><span style="width:12%"></span></div>
-        <span class="count">1 / 8 done</span>
+        <div class="progress"><span style="width:25%"></span></div>
+        <span class="count">2 / 8 done</span>
       </header>
       <ul>
         <li class="item st-done">
@@ -246,10 +246,10 @@
           <span class="feature">Exercise catalog: 40 exercises, muscle groups, equipment</span>
           <span class="notes">built for the coach</span>
         </li>
-        <li class="item st-todo">
-          <span class="chip st-todo">Not started</span>
+        <li class="item st-done">
+          <span class="chip st-done">Done</span>
           <span class="feature">Log a gym session: sets, reps, weight, reps in reserve</span>
-          <span class="notes">RULE-LOAD-03; Apple Health only gives duration + HR · #18</span>
+          <span class="notes">2026-10-20: a gym session on the board now matches the day&#x27;s strength import; once done, each exercise starts as its planned sets × reps and you change anything (reps, weight, reps in reserve, add/remove sets). &quot;Hard set&quot; only when you enter ≤ 3 in reserve (RULE-LOAD-03) · #18</span>
         </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
@@ -268,13 +268,13 @@
         </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
-          <span class="feature">Review session templates: 2 strength days with heavy legs for runners</span>
-          <span class="notes">RULE-WEEK-04 · #22</span>
+          <span class="feature">Session templates become starting points only — no default split</span>
+          <span class="notes">D3 decided: the coach proposes a 2nd heavy-leg day when your goal calls for it (RULE-WEEK-04), you approve · #22</span>
         </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
-          <span class="feature">Strength progress per exercise and muscle group</span>
-          <span class="notes">#23</span>
+          <span class="feature">Strength progress: hard sets per muscle group over the weeks</span>
+          <span class="notes">merged into the weekly hard-sets row; logged weights are kept for later · #23</span>
         </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
@@ -374,6 +374,7 @@
         <tr><td><span class="chip st-next">Next</span></td><td>Decision D9: your profile, before M2 starts</td><td class="muted">you</td></tr>
         <tr><td><span class="chip st-next">Next</span></td><td>OK the teleport rule, and a one-time recompute of your PR table (backup first)?</td><td class="muted">you</td></tr>
         <tr><td><span class="chip st-done">Done</span></td><td>Sync the GitHub issues with this plan</td><td class="muted">done 2026-10-20</td></tr>
+        <tr><td><span class="chip st-next">Next</span></td><td>OK to add topic H (weight gain, marathon + muscle gain, height/weight) to <code>research/PROMPT.md</code> for you to run</td><td class="muted">you</td></tr>
         <tr><td><span class="chip st-todo">Not started</span></td><td>Board columns (Projects kanban): the token has no <code>project</code> scope — run <code>gh auth refresh -s project</code> outside the jail, then I can move cards</td><td class="muted">you</td></tr>
         <tr><td><span class="chip st-done">Done</span></td><td>Issues #7 and #9: add them to this plan</td><td class="muted">you — added to M1 and M2</td></tr>
         <tr><td><span class="chip st-done">Done</span></td><td>Push branch <code>coach-board</code> — already merged into <code>main</code>, which is pushed</td><td class="muted">—</td></tr>
@@ -384,7 +385,7 @@
       <table>
         <tr><td><span class="chip st-todo">Not started</span></td><td>D1. &quot;Hard run&quot; without a lab test: effort rating, heart rate, or either?</td><td class="muted">M3, M4 rebalancer</td></tr>
         <tr><td><span class="chip st-todo">Not started</span></td><td>D2. Show the 80/20 easy/hard split by time or by number of runs?</td><td class="muted">M4 planner</td></tr>
-        <tr><td><span class="chip st-todo">Not started</span></td><td>D3. Keep your gym split, or nudge toward 2 leg days a week for running?</td><td class="muted">M3 templates</td></tr>
+        <tr><td><span class="chip st-done">Done</span></td><td>D3. Leg days (decided: no default split — you or the coach manage it; the coach may propose a 2nd leg day, you approve)</td><td class="muted">M3 templates</td></tr>
         <tr><td><span class="chip st-todo">Not started</span></td><td>D4. Gap after hard legs before a hard run: 24 h or 48 h?</td><td class="muted">M4 rebalancer</td></tr>
         <tr><td><span class="chip st-todo">Not started</span></td><td>D5. Training-load constants: keep 42/7 days, or fit your own later?</td><td class="muted">M2 · #17</td></tr>
         <tr><td><span class="chip st-done">Done</span></td><td>D6. Grade-adjusted pace model (decided: remove it for now)</td><td class="muted">M2</td></tr>
@@ -406,7 +407,8 @@
         <tr><td><span class="chip st-done">Done</span></td><td>E. Metrics already shown — RULE-METRIC-01..07</td><td class="muted">M2 fixes</td></tr>
         <tr><td><span class="chip st-done">Done</span></td><td>F. Mobility, stretching, meditation — RULE-MOB-01..03</td><td class="muted">M3</td></tr>
         <tr><td><span class="chip st-done">Done</span></td><td>G. Post-workout check-in — RULE-CHECK-01..02</td><td class="muted">M4 step 10</td></tr>
-        <tr><td><span class="chip st-todo">Not started</span></td><td>ACSM 2026 resistance-training update (replaces the 2009 stand)</td><td class="muted">check before M3 · #24</td></tr>
+        <tr><td><span class="chip st-todo">Not started</span></td><td>ACSM 2026 resistance-training update (replaces the 2009 stand)</td><td class="muted">check before the weekly hard-sets view · #24</td></tr>
+        <tr><td><span class="chip st-todo">Not started</span></td><td>H. Goals the research doesn&#x27;t cover yet: gaining weight (surplus, rate), marathon training + muscle gain together, height/weight as inputs</td><td class="muted">needed before the coach can plan your example goal (M4)</td></tr>
     </table>
   </section>
 
@@ -428,6 +430,9 @@
         <tr><td>Match an import to a session: same type, same day, ±25 %</td><td class="muted">coach</td><td><span class="badge src-Y">Your decision</span> proposed by me, you approved</td></tr>
         <tr><td>A run one day off asks instead of matching</td><td class="muted">coach</td><td><span class="badge src-Y">Your decision</span> proposed by me, you approved</td></tr>
         <tr><td>Exercise intensity easy / moderate / hard</td><td class="muted">catalog</td><td><span class="badge src-R">Research</span> RULE-LOAD-04 says effort must come from what you did — retire (M3)</td></tr>
+        <tr><td>A logged set is &quot;hard&quot; only when you enter ≤ 3 reps in reserve; without an entry it is neither</td><td class="muted">gym log</td><td><span class="badge src-R">Research</span> RULE-LOAD-03, RULE-LOAD-04</td></tr>
+        <tr><td>A gym session matches a strength workout (traditional or functional) on the same day, whatever its length</td><td class="muted">coach</td><td><span class="badge src-Y">Your decision</span> 2026-10-20: the plan, not the import, says what was done</td></tr>
+        <tr><td>A finished gym session starts as a copy of its plan, set by set; editing the plan later never changes it</td><td class="muted">gym log</td><td><span class="badge src-Y">Your decision</span> 2026-10-20</td></tr>
         <tr><td>Session templates (one leg day in the gym split)</td><td class="muted">coach</td><td><span class="badge src-R">Research</span> RULE-WEEK-04 — runners need 2 strength days with heavy legs — review (M3)</td></tr>
         <tr><td>Default volumes (e.g. running day = 8 km)</td><td class="muted">coach</td><td><span class="badge src-A">Assumption</span> no source — derive from your recent weeks (M4)</td></tr>
     </table>

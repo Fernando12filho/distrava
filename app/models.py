@@ -208,6 +208,34 @@ class CoachSessionItem(Base):
     distance_meters = Column(Float, nullable=True)
 
     exercise = relationship("CoachExercise")
+    logged_sets = relationship(
+        "CoachSetLog",
+        backref="item",
+        cascade="all, delete-orphan",
+        order_by="CoachSetLog.set_number",
+    )
+
+
+# What was actually done, set by set. The plan's sets/reps above stay the plan;
+# these rows start as a copy of it and the user corrects them, so editing the
+# plan later never rewrites history.
+class CoachSetLog(Base):
+    __tablename__ = "coach_set_logs"
+    __table_args__ = (
+        CheckConstraint("reps BETWEEN 0 AND 100", name="reps_range"),
+        CheckConstraint("rir BETWEEN 0 AND 10", name="rir_range"),
+        CheckConstraint("weight_kg > 0", name="weight_positive"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    item_id = Column(Integer, ForeignKey("coach_session_items.id", ondelete="CASCADE"), nullable=False)
+    set_number = Column(Integer, nullable=False)
+    reps = Column(Integer, nullable=True)
+    duration_seconds = Column(Integer, nullable=True)
+    weight_kg = Column(Float, nullable=True)
+    # Reps in reserve, as the user reported it; the only input that can make a
+    # set "hard" (RULE-LOAD-03).
+    rir = Column(Integer, nullable=True)
 
 
 class CoachCheckin(Base):

@@ -2610,3 +2610,91 @@ a.recent-row:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* Logged sets inside a finished gym session */
+.set-log {
+  border-top: 1px solid var(--divider-header);
+  padding: 18px 22px 8px;
+}
+
+.set-log-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.set-log-help {
+  margin: 6px 0 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.set-log-exercise {
+  padding: 10px 0 12px;
+  border-bottom: 1px solid var(--divider-row);
+}
+
+.set-log-exercise:last-child {
+  border-bottom: none;
+}
+
+.set-log-name {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.set-log-planned {
+  margin-left: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.set-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.set-form,
+.set-row-head {
+  display: grid;
+  grid-template-columns: 36px 64px 84px 120px 72px 48px;
+  align-items: center;
+  gap: 8px;
+}
+
+.set-row-head {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.set-num {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.hard-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.set-add {
+  margin-top: 4px;
+}
+
+[data-saving-form].is-saving {
+  opacity: 0.55;
+  pointer-events: none;
+}

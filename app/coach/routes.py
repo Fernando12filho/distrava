@@ -4,11 +4,11 @@ from flask import Blueprint, abort, redirect, render_template, request, url_for
 from sqlalchemy import func
 
 from app import analytics
-from app.coach import board, volume
+from app.coach import board, set_log, volume
 from app.coach.catalog import INTENSITIES, SESSION_TEMPLATES
 from app.coach.matcher import SESSION_ACTIVITY_TYPES, match_sessions
 from app.coach.week import DAYS_PER_WEEK, week_start_for
-from app.models import Activity, CoachExercise, CoachSession, CoachSessionItem, CoachWeek, UserSettings
+from app.models import Activity, CoachExercise, CoachSession, CoachSessionItem, CoachSetLog, CoachWeek, UserSettings
 from app.routes import _get_units, get_db
 
 bp = Blueprint("coach", __name__, url_prefix="/coach")
@@ -40,6 +40,34 @@ def _day_index(raw):
     return value
 
 
+def _plan_of(item):
+    return {
+        "sets": item.sets,
+        "reps": item.reps,
+        "duration_seconds": item.duration_seconds,
+        "distance_meters": item.distance_meters,
+    }
+
+
+def _log_kind(item):
+    return "seconds" if item.duration_seconds and not item.reps else "reps"
+
+
+def _logged_view(item, units):
+    return [
+        {
+            "id": s.id,
+            "set_number": s.set_number,
+            "reps": "" if s.reps is None else s.reps,
+            "seconds": "" if s.duration_seconds is None else s.duration_seconds,
+            "weight": set_log.weight_value(s.weight_kg, units),
+            "rir": "" if s.rir is None else s.rir,
+            "hard": set_log.is_hard(s.rir),
+        }
+        for s in item.logged_sets
+    ]
+
+
 def _session_view(session, units):
     items = [
         {
@@ -52,6 +80,8 @@ def _session_view(session, units):
             "reps": item.reps,
             "duration_seconds": item.duration_seconds,
             "distance_meters": item.distance_meters,
+            "log_kind": _log_kind(item),
+            "logged": _logged_view(item, units),
         }
         for item in session.items
     ]
@@ -73,6 +103,7 @@ def _session_view(session, units):
         "distance_meters": sum(i["distance_meters"] or 0 for i in items) or None,
         "duration_seconds": sum((i["duration_seconds"] or 0) * (i["sets"] or 1) for i in items) or None,
         "matched_activity_id": session.matched_activity_id,
+        "has_log": any(i["logged"] for i in items),
         "matched": None,
         "suggestion": None,
     }
@@ -112,7 +143,7 @@ def _week_matches(db, week_start):
         for a in db.query(Activity).filter(
             Activity.start_time >= window_start,
             Activity.start_time < window_end,
-            Activity.activity_type.in_(SESSION_ACTIVITY_TYPES.values()),
+            Activity.activity_type.in_([t for types in SESSION_ACTIVITY_TYPES.values() for t in types]),
         )
         if a.id not in claimed
     ]
@@ -197,6 +228,7 @@ def board_page():
         provider_connected=False,
         user_statuses=USER_STATUSES,
         distance_unit=analytics.convert_distance(0.0, units)[1],
+        weight_unit=analytics.convert_weight(0.0, units)[1],
     )
 
 
@@ -242,6 +274,17 @@ def add_session():
     return redirect(_board_url(week_start, session.id), code=303)
 
 
+# A finished gym session starts out as its plan, set by set, for the user to
+# correct. Once anything is logged it's never refilled, so going back to
+# "planned" and done again keeps what was entered (and any set removed).
+def _fill_logged_sets(session):
+    if session.kind != "gym" or any(item.logged_sets for item in session.items):
+        return
+    for item in session.items:
+        for row in set_log.planned_sets(_plan_of(item)):
+            item.logged_sets.append(CoachSetLog(**row))
+
+
 def _get_session(db, session_id):
     session = db.get(CoachSession, session_id)
     if session is None:
@@ -271,6 +314,8 @@ def set_status(session_id):
     if status not in USER_STATUSES:
         abort(400)
     session.status = status
+    if status in ("done", "partial"):
+        _fill_logged_sets(session)
     if status == "planned":
         # Back to planned frees the activity so the matcher can offer it again.
         session.matched_activity_id = None
@@ -290,6 +335,7 @@ def confirm_match(session_id):
         abort(400)
     session.status = "done"
     session.matched_activity_id = activity_id
+    _fill_logged_sets(session)
     db.commit()
     return redirect(_board_url(session.week.week_start, session.id), code=303)
 
@@ -311,14 +357,7 @@ def edit_volume(item_id):
     if item is None:
         abort(404)
     units = _get_units(db.query(UserSettings).first())
-    shape = volume.item_shape(
-        {
-            "sets": item.sets,
-            "reps": item.reps,
-            "duration_seconds": item.duration_seconds,
-            "distance_meters": item.distance_meters,
-        }
-    )
+    shape = volume.item_shape(_plan_of(item))
     try:
         updates = volume.parse_volume(shape, request.form, units)
     except ValueError:
@@ -339,3 +378,61 @@ def delete_item(item_id):
     db.delete(item)
     db.commit()
     return redirect(_board_url(session.week.week_start, session.id), code=303)
+
+
+def _get_set(db, set_id):
+    logged = db.get(CoachSetLog, set_id)
+    if logged is None:
+        abort(404)
+    return logged
+
+
+@bp.route("/sets/<int:set_id>", methods=["POST"])
+def edit_set(set_id):
+    db = get_db()
+    logged = _get_set(db, set_id)
+    units = _get_units(db.query(UserSettings).first())
+    try:
+        updates = set_log.parse_set(_log_kind(logged.item), request.form, units)
+    except ValueError:
+        abort(400)
+    for field, value in updates.items():
+        setattr(logged, field, value)
+    db.commit()
+    session = logged.item.session
+    return redirect(_board_url(session.week.week_start, session.id), code=303)
+
+
+@bp.route("/sets/<int:set_id>/delete", methods=["POST"])
+def delete_set(set_id):
+    db = get_db()
+    logged = _get_set(db, set_id)
+    item = logged.item
+    item.logged_sets.remove(logged)
+    for number, remaining in enumerate(item.logged_sets, start=1):
+        remaining.set_number = number
+    db.commit()
+    return redirect(_board_url(item.session.week.week_start, item.session_id), code=303)
+
+
+@bp.route("/items/<int:item_id>/sets", methods=["POST"])
+def add_set(item_id):
+    db = get_db()
+    item = db.get(CoachSessionItem, item_id)
+    if item is None:
+        abort(404)
+    if volume.item_shape(_plan_of(item)) not in ("sets_reps", "sets_seconds"):
+        abort(400)
+    # An extra set usually repeats the last one; how hard it felt is the user's
+    # call each time, so reps in reserve starts blank.
+    last = item.logged_sets[-1] if item.logged_sets else None
+    item.logged_sets.append(
+        CoachSetLog(
+            set_number=len(item.logged_sets) + 1,
+            reps=last.reps if last else item.reps,
+            duration_seconds=last.duration_seconds if last else item.duration_seconds,
+            weight_kg=last.weight_kg if last else None,
+        )
+    )
+    db.commit()
+    return redirect(_board_url(item.session.week.week_start, item.session_id), code=303)
