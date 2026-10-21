@@ -1,11 +1,14 @@
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
-from flask import Blueprint, abort, redirect, render_template, request, url_for
+from flask import Blueprint, abort, jsonify, redirect, render_template, request, url_for
 from sqlalchemy import func
 
 from app import analytics
-from app.coach import board, hard_sets, progression, rebalancer, set_log, volume
+from app.coach import assistant, board, hard_sets, progression, rebalancer, set_log, volume
+from app.coach.keystore import KeystoreUnavailable
+from app.coach.providers import ProviderError
+from app.coach.usage import call_cost, format_cost
 from app.coach.catalog import SESSION_TEMPLATES
 from app.coach.matcher import SESSION_ACTIVITY_TYPES, match_sessions
 from app.coach.week import DAYS_PER_WEEK, week_start_for
@@ -467,7 +470,7 @@ def board_page():
         hard_set_max_rir=HARD_SET_MAX_RIR,
         sets_improve_min=SETS_PER_MUSCLE_IMPROVE_MIN,
         sets_maintain_min=SETS_PER_MUSCLE_MAINTAIN_MIN,
-        provider_connected=False,
+        provider_connected=bool(assistant.api_key()),
         user_statuses=USER_STATUSES,
         distance_unit=analytics.convert_distance(0.0, units)[1],
         weight_unit=analytics.convert_weight(0.0, units)[1],
@@ -636,6 +639,47 @@ def undo_ease(week):
     coach_week.eased_snapshot = None
     db.commit()
     return redirect(_board_url(coach_week.week_start), code=303)
+
+
+def _settings_url(status):
+    return url_for("main.settings_page", ai=status, _anchor="ai")
+
+
+# AC-01: the key goes straight to the keychain; it is never echoed, logged or
+# stored anywhere else, and a failure says so instead of falling back.
+@bp.route("/settings/key", methods=["POST"])
+def save_key():
+    try:
+        assistant.keystore().set(request.form.get("api_key", ""))
+    except ValueError:
+        return redirect(_settings_url("invalid"), code=303)
+    except KeystoreUnavailable:
+        return redirect(_settings_url("unavailable"), code=303)
+    return redirect(_settings_url("saved"), code=303)
+
+
+@bp.route("/settings/key/delete", methods=["POST"])
+def delete_key():
+    try:
+        assistant.keystore().delete()
+    except KeystoreUnavailable:
+        return redirect(_settings_url("unavailable"), code=303)
+    return redirect(_settings_url("removed"), code=303)
+
+
+@bp.route("/settings/test", methods=["POST"])
+def test_connection():
+    chosen = assistant.provider()
+    if chosen is None:
+        return jsonify(ok=False, message="No API key saved yet.")
+    try:
+        result = assistant.run_task(
+            get_db(), chosen, "connection_test", system=None, messages=[{"role": "user", "content": "Reply with the single word OK."}]
+        )
+    except ProviderError as err:
+        return jsonify(ok=False, message=str(err))
+    cost = format_cost(call_cost(result["model"], result["usage"]))
+    return jsonify(ok=True, message=f"Connected to {result['model']}. This test cost {cost}.")
 
 
 @bp.route("/sessions/<int:session_id>/status", methods=["POST"])

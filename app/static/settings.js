@@ -1,3 +1,29 @@
+// The connection test is a real (small, billed) call, so it shows a loading
+// state and can't be fired twice while one is running.
+function initAiTest() {
+  const button = document.getElementById("ai-test-btn");
+  const result = document.getElementById("ai-test-result");
+  if (!button) return;
+  const label = button.textContent;
+
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    button.textContent = button.dataset.loadingLabel;
+    result.hidden = true;
+    try {
+      const response = await fetch(button.dataset.url, { method: "POST", headers: { "X-Requested-With": "fetch" } });
+      const body = await response.json();
+      result.textContent = body.message;
+    } catch (err) {
+      result.textContent = "The test could not run. Check the internet connection.";
+    } finally {
+      result.hidden = false;
+      button.disabled = false;
+      button.textContent = label;
+    }
+  });
+}
+
 function initSettingsForm(postUrl) {
   const form = document.getElementById("settings-form");
   const saveStatus = document.getElementById("save-status");

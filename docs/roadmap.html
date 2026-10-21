@@ -288,8 +288,8 @@
         <span class="mid">M4</span>
         <h2>Coach &amp; trainer</h2>
         <p class="summary">Spec: <code>Distrava Coach — Use Cases, Decisions &amp; Test Plan.md</code>. Resumed 2026-10-21 (paused after step 4 on 2026-10-20): the rest of M3 needs a coach that can plan.</p>
-        <div class="progress"><span style="width:38%"></span></div>
-        <span class="count">5 / 13 done</span>
+        <div class="progress"><span style="width:46%"></span></div>
+        <span class="count">6 / 13 done</span>
       </header>
       <ul>
         <li class="item st-done">
@@ -322,10 +322,10 @@
           <span class="feature">Training profile: runs per week, gym days, split, goal, experience</span>
           <span class="notes">2026-10-21: editable in Settings (&quot;Training profile&quot; card); empty means not said yet, no default split. Coach-proposed changes come with step 7 previews (#28). Feeds RULE-WEEK-01/02, LOAD-03 · #26</span>
         </li>
-        <li class="item st-todo">
-          <span class="chip st-todo">Not started</span>
+        <li class="item st-done">
+          <span class="chip st-done">Done</span>
           <span class="feature">6. Connect an AI provider</span>
-          <span class="notes">your own API key, stored in the OS keychain · #27</span>
+          <span class="notes">2026-10-21: Anthropic, your own API key in the macOS keychain (never SQLite, logs or the page — only &quot;•••• last 4&quot;); Settings card to save, test (loading state) and remove it; every call recorded with its model, tokens and an estimated cost, with this month / all-time totals. Model per task in config (Haiku 5.5 for the connection test, Opus 5.5 default, with Anthropic&#x27;s refusal fallback). No new dependencies. Tests use a fake provider and can&#x27;t reach the network or your keychain · #27</span>
         </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
@@ -375,6 +375,7 @@
         <tr><td><span class="chip st-next">Next</span></td><td>OK the teleport rule, and a one-time recompute of your PR table (backup first)?</td><td class="muted">you</td></tr>
         <tr><td><span class="chip st-done">Done</span></td><td>Sync the GitHub issues with this plan</td><td class="muted">done 2026-10-20</td></tr>
         <tr><td><span class="chip st-done">Done</span></td><td>OK to add topic H to <code>research/PROMPT.md</code></td><td class="muted">you — added 2026-10-20</td></tr>
+        <tr><td><span class="chip st-next">Next</span></td><td>Paste your Anthropic key in Settings → AI coach and press Test connection (costs well under $0.01). Then delete the key from <code>strava-copy/.env</code>; optionally create a fresh key and revoke the old one, since it sat in plain text since July</td><td class="muted">you</td></tr>
         <tr><td><span class="chip st-next">Next</span></td><td>Run the topic H follow-up prompt (end of <code>research/PROMPT.md</code>), save it as <code>research/training-rules-H.md</code></td><td class="muted">you</td></tr>
         <tr><td><span class="chip st-todo">Not started</span></td><td>Board columns (Projects kanban): the token has no <code>project</code> scope — run <code>gh auth refresh -s project</code> outside the jail, then I can move cards</td><td class="muted">you</td></tr>
         <tr><td><span class="chip st-done">Done</span></td><td>Issues #7 and #9: add them to this plan</td><td class="muted">you — added to M1 and M2</td></tr>

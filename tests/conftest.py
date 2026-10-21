@@ -9,6 +9,20 @@ from app import create_app
 from app.models import Base, Activity
 
 
+# AC-01 / AC-11: no test may read the real keychain or call a real model.
+@pytest.fixture(autouse=True)
+def no_keychain_no_network(monkeypatch):
+    from app.coach import keystore, providers
+
+    memory = keystore.MemoryKeystore()
+    monkeypatch.setattr(keystore, "default_keystore", lambda: memory)
+
+    def refuse(*_args, **_kwargs):
+        raise AssertionError("network call attempted in a test")
+
+    monkeypatch.setattr(providers, "_urlopen", refuse)
+
+
 @pytest.fixture()
 def engine():
     engine = create_engine(
