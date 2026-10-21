@@ -35,3 +35,6 @@ build/
 
 # ai-jail sandbox config (personal, per machine)
 .ai-jail
+
+# Local git worktrees
+.claude/worktrees/
