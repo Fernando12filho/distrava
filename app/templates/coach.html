@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_effort.html" import effort_panel %}
 {% set status_labels = {"planned": "Planned", "done": "✓ Done", "partial": "◐ Partial", "skipped": "Skipped", "moved": "Moved"} %}
 {% set status_buttons = [("done", "Done"), ("partial", "Partial"), ("skipped", "Skip")] %}
 
@@ -114,6 +115,9 @@
           </form>
         </div>
       </div>
+      {% if selected.matched %}
+      <div class="session-effort">{{ effort_panel(selected.matched.effort, next=url_for('coach.board_page', week=week_start.isoformat(), session=selected.id)) }}</div>
+      {% endif %}
       {% if selected.exercises %}
       <div class="exercise-header-row"><span>Exercise</span><span>Volume</span><span>Muscle</span><span>Load</span><span></span></div>
       {% for item in selected.exercises %}

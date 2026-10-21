@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_explain.html" import explain %}
+{% from "_effort.html" import effort_panel %}
 {% block title %}{{ display_title }}{% endblock %}
 {% block page_title %}{% endblock %}
 {% block topbar_left %}
@@ -53,6 +54,8 @@
       <div class="summary-cell-value"><span class="value mono">{{ '%+d'|format(elev_value | round | int) if elev_value is not none else '—' }}</span><span class="unit">{{ elev_unit }}</span></div>
     </div>
   </div>
+
+  <div class="card effort-card">{{ effort_panel(effort) }}</div>
 
   {% if is_pace_based %}
   <div class="detail-grid">

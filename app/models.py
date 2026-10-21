@@ -42,6 +42,10 @@ class Activity(Base):
     # Minutes to add to start_time (stored in UTC) to get the wall clock where
     # the activity happened. CSV rows hold local time already, so theirs is 0.
     utc_offset_minutes = Column(Integer, nullable=True)
+    # Session effort, 0–10 on the CR-10 scale, as the user rated it
+    # (RULE-LOAD-01). Lives on the activity so a re-import, which updates rows
+    # in place, keeps it.
+    session_rpe = Column(Integer, nullable=True)
 
     @property
     def local_start_time(self):

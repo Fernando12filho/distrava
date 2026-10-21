@@ -306,6 +306,56 @@ def _activity_own_best_efforts(db, activity, stream_data):
     return efforts
 
 
+def _trim2(value):
+    return f"{value:.2f}".rstrip("0").rstrip(".")
+
+
+# RULE-LOAD-01. Shared by the activity page and a matched coach session, so
+# both show the same rating for the same workout.
+def _effort_view(activity):
+    rating = activity.session_rpe
+    effort_class = analytics.effort_class(rating)
+    return {
+        "activity_id": activity.id,
+        "rating": rating,
+        "class_label": effort_class.capitalize() if effort_class else None,
+        "load": analytics.session_load(rating, activity.duration_seconds),
+        "minutes": _trim2(activity.duration_seconds / 60),
+        "delay_minutes": training_rules.SRPE_DELAY_MIN,
+        "scale": [
+            {"value": v, "label": training_rules.SRPE_ANCHORS.get(v, ""), "pressed": v == rating} for v in range(11)
+        ],
+    }
+
+
+def _parse_rating(raw):
+    raw = (raw or "").strip()
+    if not raw:
+        return None
+    try:
+        value = int(raw)
+    except ValueError:
+        abort(400)
+    if not 0 <= value <= 10:
+        abort(400)
+    return value
+
+
+@bp.route("/activities/<int:activity_id>/effort", methods=["POST"])
+def rate_effort(activity_id):
+    db = get_db()
+    activity = db.get(Activity, activity_id)
+    if activity is None:
+        abort(404)
+    activity.session_rpe = _parse_rating(request.form.get("rpe"))
+    db.commit()
+    target = request.form.get("next", "")
+    # Only paths inside the app: "//host" and "https://..." would leave it.
+    if not (target.startswith("/") and not target.startswith("//")):
+        target = url_for("main.activity_detail", activity_id=activity_id)
+    return redirect(target, code=303)
+
+
 @bp.route("/activities/<int:activity_id>")
 def activity_detail(activity_id):
     db = get_db()
@@ -360,6 +410,7 @@ def activity_detail(activity_id):
         hr_zones=hr_zones,
         hr_detail=hr_detail,
         hr_note=hr_note,
+        effort=_effort_view(activity),
         is_pace_based=is_pace_based,
         units=units,
         dist_value=dist_value,

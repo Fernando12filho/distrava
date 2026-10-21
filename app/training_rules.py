@@ -50,3 +50,11 @@ HR_GAPS_NOTE_BELOW = 0.9
 # studies approximate. Only the user's own reps-in-reserve entry decides it
 # (RULE-LOAD-04), so a set without one is neither hard nor easy.
 HARD_SET_MAX_RIR = 3  # range 2–4
+
+# RULE-LOAD-01: session effort (sRPE) on Foster's CR-10 scale, load = rating ×
+# minutes. Validity is strong; the easy/moderate/hard cut-offs come from the
+# scale's verbal anchors, so they are expert opinion.
+SRPE_EASY_MAX = 2  # range 2–3
+SRPE_HARD_MIN = 5  # range 5–6
+SRPE_DELAY_MIN = 30  # range 10–30: rate about this long after finishing
+SRPE_ANCHORS = {2: "Easy", 3: "Moderate", 4: "Somewhat hard", 5: "Hard", 7: "Very hard"}

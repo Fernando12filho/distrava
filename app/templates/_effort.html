@@ -1,0 +1,33 @@
+{% from "_explain.html" import explain %}
+{# Session effort (RULE-LOAD-01) for one activity. `next` sends the user back
+   to the page they rated from; without it they land on the activity. #}
+{% macro effort_panel(effort, next=None) -%}
+<div class="effort-panel">
+  <div class="effort-head">
+    <div class="effort-question">How hard was the whole session?</div>
+    {% if effort.rating is not none %}
+    <div class="effort-result mono">{{ effort.class_label }} · load {{ effort.load }} <span class="effort-calc">({{ effort.rating }} × {{ effort.minutes }} min)</span></div>
+    {% else %}
+    <div class="effort-hint">Best rated about {{ effort.delay_minutes }} minutes after you finish.</div>
+    {% endif %}
+  </div>
+  <form method="post" action="{{ url_for('main.rate_effort', activity_id=effort.activity_id) }}" class="effort-scale" data-saving-form>
+    {% if next %}<input type="hidden" name="next" value="{{ next }}" />{% endif %}
+    {% for step in effort.scale %}
+    <button type="submit" name="rpe" value="{{ step.value }}" aria-pressed="{{ 'true' if step.pressed else 'false' }}"
+            class="effort-step{% if step.pressed %} active{% endif %}">
+      <span class="effort-num mono">{{ step.value }}</span>
+      <span class="effort-label">{{ step.label }}</span>
+    </button>
+    {% endfor %}
+    {% if effort.rating is not none %}
+    <button type="submit" name="rpe" value="" class="quiet-btn effort-clear">Clear</button>
+    {% endif %}
+  </form>
+  {% call explain("RULE-LOAD-01 · Foster et al. 2001; Haddad et al. 2017") %}
+  <p>Your own 0–10 rating of the whole session (the CR-10 scale). Load is the rating × minutes, the same unit for runs and lifts.
+    Up to 2 counts as easy and 5 or more as hard; those cut-offs come from the scale's own labels, so treat them as a convention.
+    Heart rate under-counts lifting effort, which is why the rating is preferred for gym sessions.</p>
+  {% endcall %}
+</div>
+{%- endmacro %}

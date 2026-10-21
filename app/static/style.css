@@ -2698,3 +2698,91 @@ a.recent-row:hover {
   opacity: 0.55;
   pointer-events: none;
 }
+
+/* Session effort (RULE-LOAD-01): one 0–10 rating per activity */
+.effort-card {
+  margin-bottom: 20px;
+}
+
+.effort-panel {
+  padding: 18px 22px;
+}
+
+.session-effort {
+  border-top: 1px solid var(--divider-header);
+}
+
+.effort-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.effort-question {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.effort-hint,
+.effort-calc {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.effort-result {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.effort-scale {
+  display: grid;
+  grid-template-columns: repeat(11, minmax(0, 1fr)) auto;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.effort-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 2px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-input);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.effort-step:hover {
+  border-color: var(--border-strong-2);
+  color: var(--text-primary);
+}
+
+.effort-step.active {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.effort-num {
+  font-size: 14px;
+}
+
+.effort-label {
+  font-size: 9px;
+  line-height: 1.2;
+  text-align: center;
+  min-height: 2.4em;
+  color: var(--text-muted);
+}
+
+.effort-clear {
+  align-self: center;
+}
+
+.effort-panel .explain {
+  margin-top: 12px;
+}

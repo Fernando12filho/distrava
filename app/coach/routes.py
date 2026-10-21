@@ -9,7 +9,7 @@ from app.coach.catalog import INTENSITIES, SESSION_TEMPLATES
 from app.coach.matcher import SESSION_ACTIVITY_TYPES, match_sessions
 from app.coach.week import DAYS_PER_WEEK, week_start_for
 from app.models import Activity, CoachExercise, CoachSession, CoachSessionItem, CoachSetLog, CoachWeek, UserSettings
-from app.routes import _get_units, get_db
+from app.routes import _effort_view, _get_units, get_db
 
 bp = Blueprint("coach", __name__, url_prefix="/coach")
 
@@ -177,6 +177,7 @@ def _attach_matches(db, sessions, week_start, units):
             session["matched"] = {
                 "label": board.activity_label(_activity_view(activity), units, session["date"]),
                 "url": url_for("main.activity_detail", activity_id=activity.id),
+                "effort": _effort_view(activity),
             }
 
 

@@ -2,7 +2,7 @@ from datetime import timedelta, timezone
 from math import exp
 from statistics import median
 
-from app.training_rules import TRIMP_WEIGHTING
+from app.training_rules import SRPE_EASY_MAX, SRPE_HARD_MIN, TRIMP_WEIGHTING
 
 CTL_DAYS = 42
 ATL_DAYS = 7
@@ -434,3 +434,21 @@ def annotate_splits_for_display(splits):
         bar_pct = 100.0 if spread == 0 else round(30 + (slowest - pace) / spread * 70, 2)
         annotated.append({**split, "is_fastest": pace == fastest, "bar_pct": bar_pct})
     return annotated
+
+
+# RULE-LOAD-01
+def effort_class(rating):
+    if rating is None:
+        return None
+    if rating <= SRPE_EASY_MAX:
+        return "easy"
+    if rating >= SRPE_HARD_MIN:
+        return "hard"
+    return "moderate"
+
+
+def session_load(rating, duration_seconds):
+    if rating is None:
+        return None
+    load = round(rating * duration_seconds / 60, 2)
+    return int(load) if load == int(load) else load
