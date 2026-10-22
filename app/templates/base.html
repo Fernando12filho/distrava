@@ -6,11 +6,29 @@
     <title>{% block title %}DISTRAVA{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
     <script src="{{ url_for('static', filename='chart.js') }}"></script>
+    <script>
+      // Runs before the body paints so a collapsed sidebar doesn't flash open.
+      try {
+        if (localStorage.getItem("distrava.sidebarCollapsed") === "1") {
+          document.documentElement.classList.add("sidebar-collapsed");
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div class="shell">
-      <aside class="sidebar">
-        <div class="sidebar-wordmark wordmark">D<span class="accent-letter">I</span>STRAVA</div>
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-head">
+          <div class="sidebar-wordmark wordmark">D<span class="accent-letter">I</span>STRAVA</div>
+          <div class="sidebar-wordmark-short wordmark">D<span class="accent-letter">S</span>V</div>
+          <button type="button" class="sidebar-toggle" data-sidebar-toggle
+                  aria-controls="sidebar" aria-expanded="true" title="Hide sidebar">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" stroke-width="1.3" />
+              <path d="M6 2.5v11" stroke="currentColor" stroke-width="1.3" />
+            </svg>
+          </button>
+        </div>
 
         <nav class="sidebar-nav">
           <a href="{{ url_for('main.dashboard') }}"
@@ -63,6 +81,7 @@
     </div>
 
     <script src="{{ url_for('static', filename='forms.js') }}"></script>
+    <script src="{{ url_for('static', filename='sidebar.js') }}"></script>
     {% block scripts %}{% endblock %}
   </body>
 </html>

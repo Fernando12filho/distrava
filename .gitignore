@@ -5,7 +5,7 @@ __pycache__/
 venv/
 *.egg-info/
 mydata
-
+screenshots/
 # Personal health data — never commit
 data/
 *.db

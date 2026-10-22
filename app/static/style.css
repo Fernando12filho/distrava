@@ -169,9 +169,69 @@ button {
   color: var(--bg-base);
 }
 
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 4px 22px 12px;
+}
+
 .sidebar-wordmark {
-  padding: 8px 12px 22px;
   font-size: 22px;
+}
+
+.sidebar-wordmark-short {
+  display: none;
+  font-size: 18px;
+}
+
+.sidebar-toggle {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.sidebar-toggle:hover {
+  background: #15151b;
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
+/* Collapsed: a slim rail with the DSV mark. The nav is text-only, so there's
+   nothing meaningful to shrink it to; it hides until the rail is expanded. */
+.sidebar-collapsed .sidebar {
+  width: 72px;
+  padding: 22px 10px;
+}
+
+.sidebar-collapsed .sidebar-head {
+  flex-direction: column;
+  gap: 14px;
+  padding: 8px 0 22px;
+}
+
+.sidebar-collapsed .sidebar-wordmark,
+.sidebar-collapsed .sidebar-nav,
+.sidebar-collapsed .sidebar-footer-text {
+  display: none;
+}
+
+.sidebar-collapsed .sidebar-wordmark-short {
+  display: block;
+}
+
+.sidebar-collapsed .sidebar-footer {
+  justify-content: center;
+  padding: 14px 0;
 }
 
 .sidebar-nav {
