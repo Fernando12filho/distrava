@@ -211,6 +211,37 @@ button {
   flex: none;
 }
 
+/* Open/close motion (DS-02): sidebar.js fades the contents out, the width
+   glides, then the contents fade back in. Fading first hides the layout swap
+   (wordmark, head row → column) that would otherwise jump mid-resize. */
+.sidebar {
+  overflow: hidden;
+  transition:
+    width 220ms cubic-bezier(0.2, 0, 0, 1),
+    padding 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.sidebar-head,
+.sidebar-nav,
+.sidebar-footer {
+  transition: opacity 120ms ease;
+}
+
+.sidebar-fading .sidebar-head,
+.sidebar-fading .sidebar-nav,
+.sidebar-fading .sidebar-footer {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .sidebar-head,
+  .sidebar-nav,
+  .sidebar-footer {
+    transition: none;
+  }
+}
+
 /* Collapsed: a slim rail with the DSV mark and icon-only links (DS-01, DS-02).
    "Soon" items can't be clicked, so they'd only be noise on the rail. */
 .sidebar-collapsed .sidebar {
