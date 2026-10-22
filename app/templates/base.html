@@ -7,10 +7,13 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
     <script src="{{ url_for('static', filename='chart.js') }}"></script>
     <script>
-      // Runs before the body paints so a collapsed sidebar doesn't flash open.
+      // Runs before the body paints so a collapsed panel doesn't flash open.
       try {
         if (localStorage.getItem("distrava.sidebarCollapsed") === "1") {
           document.documentElement.classList.add("sidebar-collapsed");
+        }
+        if (localStorage.getItem("distrava.coachPanelCollapsed") === "1") {
+          document.documentElement.classList.add("coach-panel-collapsed");
         }
       } catch (e) {}
     </script>
@@ -88,7 +91,7 @@
     </div>
 
     <script src="{{ url_for('static', filename='forms.js') }}"></script>
-    <script src="{{ url_for('static', filename='sidebar.js') }}"></script>
+    <script src="{{ url_for('static', filename='collapse.js') }}"></script>
     {% block scripts %}{% endblock %}
   </body>
 </html>

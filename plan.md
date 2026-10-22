@@ -238,6 +238,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-22 | Your design calls: the collapsed rail shows page icons with tooltips (DS-02); screenshots use a read-only copy of your real database; design decisions live in the Design System file, section 05 (DS-01 DSV mark, DS-02 rail) |
 | 2026-10-22 | Sidebar opens and closes smoothly: contents fade, the width glides, contents fade back in (~0.45 s). Instant if macOS "reduce motion" is on |
 | 2026-10-22 | Dashboard opens with Today (DS-03): your coach week's sessions for the day, every exercise with sets × reps; a tile opens it on the Coach board. On your data: Thu shows Legs & Glutes (skipped) and Chest & Triceps (planned) |
+| 2026-10-22 | Coach page (DS-04): asking the coach no longer reloads the page (your message shows at once, then the reply); the Coach panel closes to a rail like the left bar; day columns stop spilling (the week scrolls sideways below 100px a day); on a narrow window the panel opens over the board instead of below it |
 | 2026-10-21 | Rebalancer, part 1 (#25): sessions can be planned easy/hard (your choice over guessing from the exercise); the Coach page checks the week's spacing and offers fitting days for a skipped session. On your data: no clashes; your skipped Thursday legs day has no free later day, so it is dropped |
 
 ## 8. Waiting on

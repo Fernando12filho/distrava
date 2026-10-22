@@ -33,7 +33,7 @@
       <div class="week-head-meta">Drag a session to another day<br />Tap a session to see its exercises</div>
     </div>
 
-    <div class="move-error" id="move-error" hidden>Couldn't move that session — the board is unchanged.</div>
+    <div class="move-error" id="move-error" hidden>Couldn't save that change. The board is unchanged.</div>
 
     {% if coach.pending %}
     <div class="proposal-bar">
@@ -42,10 +42,10 @@
         <ul class="proposal-changes">{% for line in coach.pending.changes %}<li>{{ line }}</li>{% endfor %}</ul>
       </div>
       <div class="proposal-actions">
-        <form method="post" action="{{ url_for('coach.discard_proposal', proposal_id=coach.pending.id) }}">
+        <form method="post" action="{{ url_for('coach.discard_proposal', proposal_id=coach.pending.id) }}" data-live-form>
           <button type="submit" class="btn btn-secondary">Discard</button>
         </form>
-        <form method="post" action="{{ url_for('coach.accept_proposal', proposal_id=coach.pending.id) }}" data-saving-form>
+        <form method="post" action="{{ url_for('coach.accept_proposal', proposal_id=coach.pending.id) }}" data-live-form>
           <button type="submit" class="btn btn-primary">Accept</button>
         </form>
       </div>
@@ -56,7 +56,7 @@
         <p><b>APPLIED</b>{{ coach.applied.changes|join(' · ') }}</p>
       </div>
       <div class="proposal-actions">
-        <form method="post" action="{{ url_for('coach.undo_proposal', proposal_id=coach.applied.id) }}" data-saving-form>
+        <form method="post" action="{{ url_for('coach.undo_proposal', proposal_id=coach.applied.id) }}" data-live-form>
           <button type="submit" class="btn btn-secondary">Undo</button>
         </form>
       </div>
@@ -251,9 +251,16 @@
     {% endif %}
   </div>
 
-  <aside class="coach-panel">
+  <aside class="coach-panel" id="coach-panel">
     <div class="coach-panel-head">
-      <div class="coach-panel-title"><span class="status-dot{% if not provider_connected %} off{% endif %}"></span>Coach</div>
+      <button type="button" class="sidebar-toggle" data-coach-panel-toggle
+              aria-controls="coach-panel" aria-expanded="true" title="Hide coach">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" stroke-width="1.3" />
+          <path d="M10 2.5v11" stroke="currentColor" stroke-width="1.3" />
+        </svg>
+      </button>
+      <div class="coach-panel-title"><span class="status-dot{% if not provider_connected %} off{% endif %}"></span><span class="coach-panel-name">Coach</span></div>
       <span class="coach-provider">{{ 'YOUR API KEY' if provider_connected else 'NOT CONNECTED' }}</span>
     </div>
     <div class="coach-panel-body">
@@ -373,7 +380,7 @@
     </div>
     {% if provider_connected %}
     <div class="coach-panel-foot">
-      <form method="post" action="{{ url_for('coach.ask_coach', week=week_start.isoformat()) }}" class="composer" data-saving-form data-busy-label="Coach is thinking…">
+      <form method="post" action="{{ url_for('coach.ask_coach', week=week_start.isoformat()) }}" class="composer" data-live-form data-busy-label="Sending…">
         <textarea name="message" rows="2" maxlength="1000" required placeholder="Ask your coach to change this week…"></textarea>
         <button type="submit" class="btn btn-primary">Send</button>
       </form>
@@ -386,5 +393,5 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='coach.js') }}"></script>
-<script>initCoachBoard();</script>
+<script>initCoachBoard(); initLiveForms();</script>
 {% endblock %}
