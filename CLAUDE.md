@@ -17,6 +17,9 @@ Read it before starting work.
 ## Stack (locked — do not substitute)
 Flask, SQLAlchemy + SQLite, Jinja2 server templates (no frontend build step),
 Chart.js served from `/static`, PyWebView, defusedxml, pytest.
+Dev-only tools (pytest, Playwright for `scripts/screenshots.py`) live in
+`requirements-dev.txt` and are never imported from `app/`;
+`tests/test_dev_only_deps.py` enforces it.
 
 ## Architecture rules
 - `analytics.py` is **pure functions only** — no Flask, no SQLAlchemy. Plain
