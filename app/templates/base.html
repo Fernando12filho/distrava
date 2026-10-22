@@ -30,36 +30,43 @@
           </button>
         </div>
 
+        {# Icons only show on the collapsed rail (Design System 05, DS-02);
+           the open bar stays text-only as in the handoff. #}
+        {% macro nav_link(url, label, active, icon) %}
+          <a href="{{ url }}"
+             class="nav-item {{ 'active' if active }}" title="{{ label }}">
+            <svg class="nav-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"
+                 stroke="currentColor" stroke-width="1.3" stroke-linecap="round"
+                 stroke-linejoin="round" aria-hidden="true">{{ icon | safe }}</svg>
+            <span class="nav-label">{{ label }}</span>
+          </a>
+        {% endmacro %}
+
         <nav class="sidebar-nav">
-          <a href="{{ url_for('main.dashboard') }}"
-             class="nav-item {{ 'active' if request.endpoint == 'main.dashboard' }}">
-            <span>Dashboard</span>
-          </a>
-          <a href="{{ url_for('main.activity_list') }}"
-             class="nav-item {{ 'active' if request.endpoint in ('main.activity_list', 'main.activity_detail') }}">
-            <span>Activities</span>
-          </a>
+          {{ nav_link(url_for('main.dashboard'), 'Dashboard',
+                      request.endpoint == 'main.dashboard',
+                      '<rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/>') }}
+          {{ nav_link(url_for('main.activity_list'), 'Activities',
+                      request.endpoint in ('main.activity_list', 'main.activity_detail'),
+                      '<path d="M1.5 8.5h3l2-5 3 9 2-4h3"/>') }}
           <div class="nav-item soon"><span>Routes</span><span class="soon-pill">SOON</span></div>
           <div class="nav-item soon"><span>Strength</span><span class="soon-pill">SOON</span></div>
 
           <div class="nav-divider"></div>
 
-          <a href="{{ url_for('coach.board_page') }}"
-             class="nav-item {{ 'active' if request.endpoint and request.endpoint.startswith('coach.') }}">
-            <span>Coach</span>
-          </a>
+          {{ nav_link(url_for('coach.board_page'), 'Coach',
+                      request.endpoint and request.endpoint.startswith('coach.'),
+                      '<circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="2.5"/>') }}
           <div class="nav-item soon"><span>Insights</span><span class="soon-pill">SOON</span></div>
 
           <div class="nav-divider"></div>
 
-          <a href="{{ url_for('main.import_page') }}"
-             class="nav-item {{ 'active' if request.endpoint == 'main.import_page' }}">
-            <span>Import</span>
-          </a>
-          <a href="{{ url_for('main.settings_page') }}"
-             class="nav-item {{ 'active' if request.endpoint == 'main.settings_page' }}">
-            <span>Settings</span>
-          </a>
+          {{ nav_link(url_for('main.import_page'), 'Import',
+                      request.endpoint == 'main.import_page',
+                      '<path d="M8 2v8M4.5 6.5 8 10l3.5-3.5"/><path d="M2.5 10.5v2a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-2"/>') }}
+          {{ nav_link(url_for('main.settings_page'), 'Settings',
+                      request.endpoint == 'main.settings_page',
+                      '<path d="M2 4.5h12M2 11.5h12"/><circle cx="5.5" cy="4.5" r="1.6" fill="var(--bg-sidebar)"/><circle cx="10.5" cy="11.5" r="1.6" fill="var(--bg-sidebar)"/>') }}
         </nav>
 
         <div class="sidebar-footer">

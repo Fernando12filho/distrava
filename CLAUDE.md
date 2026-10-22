@@ -49,7 +49,11 @@ Dev-only tools (pytest, Playwright for `scripts/screenshots.py`) live in
 - HR zones use five **distinct hues** — #38BDF8 / #4ADE80 / #FDE047 / #F97316 /
   #E11D48 — never a single-hue ramp.
 - New UI follows the design handoff in `design_handoff_distrava/` (`.dc.html`
-  per screen + the Design System file).
+  per screen + the Design System file). Design decisions made since the
+  handoff are recorded in the Design System file, section 05, as `DS-NN`;
+  code that applies one names it in a comment.
+- Check UI changes by eye with `python scripts/screenshots.py` (reads a
+  read-only copy of the real database; `--db PATH` from a worktree).
 
 ## Coach
 Spec: `Distrava Coach — Use Cases, Decisions & Test Plan.md` (use cases, AC ids,

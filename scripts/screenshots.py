@@ -1,14 +1,19 @@
 """Screenshot every page of the app, for checking UI changes by eye.
 
-Runs the app on a throwaway database so real health data never ends up in an
-image. Dev-only: needs requirements-dev.txt and `playwright install chromium`.
+Runs the app on a temporary *copy* of the real database: the pages show real
+numbers, but schema upgrades and any writes land on the copy, never on
+data/fitness.db. The images therefore contain health data — screenshots/ is
+gitignored. Dev-only: needs requirements-dev.txt and `playwright install chromium`.
 
-    python scripts/screenshots.py                 # all pages -> screenshots/
-    python scripts/screenshots.py --out shots/b4  # pick the folder
+    python scripts/screenshots.py                       # all pages -> screenshots/
+    python scripts/screenshots.py --db path/fitness.db  # e.g. from a git worktree
+    python scripts/screenshots.py --empty               # blank database instead
 """
 
 import argparse
+import logging
 import socket
+import sqlite3
 import sys
 import tempfile
 import threading
@@ -37,9 +42,22 @@ def _free_port():
         return s.getsockname()[1]
 
 
+def _copy_database(source, dest):
+    # The backup API gives a consistent copy even while the app has the file
+    # open; mode=ro guarantees this script can't modify the original.
+    src = sqlite3.connect(f"file:{source}?mode=ro", uri=True)
+    dst = sqlite3.connect(dest)
+    with dst:
+        src.backup(dst)
+    src.close()
+    dst.close()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", default=str(ROOT / "screenshots"))
+    parser.add_argument("--db", default=str(ROOT / "data" / "fitness.db"))
+    parser.add_argument("--empty", action="store_true", help="use a blank database")
     parser.add_argument("--width", type=int, default=1440)
     parser.add_argument("--height", type=int, default=900)
     args = parser.parse_args()
@@ -47,7 +65,13 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory() as tmp:
-        app = create_app({"DATABASE_URL": f"sqlite:///{tmp}/screens.db", "TESTING": True})
+        db = Path(tmp) / "screens.db"
+        if not args.empty:
+            if not Path(args.db).is_file():
+                sys.exit(f"no database at {args.db} — pass --db PATH or --empty")
+            _copy_database(args.db, db)
+        app = create_app({"DATABASE_URL": f"sqlite:///{db}", "TESTING": True})
+        logging.getLogger("werkzeug").setLevel(logging.ERROR)
         port = _free_port()
         server = make_server("127.0.0.1", port, app)
         threading.Thread(target=server.serve_forever, daemon=True).start()
