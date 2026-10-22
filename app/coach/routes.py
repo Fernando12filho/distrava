@@ -139,6 +139,11 @@ def _week_sessions(db, week_start, units):
     return [_session_view(s, units) for s in week.sessions] if week else []
 
 
+# Shared by the Coach panel and the dashboard so both always show the same day.
+def today_plan(db, today, units):
+    return [s for s in _week_sessions(db, week_start_for(today), units) if s["day_index"] == today.weekday()]
+
+
 def _week_logged_sets(db, week_start):
     week = db.query(CoachWeek).filter_by(week_start=week_start).first()
     if week is None:
@@ -489,10 +494,7 @@ def board_page():
     selected = next((s for s in sessions if s["id"] == selected_id), None)
 
     this_week = week_start_for(today)
-    today_sessions = [
-        s for s in (sessions if week_start == this_week else _week_sessions(db, this_week, units))
-        if s["day_index"] == today.weekday()
-    ]
+    today_sessions = today_plan(db, today, units)
     week_end = week_start + timedelta(days=DAYS_PER_WEEK - 1)
     days = board.build_week_view(week_start, today, sessions)
     coach = _coach_view(db, week_start, sessions, days, units)

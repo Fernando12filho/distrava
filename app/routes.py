@@ -760,8 +760,13 @@ def dashboard():
     last_import = max((a.created_at for a in activities if a.created_at), default=None)
     weekly_distance_value, _unit = analytics.convert_distance(this_week_distance, units)
 
+    # Imported here: app.coach.routes imports this module at load time.
+    from app.coach.routes import today_plan
+
     return render_template(
         "dashboard.html",
+        today=today,
+        today_sessions=today_plan(db, today, units),
         has_data=has_data,
         last_import=last_import,
         weekly_distance_value=weekly_distance_value,

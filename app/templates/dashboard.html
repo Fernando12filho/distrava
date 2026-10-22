@@ -18,11 +18,48 @@
   {% endif %}
 {% endmacro %}
 
+{# Same wording as the Coach board, so a status reads the same everywhere. #}
+{% set status_labels = {"planned": "Planned", "done": "✓ Done", "partial": "◐ Partial", "skipped": "Skipped", "moved": "Moved"} %}
+
 {% block scroll_area_class %}{{ 'centered' if not has_data }}{% endblock %}
 
 {% block content %}
 {% if has_data %}
 <div class="container">
+
+  <div class="card today-plan">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Today</div>
+        <div class="card-subtitle">{{ today.strftime('%A, %b') }} {{ today.day }} · from your coach week</div>
+      </div>
+      <a class="link-btn" href="{{ url_for('coach.board_page') }}">Open coach →</a>
+    </div>
+    {% if today_sessions %}
+    <div class="today-plan-grid">
+      {% for s in today_sessions %}
+      <a class="today-plan-session" href="{{ url_for('coach.board_page', session=s.id) }}">
+        <div class="today-plan-head">
+          <span class="session-kind kind-{{ s.kind }}"><span class="type-dot"></span>{{ s.kind_label }}</span>
+          {% if s.kind != 'rest' %}<span class="status-chip st-{{ s.status }}">{{ status_labels[s.status] }}</span>{% endif %}
+        </div>
+        <div class="today-plan-focus">{{ s.focus }}</div>
+        {% if s.exercises %}
+        <ul class="today-plan-exercises">
+          {% for item in s.exercises %}
+          <li><span>{{ item.name }}</span><span class="mono">{{ item.volume }}</span></li>
+          {% endfor %}
+        </ul>
+        {% elif s.summary %}
+        <div class="today-plan-meta mono">{{ s.summary }}</div>
+        {% endif %}
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="today-plan-empty">Nothing planned today. <a href="{{ url_for('coach.board_page') }}">Plan your week</a></p>
+    {% endif %}
+  </div><!-- /today-plan -->
 
   <div class="stat-grid">
     <div class="stat-card">
