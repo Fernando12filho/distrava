@@ -232,6 +232,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-21 | D1 (either signal), D4 (24 h) and D7 (coach offers options, you choose) decided |
 | 2026-10-21 | AI provider connected (#27): Anthropic key in the macOS keychain, Settings card with test and spend totals; no API call made yet — waiting for your key |
 | 2026-10-21 | Rebalancer done (#25): ease back in after a break (your pick, with undo), distance-jump and easy/hard notes. On your data: this week's plan is 21 km against a 12.72 km average (+65.11 %), mostly from the 8 km default per running day |
+| 2026-10-22 | UI: the left bar can be hidden. Collapsed, it becomes a slim rail with the "DSV" mark (green S) and a button to bring it back; the choice is remembered |
 | 2026-10-21 | Rebalancer, part 1 (#25): sessions can be planned easy/hard (your choice over guessing from the exercise); the Coach page checks the week's spacing and offers fitting days for a skipped session. On your data: no clashes; your skipped Thursday legs day has no free later day, so it is dropped |
 
 ## 8. Waiting on
