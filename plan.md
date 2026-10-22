@@ -235,6 +235,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-22 | UI: the left bar can be hidden. Collapsed, it becomes a slim rail with the "DSV" mark (green S) and a button to bring it back; the choice is remembered |
 | 2026-10-22 | Dev: `scripts/screenshots.py` screenshots every page on a throwaway database (Playwright, dev-only via `requirements-dev.txt`), so UI changes are checked by eye before review |
 | 2026-10-22 | Your design calls: the collapsed rail shows page icons with tooltips (DS-02); screenshots use a read-only copy of your real database; design decisions live in the Design System file, section 05 (DS-01 DSV mark, DS-02 rail) |
+| 2026-10-22 | Sidebar opens and closes smoothly: contents fade, the width glides, contents fade back in (~0.45 s). Instant if macOS "reduce motion" is on |
 | 2026-10-21 | Rebalancer, part 1 (#25): sessions can be planned easy/hard (your choice over guessing from the exercise); the Coach page checks the week's spacing and offers fitting days for a skipped session. On your data: no clashes; your skipped Thursday legs day has no free later day, so it is dropped |
 
 ## 8. Waiting on
