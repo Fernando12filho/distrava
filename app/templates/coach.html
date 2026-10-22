@@ -35,6 +35,38 @@
 
     <div class="move-error" id="move-error" hidden>Couldn't move that session — the board is unchanged.</div>
 
+    {% if coach.pending %}
+    <div class="proposal-bar">
+      <div class="proposal-why">
+        {% if coach.pending.reply %}<p><b>WHY</b>{{ coach.pending.reply }}</p>{% endif %}
+        <ul class="proposal-changes">{% for line in coach.pending.changes %}<li>{{ line }}</li>{% endfor %}</ul>
+      </div>
+      <div class="proposal-actions">
+        <form method="post" action="{{ url_for('coach.discard_proposal', proposal_id=coach.pending.id) }}">
+          <button type="submit" class="btn btn-secondary">Discard</button>
+        </form>
+        <form method="post" action="{{ url_for('coach.accept_proposal', proposal_id=coach.pending.id) }}" data-saving-form>
+          <button type="submit" class="btn btn-primary">Accept</button>
+        </form>
+      </div>
+    </div>
+    {% elif coach.applied %}
+    <div class="proposal-bar applied">
+      <div class="proposal-why">
+        <p><b>APPLIED</b>{{ coach.applied.changes|join(' · ') }}</p>
+      </div>
+      <div class="proposal-actions">
+        <form method="post" action="{{ url_for('coach.undo_proposal', proposal_id=coach.applied.id) }}" data-saving-form>
+          <button type="submit" class="btn btn-secondary">Undo</button>
+        </form>
+      </div>
+    </div>
+    {% elif coach.stale %}
+    <div class="proposal-bar applied">
+      <div class="proposal-why"><p>The week changed since this proposal, so it wasn't applied. Ask again if you still want it.</p></div>
+    </div>
+    {% endif %}
+
     <div class="week-grid" id="week-grid">
       {% for day in days %}
       <section class="day-col{% if day.is_today %} today{% endif %}{% if day.is_past %} past{% endif %}" data-day="{{ day.index }}">
@@ -46,8 +78,8 @@
         <div class="day-sessions">
           {% for s in day.sessions %}
           {# A div, not a link: the confirm forms below can't live inside an <a>. #}
-          <div class="session-card{% if s.kind == 'rest' %} rest{% endif %}{% if selected and selected.id == s.id %} selected{% endif %}"
-               draggable="true"
+          <div class="session-card{% if s.ghost %} ghost-{{ s.ghost }}{% endif %}{% if s.kind == 'rest' %} rest{% endif %}{% if selected and selected.id == s.id %} selected{% endif %}"
+               draggable="{{ 'false' if s.ghost else 'true' }}"
                data-move-url="{{ url_for('coach.move_session', session_id=s.id) }}">
             <a class="session-open" draggable="false"
                href="{{ url_for('coach.board_page', week=week_start.isoformat(), session=s.id) }}">
@@ -76,6 +108,14 @@
               {% endfor %}
             </div>
             {% endif %}
+          </div>
+          {% endfor %}
+          {% for g in day.ghosts %}
+          <div class="session-card ghost-add" aria-label="Proposed by the coach">
+            <span class="ghost-label">PROPOSED</span>
+            <span class="session-kind kind-{{ g.kind }}"><span class="type-dot"></span>{{ g.kind_label }}</span>
+            <span class="session-focus">{{ g.focus }}</span>
+            {% if g.summary %}<span class="session-meta">{{ g.summary }}{% if g.planned_effort %} · {{ g.planned_effort }}{% endif %}</span>{% endif %}
           </div>
           {% endfor %}
         </div>
@@ -320,7 +360,26 @@
         <a class="btn btn-secondary" href="{{ url_for('main.settings_page') }}">Open settings</a>
       </div>
       {% endif %}
+
+      {% if coach.thread %}
+      <div class="coach-thread">
+        {% for m in coach.thread %}
+        <div class="msg user">{{ m.request }}</div>
+        {% if m.reply %}<div class="msg coach"><span class="who">COACH</span>{{ m.reply }}</div>{% endif %}
+        {% if m.note %}<span class="msg-note">{{ m.note }}</span>{% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
+    {% if provider_connected %}
+    <div class="coach-panel-foot">
+      <form method="post" action="{{ url_for('coach.ask_coach', week=week_start.isoformat()) }}" class="composer" data-saving-form data-busy-label="Coach is thinking…">
+        <textarea name="message" rows="2" maxlength="1000" required placeholder="Ask your coach to change this week…"></textarea>
+        <button type="submit" class="btn btn-primary">Send</button>
+      </form>
+      <p class="composer-note">Changes appear on the board as a preview. Nothing changes until you accept.</p>
+    </div>
+    {% endif %}
   </aside>
 </div>
 {% endblock %}

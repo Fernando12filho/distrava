@@ -92,6 +92,8 @@ def test_response_is_reduced_to_text_model_stop_reason_and_usage():
 
     assert result == {
         "text": "Hello",
+        "tool_calls": [],
+        "content": [{"type": "thinking", "thinking": ""}, {"type": "text", "text": "Hello"}],
         "model": "claude-haiku-5-5",
         "requested_model": llm_config.TASKS["connection_test"]["model"],
         "stop_reason": "end_turn",
@@ -196,3 +198,56 @@ def test_fake_provider_can_raise():
 
     with pytest.raises(ProviderError):
         fake.complete("default", system=None, messages=[])
+
+
+# --- tools (step 7) -------------------------------------------------------------
+
+_TOOL = {"name": "move_session", "description": "Move.", "strict": True, "input_schema": {"type": "object"}}
+
+
+def _tool_reply():
+    body = {
+        "id": "msg_2",
+        "type": "message",
+        "model": "claude-opus-5-5",
+        "stop_reason": "tool_use",
+        "content": [
+            {"type": "thinking", "thinking": "", "signature": "sig"},
+            {"type": "tool_use", "id": "toolu_1", "name": "move_session", "input": {"session_id": 2, "day": 4}},
+        ],
+        "usage": {"input_tokens": 50, "output_tokens": 9},
+    }
+    return 200, {}, json.dumps(body).encode()
+
+
+def test_tools_are_sent_as_given_and_tool_calls_come_back():
+    provider, transport = _provider(_tool_reply())
+
+    result = provider.complete("coach", system=[{"type": "text", "text": "Coach."}], messages=[{"role": "user", "content": "Hi"}], tools=[_TOOL])
+
+    body = transport.requests[0]["body"]
+    assert body["tools"] == [_TOOL]
+    assert "tool_choice" not in body  # forced tool use is a 400 on this model; auto is the default
+    assert body["system"] == [{"type": "text", "text": "Coach."}]
+    assert result["tool_calls"] == [{"id": "toolu_1", "name": "move_session", "input": {"session_id": 2, "day": 4}}]
+    assert result["stop_reason"] == "tool_use"
+    # Kept whole, thinking included, so a retry can send it back unchanged.
+    assert result["content"][0]["type"] == "thinking"
+
+
+def test_without_tools_no_tools_key_is_sent():
+    provider, transport = _provider(_ok())
+    result = provider.complete("connection_test", system=None, messages=[{"role": "user", "content": "Hi"}])
+    assert "tools" not in transport.requests[0]["body"]
+    assert result["tool_calls"] == []
+
+
+def test_fake_provider_turns_tool_calls_into_blocks():
+    fake = FakeProvider([{"text": "Moved.", "tool_calls": [{"name": "move_session", "input": {"session_id": 2, "day": 4}}]}])
+
+    result = fake.complete("coach", system="s", messages=[], tools=[_TOOL])
+
+    assert result["tool_calls"] == [{"id": "toolu_fake_1", "name": "move_session", "input": {"session_id": 2, "day": 4}}]
+    assert result["stop_reason"] == "tool_use"
+    assert [b["type"] for b in result["content"]] == ["text", "tool_use"]
+    assert fake.calls[0]["tools"] == [_TOOL]

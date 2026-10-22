@@ -91,6 +91,7 @@ COACH_TABLES = {
     "coach_set_logs",
     "coach_profile",
     "coach_llm_calls",
+    "coach_proposals",
 }
 
 

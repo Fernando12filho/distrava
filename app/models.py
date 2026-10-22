@@ -13,7 +13,7 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.orm import DeclarativeBase, relationship
+from sqlalchemy.orm import DeclarativeBase, backref, relationship
 
 from app import analytics
 
@@ -300,6 +300,31 @@ class CoachCheckin(Base):
     effort_rpe = Column(Integer, nullable=True)
     pain_location = Column(String, nullable=True)
     note = Column(Text, nullable=True)
+
+
+# One coach request and what came of it. A proposal never touches the board
+# until accepted (AC-04); `before` and `after` hold every session it changes
+# (None = absent), so accept and undo each check the board still matches and
+# write the other side back exactly (AC-10).
+PROPOSAL_STATUSES = ("answer", "failed", "pending", "accepted", "discarded", "stale", "undone")
+
+
+class CoachProposal(Base):
+    __tablename__ = "coach_proposals"
+    __table_args__ = (CheckConstraint(f"status IN {PROPOSAL_STATUSES}", name="known_proposal_status"),)
+
+    id = Column(Integer, primary_key=True)
+    week_id = Column(Integer, ForeignKey("coach_weeks.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=_utc_now)
+    request = Column(Text, nullable=False)
+    reply = Column(Text, nullable=True)
+    status = Column(String, nullable=False)
+    calls = Column(JSON, nullable=False, default=list)
+    changes = Column(JSON, nullable=False, default=list)
+    before = Column(JSON, nullable=True)
+    after = Column(JSON, nullable=True)
+
+    week = relationship("CoachWeek", backref=backref("proposals", cascade="all, delete-orphan", order_by="CoachProposal.id"))
 
 
 class CoachNote(Base):

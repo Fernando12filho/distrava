@@ -288,8 +288,8 @@
         <span class="mid">M4</span>
         <h2>Coach &amp; trainer</h2>
         <p class="summary">Spec: <code>Distrava Coach — Use Cases, Decisions &amp; Test Plan.md</code>. Resumed 2026-10-21 (paused after step 4 on 2026-10-20): the rest of M3 needs a coach that can plan.</p>
-        <div class="progress"><span style="width:46%"></span></div>
-        <span class="count">6 / 13 done</span>
+        <div class="progress"><span style="width:54%"></span></div>
+        <span class="count">7 / 13 done</span>
       </header>
       <ul>
         <li class="item st-done">
@@ -327,10 +327,10 @@
           <span class="feature">6. Connect an AI provider</span>
           <span class="notes">2026-10-21: Anthropic, your own API key in the macOS keychain (never SQLite, logs or the page — only &quot;•••• last 4&quot;); Settings card to save, test (loading state) and remove it; every call recorded with its model, tokens and an estimated cost, with this month / all-time totals. Model per task in config (Haiku 5.5 for the connection test, Opus 5.5 default, with Anthropic&#x27;s refusal fallback). No new dependencies. Tests use a fake provider and can&#x27;t reach the network or your keychain · #27</span>
         </li>
-        <li class="item st-todo">
-          <span class="chip st-todo">Not started</span>
+        <li class="item st-done">
+          <span class="chip st-done">Done</span>
           <span class="feature">7. Coach tools, preview, undo</span>
-          <span class="notes">the AI proposes, you accept or undo · #28</span>
+          <span class="notes">2026-10-21: ask the coach on the Coach page; it can move or remove a session, swap an exercise (same kind only), change a volume or plan easy/hard. Code checks every call (only planned sessions from today on with nothing logged, same limits as editing by hand, no new spacing clash) and sends rejected ones back once; otherwise it says it couldn&#x27;t. The change shows faded on the board with its reason and the exact before → after lines; Accept or Discard, then Undo restores it exactly. If you edit the week first, accept is refused; once you use a changed session, undo is no longer offered. Any number in the coach&#x27;s words that it wasn&#x27;t given is sent back. Not yet: changing a session&#x27;s kind (run → ride), notes, profile proposals (#26) · #28</span>
         </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
@@ -376,6 +376,7 @@
         <tr><td><span class="chip st-done">Done</span></td><td>Sync the GitHub issues with this plan</td><td class="muted">done 2026-10-20</td></tr>
         <tr><td><span class="chip st-done">Done</span></td><td>OK to add topic H to <code>research/PROMPT.md</code></td><td class="muted">you — added 2026-10-20</td></tr>
         <tr><td><span class="chip st-next">Next</span></td><td>Paste your Anthropic key in Settings → AI coach and press Test connection (costs well under $0.01). Then delete the key from <code>strava-copy/.env</code>; optionally create a fresh key and revoke the old one, since it sat in plain text since July</td><td class="muted">you</td></tr>
+        <tr><td><span class="chip st-next">Next</span></td><td>Try the coach once with your key (Coach page → &quot;Ask your coach…&quot;, e.g. &quot;move Thursday&#x27;s run to Saturday&quot;); each request is one Opus call, recorded in Settings with its cost</td><td class="muted">you</td></tr>
         <tr><td><span class="chip st-next">Next</span></td><td>Run the topic H follow-up prompt (end of <code>research/PROMPT.md</code>), save it as <code>research/training-rules-H.md</code></td><td class="muted">you</td></tr>
         <tr><td><span class="chip st-todo">Not started</span></td><td>Board columns (Projects kanban): the token has no <code>project</code> scope — run <code>gh auth refresh -s project</code> outside the jail, then I can move cards</td><td class="muted">you</td></tr>
         <tr><td><span class="chip st-done">Done</span></td><td>Issues #7 and #9: add them to this plan</td><td class="muted">you — added to M1 and M2</td></tr>
@@ -449,6 +450,7 @@
         <tr><td>After 10+ days without a workout, offer easing the rest of the week to 60 / 70 / 80 / 90 % of planned volume (run distance, ride time, gym sets; never reps); undo restores it</td><td class="muted">coach week check</td><td><span class="badge src-R">Research</span> RULE-PROG-04 + D7 (you choose; thresholds are judgement calls)</td></tr>
         <tr><td>More hard runs than max(1, 20 % of the week&#x27;s runs) gets a note</td><td class="muted">coach week check</td><td><span class="badge src-R">Research</span> RULE-WEEK-01 (counted by session; D2 still open for the dashboard)</td></tr>
         <tr><td>Session templates (one leg day in the gym split)</td><td class="muted">coach</td><td><span class="badge src-R">Research</span> RULE-WEEK-04 — runners need 2 strength days with heavy legs — review (M3)</td></tr>
+        <tr><td>A coach change touches only planned sessions from today on with nothing logged; it may not add a spacing clash (clashes already there are left to the Week check)</td><td class="muted">coach proposals</td><td><span class="badge src-A">Assumption</span> my design choice for &quot;you own the plan&quot; — confirm; the spacing check reuses RULE-REC-01/02/04</td></tr>
         <tr><td>Default volumes (e.g. running day = 8 km)</td><td class="muted">coach</td><td><span class="badge src-A">Assumption</span> no source — derive from your recent weeks (M4). On your data it makes this week&#x27;s plan 65 % above your last 2 weeks</td></tr>
     </table>
   </section>

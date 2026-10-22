@@ -118,7 +118,7 @@ _Spec: `Distrava Coach — Use Cases, Decisions & Test Plan.md`. Resumed 2026-10
 | ✅ | 5. Rebalancer | 2026-10-21: "Week check" on the Coach page — hard-run cap and spacing (RULE-REC-02), same-muscle spacing (REC-01), hard legs before a hard run (REC-04, D4); a run is hard on your rating or heart rate (LOAD-02, D1); each session can be planned easy/hard; a skipped session is dropped and can move only to a free later day that fits (PROG-01). Part 2: after 10+ days off it offers easing the rest of the week to 60–90 % of planned volume, your pick, with one-tap undo (PROG-04, D7); notes running distance 20 % / 30 % above your last 2 weeks (PROG-02); notes more hard runs than suggested (WEEK-01, by count) · #25 |
 | 🔨 | Training profile: runs per week, gym days, split, goal, experience | 2026-10-21: editable in Settings ("Training profile" card); empty means not said yet, no default split. Coach-proposed changes come with step 7 previews (#28). Feeds RULE-WEEK-01/02, LOAD-03 · #26 |
 | ✅ | 6. Connect an AI provider | 2026-10-21: Anthropic, your own API key in the macOS keychain (never SQLite, logs or the page — only "•••• last 4"); Settings card to save, test (loading state) and remove it; every call recorded with its model, tokens and an estimated cost, with this month / all-time totals. Model per task in config (Haiku 5.5 for the connection test, Opus 5.5 default, with Anthropic's refusal fallback). No new dependencies. Tests use a fake provider and can't reach the network or your keychain · #27 |
-| ⬜ | 7. Coach tools, preview, undo | the AI proposes, you accept or undo · #28 |
+| ✅ | 7. Coach tools, preview, undo | 2026-10-21: ask the coach on the Coach page; it can move or remove a session, swap an exercise (same kind only), change a volume or plan easy/hard. Code checks every call (only planned sessions from today on with nothing logged, same limits as editing by hand, no new spacing clash) and sends rejected ones back once; otherwise it says it couldn't. The change shows faded on the board with its reason and the exact before → after lines; Accept or Discard, then Undo restores it exactly. If you edit the week first, accept is refused; once you use a changed session, undo is no longer offered. Any number in the coach's words that it wasn't given is sent back. Not yet: changing a session's kind (run → ride), notes, profile proposals (#26) · #28 |
 | ⬜ | 8. Plan a week from scratch or from past weeks | RULE-WEEK-01..04 · #29 |
 | ⬜ | 9. Import a trainer's PDF plan | #30 |
 | ⬜ | 10. Post-workout check-in + trainer export | RULE-CHECK-01/02; decision D8 · #31 |
@@ -161,6 +161,7 @@ _Spec: `Distrava Coach — Use Cases, Decisions & Test Plan.md`. Resumed 2026-10
 | After 10+ days without a workout, offer easing the rest of the week to 60 / 70 / 80 / 90 % of planned volume (run distance, ride time, gym sets; never reps); undo restores it | coach week check | [R] RULE-PROG-04 + D7 (you choose; thresholds are judgement calls) |
 | More hard runs than max(1, 20 % of the week's runs) gets a note | coach week check | [R] RULE-WEEK-01 (counted by session; D2 still open for the dashboard) |
 | Session templates (one leg day in the gym split) | coach | [R] RULE-WEEK-04 — runners need 2 strength days with heavy legs — review (M3) |
+| A coach change touches only planned sessions from today on with nothing logged; it may not add a spacing clash (clashes already there are left to the Week check) | coach proposals | [A] my design choice for "you own the plan" — confirm; the spacing check reuses RULE-REC-01/02/04 |
 | Default volumes (e.g. running day = 8 km) | coach | [A] no source — derive from your recent weeks (M4). On your data it makes this week's plan 65 % above your last 2 weeks |
 
 ## 5. Research
@@ -232,6 +233,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-21 | D1 (either signal), D4 (24 h) and D7 (coach offers options, you choose) decided |
 | 2026-10-21 | AI provider connected (#27): Anthropic key in the macOS keychain, Settings card with test and spend totals; no API call made yet — waiting for your key |
 | 2026-10-21 | Rebalancer done (#25): ease back in after a break (your pick, with undo), distance-jump and easy/hard notes. On your data: this week's plan is 21 km against a 12.72 km average (+65.11 %), mostly from the 8 km default per running day |
+| 2026-10-21 | Coach tools, preview and undo (#28): the AI proposes through 5 checked tools; the board shows the preview; accept / discard / undo. Checked on a copy of your database with a hand-made proposal (no AI call): accept moved the run, undo put it back exactly |
 | 2026-10-21 | Rebalancer, part 1 (#25): sessions can be planned easy/hard (your choice over guessing from the exercise); the Coach page checks the week's spacing and offers fitting days for a skipped session. On your data: no clashes; your skipped Thursday legs day has no free later day, so it is dropped |
 
 ## 8. Waiting on
@@ -249,6 +251,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | ✅ | Sync the GitHub issues with this plan | done 2026-10-20 |
 | ✅ | OK to add topic H to `research/PROMPT.md` | you — added 2026-10-20 |
 | ⏭ | Paste your Anthropic key in Settings → AI coach and press Test connection (costs well under $0.01). Then delete the key from `strava-copy/.env`; optionally create a fresh key and revoke the old one, since it sat in plain text since July | you |
+| ⏭ | Try the coach once with your key (Coach page → "Ask your coach…", e.g. "move Thursday's run to Saturday"); each request is one Opus call, recorded in Settings with its cost | you |
 | ⏭ | Run the topic H follow-up prompt (end of `research/PROMPT.md`), save it as `research/training-rules-H.md` | you |
 | ⬜ | Board columns (Projects kanban): the token has no `project` scope — run `gh auth refresh -s project` outside the jail, then I can move cards | you |
 | ✅ | Issues #7 and #9: add them to this plan | you — added to M1 and M2 |

@@ -5,7 +5,9 @@ from flask import Blueprint, abort, jsonify, redirect, render_template, request,
 from sqlalchemy import func
 
 from app import analytics
-from app.coach import assistant, board, hard_sets, progression, rebalancer, set_log, volume
+from app.coach import agent, assistant, board, hard_sets, progression, rebalancer, set_log, volume
+from app.coach import profile as coach_profile
+from app.coach import tools as coach_tools
 from app.coach.keystore import KeystoreUnavailable
 from app.coach.providers import ProviderError
 from app.coach.usage import call_cost, format_cost
@@ -17,10 +19,12 @@ from app.models import (
     Activity,
     ActivityStream,
     CoachExercise,
+    CoachProposal,
     CoachSession,
     CoachSessionItem,
     CoachSetLog,
     CoachWeek,
+    TrainingProfile,
     UserSettings,
 )
 from app.routes import _effort_view, _get_units, _hr_quality, _resolve_hr_profile, _trim2, get_db
@@ -424,6 +428,51 @@ def _next_position(db, week_id, day_index):
     return 0 if highest is None else highest + 1
 
 
+_THREAD_NOTES = {
+    "pending": "Preview on the board",
+    "accepted": "Applied",
+    "undone": "Undone",
+    "discarded": "Discarded",
+    "stale": "Not applied: the week changed",
+}
+
+
+def _ghost_view(state, units):
+    return {
+        "kind": state["kind"],
+        "kind_label": KIND_LABELS[state["kind"]],
+        "focus": state["focus"],
+        "summary": board.session_summary(state["kind"], state["items"], units),
+        "planned_effort": state["planned_effort"],
+    }
+
+
+# D3: a pending proposal shows in place — what it changes faded, what it would
+# become dashed beside it — with the reason and the exact changes above.
+def _coach_view(db, week_start, sessions, days, units):
+    week = db.query(CoachWeek).filter_by(week_start=week_start).first()
+    proposals = list(week.proposals) if week else []
+    latest = proposals[-1] if proposals else None
+    pending = next((p for p in proposals if p.status == "pending"), None)
+    if pending:
+        changed = {int(k) for k in pending.before}
+        for session in sessions:
+            if session["id"] in changed:
+                session["ghost"] = "remove"
+        for day in days:
+            day["ghosts"] = [
+                _ghost_view(state, units)
+                for state in sorted((s for s in pending.after.values() if s), key=lambda s: s["position"])
+                if state["day_index"] == day["index"]
+            ]
+    return {
+        "pending": pending,
+        "applied": latest if latest is not None and _undoable(db, latest) else None,
+        "stale": latest if latest is not None and latest.status == "stale" else None,
+        "thread": [{"request": p.request, "reply": p.reply, "note": _THREAD_NOTES.get(p.status)} for p in proposals],
+    }
+
+
 @bp.route("/")
 def board_page():
     db = get_db()
@@ -445,10 +494,13 @@ def board_page():
         if s["day_index"] == today.weekday()
     ]
     week_end = week_start + timedelta(days=DAYS_PER_WEEK - 1)
+    days = board.build_week_view(week_start, today, sessions)
+    coach = _coach_view(db, week_start, sessions, days, units)
 
     return render_template(
         "coach.html",
-        days=board.build_week_view(week_start, today, sessions),
+        days=days,
+        coach=coach,
         week_start=week_start,
         week_number=week_start.isocalendar()[1],
         range_label=f"{week_start:%b %d} – {week_end:%b %d, %Y}",
@@ -639,6 +691,224 @@ def undo_ease(week):
     coach_week.eased_snapshot = None
     db.commit()
     return redirect(_board_url(coach_week.week_start), code=303)
+
+
+# --- coach proposals (step 7) ------------------------------------------------------
+
+
+def _first_changeable_day(week_start, today):
+    """Days before this index are history; 7 means the whole week is."""
+    if week_start == week_start_for(today):
+        return today.weekday()
+    return 0 if week_start > today else DAYS_PER_WEEK
+
+
+def _exercise_key(exercise):
+    return exercise.slug or f"custom:{exercise.id}"
+
+
+def _session_state(session):
+    return {
+        "id": session.id,
+        "day_index": session.day_index,
+        "position": session.position,
+        "kind": session.kind,
+        "focus": session.focus,
+        "status": session.status,
+        "planned_effort": session.planned_effort,
+        "locked": bool(session.matched_activity_id or session.checkins or any(i.logged_sets for i in session.items)),
+        "items": [
+            {"id": item.id, "position": item.position, "exercise": _exercise_key(item.exercise), **_plan_of(item)}
+            for item in session.items
+        ],
+    }
+
+
+def _week_state(week, today):
+    return {
+        "today_index": _first_changeable_day(week.week_start, today),
+        "sessions": [_session_state(s) for s in week.sessions],
+    }
+
+
+def _catalog(db):
+    return {
+        e.slug: {k: getattr(e, k) for k in ("name", "category", "muscle_group", "equipment", "activity_type")}
+        for e in db.query(CoachExercise).filter(CoachExercise.slug.isnot(None)).order_by(CoachExercise.slug)
+    }
+
+
+def _current(db, week, ids):
+    """The board now, for the sessions a proposal touches (JSON keys are strings)."""
+    sessions = {s.id: s for s in week.sessions}
+    return {str(i): (_session_state(sessions[int(i)]) if int(i) in sessions else None) for i in ids}
+
+
+def _exercise_for(db, key):
+    if key.startswith("custom:"):
+        return db.get(CoachExercise, int(key.split(":", 1)[1]))
+    return db.query(CoachExercise).filter_by(slug=key).one()
+
+
+# Writes sessions back exactly as recorded, ids included, so an undone removal
+# comes back as the same row. Only planned sessions with nothing logged are ever
+# recorded (the tools refuse the rest), so no logged sets or check-ins are lost.
+def _write_states(db, week, states):
+    # Exercise lookups would otherwise flush a recreated row before it's filled in.
+    with db.no_autoflush:
+        for key, state in states.items():
+            _write_state(db, week, int(key), state)
+
+
+def _write_state(db, week, session_id, state):
+    session = db.get(CoachSession, session_id)
+    if state is None:
+        if session is not None:
+            db.delete(session)
+        return
+    if session is None:
+        session = CoachSession(id=session_id, week=week)
+        db.add(session)
+    for field in ("day_index", "position", "kind", "focus", "status", "planned_effort"):
+        setattr(session, field, state[field])
+    items = {item.id: item for item in session.items}
+    for item_state in state["items"]:
+        item = items.pop(item_state["id"], None)
+        if item is None:
+            item = CoachSessionItem(id=item_state["id"])
+            session.items.append(item)
+        item.position = item_state["position"]
+        item.exercise = _exercise_for(db, item_state["exercise"])
+        for field in ("sets", "reps", "duration_seconds", "distance_meters"):
+            setattr(item, field, item_state[field])
+    for leftover in items.values():
+        session.items.remove(leftover)
+
+
+def _proposal_context(db, week, today, units):
+    check = _week_check(db, week.week_start, today)
+    profile = db.query(TrainingProfile).first()
+    return check, {
+        "week_start": week.week_start,
+        "today": today,
+        "units": units,
+        "profile": {f: getattr(profile, f) for f in coach_profile.FIELDS if getattr(profile, f) is not None} if profile else {},
+        "week_check": [f"{c['text']} ({', '.join(c['sessions'])}; {c['rule']})" for c in check["conflicts"]],
+    }
+
+
+@bp.route("/weeks/<week>/ask", methods=["POST"])
+def ask_coach(week):
+    db = get_db()
+    message = (request.form.get("message") or "").strip()
+    if not message:
+        abort(400)
+    try:
+        week_start = date.fromisoformat(week)
+    except ValueError:
+        abort(404)
+    if week_start.weekday() != 0:
+        abort(404)
+    chosen = assistant.provider()
+    if chosen is None:
+        return redirect(_board_url(week_start), code=303)
+
+    coach_week = db.query(CoachWeek).filter_by(week_start=week_start).first()
+    if coach_week is None:
+        coach_week = CoachWeek(week_start=week_start)
+        db.add(coach_week)
+        db.flush()
+    # One preview at a time: a new request replaces the one still waiting.
+    for waiting in db.query(CoachProposal).filter_by(week_id=coach_week.id, status="pending"):
+        waiting.status = "discarded"
+    db.commit()
+
+    today = date.today()
+    units = _get_units(db.query(UserSettings).first())
+    state = _week_state(coach_week, today)
+    catalog = _catalog(db)
+    check, context = _proposal_context(db, coach_week, today, units)
+
+    def complete(system, messages, tools):
+        return assistant.run_task(db, chosen, "coach", system, messages, tools=tools)
+
+    try:
+        result = agent.propose(complete, state, catalog, check["sessions"], message, context)
+    except ProviderError as err:
+        result = {"status": "failed", "reply": str(err), "calls": [], "after": None, "changes": []}
+
+    before = after = None
+    if result["status"] == "pending":
+        old, new = coach_tools.touched(state, result["after"])
+        before = {str(k): v for k, v in old.items()}
+        after = {str(k): v for k, v in new.items()}
+    db.add(
+        CoachProposal(
+            week=coach_week,
+            request=message,
+            reply=result["reply"],
+            status=result["status"],
+            calls=result["calls"],
+            changes=result["changes"],
+            before=before,
+            after=after,
+        )
+    )
+    db.commit()
+    return redirect(_board_url(week_start), code=303)
+
+
+def _proposal_or_404(db, proposal_id):
+    proposal = db.get(CoachProposal, proposal_id)
+    if proposal is None:
+        abort(404)
+    return proposal
+
+
+@bp.route("/proposals/<int:proposal_id>/accept", methods=["POST"])
+def accept_proposal(proposal_id):
+    db = get_db()
+    proposal = _proposal_or_404(db, proposal_id)
+    if proposal.status != "pending":
+        abort(400)
+    # AC-04: a manual edit since the preview wins; the proposal is not applied.
+    if _current(db, proposal.week, proposal.before) != proposal.before:
+        proposal.status = "stale"
+    else:
+        _write_states(db, proposal.week, proposal.after)
+        proposal.status = "accepted"
+    db.commit()
+    return redirect(_board_url(proposal.week.week_start), code=303)
+
+
+@bp.route("/proposals/<int:proposal_id>/discard", methods=["POST"])
+def discard_proposal(proposal_id):
+    db = get_db()
+    proposal = _proposal_or_404(db, proposal_id)
+    if proposal.status != "pending":
+        abort(400)
+    proposal.status = "discarded"
+    db.commit()
+    return redirect(_board_url(proposal.week.week_start), code=303)
+
+
+def _undoable(db, proposal):
+    return proposal.status == "accepted" and _current(db, proposal.week, proposal.after) == proposal.after
+
+
+@bp.route("/proposals/<int:proposal_id>/undo", methods=["POST"])
+def undo_proposal(proposal_id):
+    db = get_db()
+    proposal = _proposal_or_404(db, proposal_id)
+    if proposal.status != "accepted":
+        abort(400)
+    # Once a changed session is used or edited, undo would overwrite your
+    # record, so it is no longer offered.
+    if _undoable(db, proposal):
+        _write_states(db, proposal.week, proposal.before)
+        proposal.status = "undone"
+        db.commit()
+    return redirect(_board_url(proposal.week.week_start), code=303)
 
 
 def _settings_url(status):

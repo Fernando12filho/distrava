@@ -5,5 +5,5 @@ document.addEventListener("submit", (event) => {
   if (!form) return;
   form.classList.add("is-saving");
   const button = event.submitter || form.querySelector("button[type=submit]");
-  if (button) button.textContent = "Saving…";
+  if (button) button.textContent = form.dataset.busyLabel || "Saving…";
 });

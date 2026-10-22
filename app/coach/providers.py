@@ -1,4 +1,4 @@
-"""AI providers behind one small interface: complete(task, system, messages).
+"""AI providers behind one small interface: complete(task, system, messages, tools).
 
 The only network traffic the app makes is AnthropicProvider's HTTPS call to the
 provider you chose. Plain urllib, so no SDK dependency. Tests use FakeProvider
@@ -67,6 +67,10 @@ def _retry_wait(headers, attempt):
     return min(wait, llm_config.MAX_RETRY_WAIT_SECONDS)
 
 
+def _tool_calls(content):
+    return [{"id": b["id"], "name": b["name"], "input": b.get("input") or {}} for b in content if b.get("type") == "tool_use"]
+
+
 class AnthropicProvider:
     name = "anthropic"
 
@@ -79,7 +83,7 @@ class AnthropicProvider:
         # Never the key, even in a traceback.
         return "AnthropicProvider()"
 
-    def _request(self, task, system, messages):
+    def _request(self, task, system, messages, tools):
         config = llm_config.TASKS[task]
         body = {
             "model": config["model"],
@@ -89,6 +93,8 @@ class AnthropicProvider:
         }
         if system:
             body["system"] = system
+        if tools:
+            body["tools"] = tools
         headers = {
             "content-type": "application/json",
             "x-api-key": self._api_key,
@@ -99,8 +105,8 @@ class AnthropicProvider:
             headers["anthropic-beta"] = llm_config.FALLBACK_BETA
         return config["model"], headers, json.dumps(body).encode()
 
-    def complete(self, task, system, messages):
-        requested_model, headers, body = self._request(task, system, messages)
+    def complete(self, task, system, messages, tools=None):
+        requested_model, headers, body = self._request(task, system, messages, tools)
         for attempt in range(llm_config.MAX_RETRIES + 1):
             last = attempt == llm_config.MAX_RETRIES
             try:
@@ -122,8 +128,12 @@ class AnthropicProvider:
     def _parse(requested_model, headers, raw):
         data = json.loads(raw)
         lowered = {k.lower(): v for k, v in headers.items()}
+        content = data.get("content", [])
         return {
-            "text": "".join(block.get("text", "") for block in data.get("content", []) if block.get("type") == "text"),
+            "text": "".join(block.get("text", "") for block in content if block.get("type") == "text"),
+            "tool_calls": _tool_calls(content),
+            # Whole, thinking blocks included: a follow-up turn must send them back unchanged.
+            "content": content,
             "model": data.get("model", requested_model),
             "requested_model": requested_model,
             # "refusal" is returned, not raised: the call still cost tokens.
@@ -141,18 +151,26 @@ class FakeProvider:
     def __init__(self, replies):
         self.replies = list(replies)
         self.calls = []
+        self._next_id = 0
 
-    def complete(self, task, system, messages):
-        self.calls.append({"task": task, "system": system, "messages": messages})
+    def complete(self, task, system, messages, tools=None):
+        self.calls.append({"task": task, "system": system, "messages": messages, "tools": tools})
         reply = self.replies.pop(0)
         if isinstance(reply, Exception):
             raise reply
         model = reply.get("model", llm_config.TASKS[task]["model"])
+        content = [{"type": "text", "text": reply["text"]}] if reply.get("text") else []
+        for call in reply.get("tool_calls", []):
+            self._next_id += 1
+            content.append({"type": "tool_use", "id": f"toolu_fake_{self._next_id}", "name": call["name"], "input": call["input"]})
+        calls = _tool_calls(content)
         return {
             "text": reply.get("text", ""),
+            "tool_calls": calls,
+            "content": content,
             "model": model,
             "requested_model": llm_config.TASKS[task]["model"],
-            "stop_reason": reply.get("stop_reason", "end_turn"),
+            "stop_reason": reply.get("stop_reason", "tool_use" if calls else "end_turn"),
             "request_id": reply.get("request_id"),
             "usage": {**_usage({}), **reply.get("usage", {})},
         }
