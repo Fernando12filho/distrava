@@ -3,7 +3,7 @@ closes like the left bar, and the week stays readable at common widths.
 Skipped where Playwright isn't installed (it's dev-only)."""
 
 import threading
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 
@@ -191,3 +191,24 @@ def test_coach_replies_use_the_panels_full_width(browser, server, fake):
     page.wait_for_selector("text=A reply long enough")
 
     assert _width(page, ".msg.coach") >= _width(page, ".coach-thread") - 1
+
+
+def test_a_message_streams_its_steps_and_answer_then_shows_the_saved_thread(browser, server, fake):
+    monday = week_start_for(date.today()) - timedelta(days=7)
+    fake.replies.extend(
+        [{"tool_calls": [{"name": "get_week", "input": {"week_start": monday.isoformat()}}]}, {"text": "Last week was quiet. This one is fine."}]
+    )
+    page = _open(browser, server)
+    page.evaluate("window.__notReloaded = true")
+    accepts = []
+    page.on("request", lambda r: accepts.append(r.headers.get("accept", "")) if r.url.endswith("/ask") else None)
+
+    page.fill(".composer textarea", "How does this week compare?")
+    page.keyboard.press("Enter")
+    page.wait_for_selector(".coach-thread details.msg-steps")
+
+    assert any("text/event-stream" in a for a in accepts)
+    assert page.evaluate("window.__notReloaded === true")
+    thread = page.inner_text(".coach-thread")
+    assert "Last week was quiet. This one is fine." in thread
+    assert "1 step" in thread.lower()  # shown in capitals by CSS

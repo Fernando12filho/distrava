@@ -16,7 +16,7 @@ _SCHEMA_UPGRADES = {
     "user_settings": ["weight_kg", "units", "observed_max_hr", "observed_resting_hr", "observed_resting_hr_on", "sex"],
     "coach_sessions": ["matched_activity_id", "planned_effort"],
     "coach_weeks": ["eased_factor", "eased_snapshot"],
-    "coach_proposals": ["other_weeks", "conversation_id"],
+    "coach_proposals": ["other_weeks", "conversation_id", "steps"],
 }
 
 

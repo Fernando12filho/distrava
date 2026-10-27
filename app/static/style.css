@@ -2981,6 +2981,47 @@ a.recent-row:hover {
   max-width: none;
 }
 
+/* DS-08: the coach's steps, written by the app. Live in the reply while it
+   works; afterwards folded into "N steps" above the answer. */
+.msg-live-steps,
+.msg-steps ul {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  white-space: normal;
+}
+
+.msg-live-steps li::before,
+.msg-steps li::before {
+  content: "✓ ";
+  color: var(--accent);
+}
+
+.msg-steps {
+  margin-bottom: 6px;
+  white-space: normal;
+}
+
+.msg-steps summary {
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.msg-steps ul {
+  margin-top: 6px;
+}
+
 .msg .who {
   display: block;
   margin-bottom: 4px;

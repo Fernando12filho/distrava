@@ -337,6 +337,8 @@ class CoachProposal(Base):
     other_weeks = Column(JSON, nullable=True)
     # Null only between an upgrade and the first start that groups older messages.
     conversation_id = Column(Integer, ForeignKey("coach_conversations.id", ondelete="CASCADE"), nullable=True)
+    # The coach's code-written steps (#43), kept so the thread can show them collapsed.
+    steps = Column(JSON, nullable=True)
 
     conversation = relationship(
         "CoachConversation", backref=backref("proposals", cascade="all, delete-orphan", order_by="CoachProposal.id")

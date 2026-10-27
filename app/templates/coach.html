@@ -388,7 +388,15 @@
         {% for m in coach.thread %}
         {% if m.week_label %}<span class="msg-note msg-week">{{ m.week_label }}</span>{% endif %}
         <div class="msg user">{{ m.request }}</div>
-        {% if m.reply %}<div class="msg coach"><span class="who">COACH</span>{{ m.reply }}</div>{% endif %}
+        {# DS-08: what the coach did, written by the app, folded away above its answer. The bubble
+           keeps line breaks (pre-line), so nothing between the tags may add one. #}
+        {% if m.reply %}<div class="msg coach"><span class="who">COACH</span>
+          {%- if m.steps -%}
+          <details class="msg-steps"><summary>{{ m.steps|length }} step{{ 's' if m.steps|length != 1 }}</summary><ul>
+            {%- for step in m.steps %}<li>{{ step }}</li>{% endfor -%}
+          </ul></details>
+          {%- endif -%}
+          {{ m.reply }}</div>{% endif %}
         {% if m.note %}<span class="msg-note">{{ m.note }}</span>{% endif %}
         {% endfor %}
       </div>

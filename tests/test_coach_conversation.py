@@ -96,3 +96,49 @@ def test_the_panel_is_only_chat_and_the_week_info_sits_above_the_board(client, w
     for card in ("today-card", "hard-sets-card", "week-check-card"):
         assert f'class="{card}"' in strip
         assert card not in panel
+
+
+# --- streaming (#43) -----------------------------------------------------------------
+
+import json  # noqa: E402
+
+from app.coach.providers import ProviderError  # noqa: E402
+
+
+def _stream(client, message, week_start=WEEK):
+    response = client.post(f"/coach/weeks/{week_start}/ask", data={"message": message}, headers={"Accept": "text/event-stream"})
+    assert response.mimetype == "text/event-stream"
+    body = response.get_data(as_text=True)
+    return [json.loads(frame[len("data: "):]) for frame in body.split("\n\n") if frame.startswith("data: ")]
+
+
+def test_asking_with_a_stream_sends_sentences_and_steps_then_done(client, db_session, fake, week):
+    fake.replies.extend([{"tool_calls": [{"name": "get_week", "input": {"week_start": "2026-10-12"}}]}, {"text": "Last week was quiet. This one is fine."}])
+
+    events = _stream(client, "How does this week compare?")
+
+    assert [e["text"] for e in events if e["type"] == "text"] == ["Last week was quiet.", " This one is fine."]
+    assert [e["text"] for e in events if e["type"] == "step"] == ["Read the week of Oct 12"]
+    assert events[-1] == {"type": "done", "url": f"/coach/?week={WEEK}"}
+    proposal = _latest(db_session)
+    assert proposal.reply == "Last week was quiet. This one is fine."
+    assert proposal.steps == ["Read the week of Oct 12"]
+
+
+def test_saved_steps_show_collapsed_under_the_reply(client, fake, week):
+    fake.replies.extend([{"tool_calls": [{"name": "check_plan", "input": {}}]}, {"text": "All clear."}])
+    _stream(client, "Is this week OK?")
+
+    thread = _thread(client, WEEK)
+
+    assert '<details class="msg-steps">' in thread and "1 step" in thread
+    assert "Checked the draft against the Week check" in thread
+
+
+def test_a_provider_error_in_a_stream_is_saved_and_still_ends_with_done(client, db_session, fake, week):
+    fake.replies.append(ProviderError("overloaded"))
+
+    events = _stream(client, "Hi")
+
+    assert events[-1]["type"] == "done"
+    assert _latest(db_session).status == "failed"

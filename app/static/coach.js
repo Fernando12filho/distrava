@@ -111,13 +111,42 @@ function showPendingMessage(form) {
   const who = document.createElement("span");
   who.className = "who";
   who.textContent = "COACH";
-  thinking.append(who, "Coach is thinking…");
+  // DS-08: the coach's steps list above its answer as they happen.
+  const steps = document.createElement("ul");
+  steps.className = "msg-live-steps";
+  steps.hidden = true;
+  const live = document.createElement("span");
+  live.textContent = "Coach is thinking…";
+  thinking.append(who, steps, live);
   thread.append(question, thinking);
   textarea.value = "";
   growComposer(textarea);
   panelBody.scrollTop = panelBody.scrollHeight;
+  let answering = false;
 
   return {
+    // One server-sent event from the coach (#43): a step, a checked sentence, or a reset.
+    show(event) {
+      if (event.type === "step") {
+        const item = document.createElement("li");
+        item.textContent = event.text;
+        steps.append(item);
+        steps.hidden = false;
+      } else if (event.type === "text") {
+        if (!answering) {
+          answering = true;
+          thinking.classList.remove("thinking");
+          live.textContent = "";
+        }
+        live.textContent += event.text;
+      } else if (event.type === "reset") {
+        // The answer went back to the coach for a correction: back to waiting.
+        answering = false;
+        thinking.classList.add("thinking");
+        live.textContent = "Coach is thinking…";
+      }
+      panelBody.scrollTop = panelBody.scrollHeight;
+    },
     fail() {
       question.remove();
       thinking.remove();
@@ -144,6 +173,41 @@ function growComposer(textarea) {
   textarea.style.height = `${textarea.scrollHeight}px`;
 }
 
+// #43: asks the coach over server-sent events, showing each step and checked
+// sentence as it arrives, then swaps in the saved board when the coach is done.
+async function askStreaming(form, body, pending) {
+  const response = await fetch(form.action, { method: "POST", body, headers: { Accept: "text/event-stream" } });
+  if (!response.ok || !(response.headers.get("content-type") || "").includes("text/event-stream")) {
+    throw new Error(`ask failed: ${response.status}`);
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let doneUrl = null;
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let cut;
+    while ((cut = buffer.indexOf("\n\n")) >= 0) {
+      const frame = buffer.slice(0, cut);
+      buffer = buffer.slice(cut + 2);
+      if (!frame.startsWith("data: ")) continue;
+      const event = JSON.parse(frame.slice("data: ".length));
+      if (event.type === "done") doneUrl = event.url;
+      else pending.show(event);
+    }
+  }
+  if (!doneUrl) throw new Error("the stream ended before the coach was done");
+  try {
+    const page = await fetch(doneUrl);
+    swapCoachLayout(await page.text(), page.url, { scrollThread: true });
+  } catch (error) {
+    // The answer is already saved; a plain load still shows it.
+    window.location.assign(doneUrl);
+  }
+}
+
 // Forms marked data-live-form post in the background and re-render the board
 // and panel in place instead of reloading the whole page.
 function initLiveForms() {
@@ -165,9 +229,13 @@ function initLiveForms() {
     if (form.dataset.busyLabel !== "") button.textContent = form.dataset.busyLabel || "Saving…";
 
     try {
-      const response = await fetch(form.action, { method: "POST", body });
-      if (!response.ok) throw new Error(`save failed: ${response.status}`);
-      swapCoachLayout(await response.text(), response.url, { scrollThread: isQuestion });
+      if (isQuestion) {
+        await askStreaming(form, body, pending);
+      } else {
+        const response = await fetch(form.action, { method: "POST", body });
+        if (!response.ok) throw new Error(`save failed: ${response.status}`);
+        swapCoachLayout(await response.text(), response.url, { scrollThread: false });
+      }
     } catch (error) {
       form.classList.remove("is-saving");
       button.disabled = false;

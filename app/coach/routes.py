@@ -1,7 +1,10 @@
+import json
+import queue
+import threading
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
-from flask import Blueprint, abort, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, Response, abort, jsonify, redirect, render_template, request, stream_with_context, url_for
 from sqlalchemy import func
 
 from app import analytics
@@ -495,6 +498,7 @@ def _coach_view(db, week_start, sessions, days, units):
                 "request": p.request,
                 "reply": p.reply,
                 "note": _THREAD_NOTES.get(p.status),
+                "steps": p.steps or [],
                 # #43: the chat is the same on every week, so a message from another week says which.
                 "week_label": None if p.week.week_start == week_start else f"Week of {p.week.week_start:%b %d}",
             }
@@ -902,20 +906,63 @@ def ask_coach(week):
     catalog = _catalog(db)
     check, context = _proposal_context(db, coach_week, today, units)
 
-    def complete(system, messages, tools):
-        return assistant.run_task(db, chosen, "coach", system, messages, tools=tools)
+    def complete(system, messages, tools, on_text=None):
+        return assistant.run_task(db, chosen, "coach", system, messages, tools=tools, on_text=on_text)
 
     conversation = _active_conversation(db) or CoachConversation()
     history = [
         {"request": p.request, "reply": p.reply, "status": p.status, "week_start": p.week.week_start} for p in conversation.proposals
     ]
-    try:
-        readers = {"load_week": _week_loader(db, today)}
-        result = agent.propose(complete, state, catalog, check["sessions"], message, context, history, readers)
-    except ProviderError as err:
-        result = {"status": "failed", "reply": str(err), "calls": [], "after": None, "changes": []}
 
+    def run(on_event=None):
+        steps = []
+
+        def record(event):
+            if event["type"] == "step":
+                steps.append(event["text"])
+            on_event(event)
+
+        try:
+            readers = {"load_week": _week_loader(db, today)}
+            result = agent.propose(
+                complete, state, catalog, check["sessions"], message, context, history, readers, on_event=record if on_event else None
+            )
+        except ProviderError as err:
+            result = {"status": "failed", "reply": str(err), "calls": [], "after": None, "changes": []}
+        _save_proposal(db, coach_week, conversation, message, result, steps or None)
+
+    if "text/event-stream" in request.headers.get("Accept", ""):
+        return _event_stream(run, _board_url(week_start))
+    run()
+    return redirect(_board_url(week_start), code=303)
+
+
+def _event_stream(run, done_url):
+    """Streams one coach request as server-sent events (#43). The request runs in a
+    worker thread and hands its events over a queue; this thread only waits on that
+    queue, so the database session is never used by both at once. The last event,
+    "done", tells the page to fetch the saved board."""
+    events = queue.Queue()
+
+    def work():
+        try:
+            run(events.put)
+        finally:
+            events.put(None)
+
+    def frames():
+        threading.Thread(target=work, daemon=True).start()
+        while (event := events.get()) is not None:
+            yield f"data: {json.dumps(event)}\n\n"
+        yield f"data: {json.dumps({'type': 'done', 'url': done_url})}\n\n"
+
+    return Response(stream_with_context(frames()), mimetype="text/event-stream", headers={"Cache-Control": "no-cache"})
+
+
+def _save_proposal(db, coach_week, conversation, message, result, steps):
+    """Stores one coach request and what came of it, in the conversation it belongs to."""
     before = after = other_weeks = None
+    week_start = coach_week.week_start
     if result["status"] == "pending":
         parts = dict(result["weeks"])
         here = parts.pop(week_start.isoformat(), {"before": {}, "after": {}})
@@ -933,10 +980,10 @@ def ask_coach(week):
             before=before,
             after=after,
             other_weeks=other_weeks,
+            steps=steps,
         )
     )
     db.commit()
-    return redirect(_board_url(week_start), code=303)
 
 
 def _active_conversation(db):
