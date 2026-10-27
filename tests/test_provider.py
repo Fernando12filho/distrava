@@ -261,3 +261,125 @@ def test_fake_provider_turns_tool_calls_into_blocks():
     assert result["stop_reason"] == "tool_use"
     assert [b["type"] for b in result["content"]] == ["text", "tool_use"]
     assert fake.calls[0]["tools"] == [_TOOL]
+
+
+# --- streaming (#43): text arrives piece by piece; the result is the same shape -----
+
+
+def _sse(*events):
+    lines = []
+    for event in events:
+        lines += [f"event: {event['type']}", f"data: {json.dumps(event)}", ""]
+    return lines
+
+
+def _stream_body(text_pieces=("Saturday ", "is free."), tool=None):
+    events = [
+        {"type": "message_start", "message": {"id": "msg_1", "model": "claude-opus-5-5", "usage": {"input_tokens": 40, "cache_read_input_tokens": 7, "output_tokens": 1}}},
+        {"type": "ping"},
+        {"type": "content_block_start", "index": 0, "content_block": {"type": "thinking", "thinking": "", "signature": ""}},
+        {"type": "content_block_delta", "index": 0, "delta": {"type": "thinking_delta", "thinking": ""}},
+        {"type": "content_block_delta", "index": 0, "delta": {"type": "signature_delta", "signature": "sig-abc"}},
+        {"type": "content_block_stop", "index": 0},
+        {"type": "content_block_start", "index": 1, "content_block": {"type": "text", "text": ""}},
+    ]
+    events += [{"type": "content_block_delta", "index": 1, "delta": {"type": "text_delta", "text": t}} for t in text_pieces]
+    events.append({"type": "content_block_stop", "index": 1})
+    if tool:
+        events += [
+            {"type": "content_block_start", "index": 2, "content_block": {"type": "tool_use", "id": "toolu_1", "name": tool["name"], "input": {}}},
+            {"type": "content_block_delta", "index": 2, "delta": {"type": "input_json_delta", "partial_json": json.dumps(tool["input"])[:9]}},
+            {"type": "content_block_delta", "index": 2, "delta": {"type": "input_json_delta", "partial_json": json.dumps(tool["input"])[9:]}},
+            {"type": "content_block_stop", "index": 2},
+        ]
+    events += [
+        {"type": "message_delta", "delta": {"stop_reason": "tool_use" if tool else "end_turn"}, "usage": {"output_tokens": 25}},
+        {"type": "message_stop"},
+    ]
+    return _sse(*events)
+
+
+class StreamTransport:
+    def __init__(self, *replies):
+        self.replies = list(replies)
+        self.requests = []
+
+    def __call__(self, url, headers, body, timeout):
+        self.requests.append({"url": url, "headers": headers, "body": json.loads(body), "timeout": timeout})
+        reply = self.replies.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+
+def _streaming(*replies):
+    transport = StreamTransport(*replies)
+    return AnthropicProvider(KEY, stream=transport, sleep=lambda _s: None), transport
+
+
+def test_only_a_request_with_a_text_listener_streams():
+    provider, transport = _streaming((200, {"request-id": "req_9"}, _stream_body()))
+    pieces = []
+
+    provider.complete("coach", system=None, messages=[{"role": "user", "content": "Hi"}], on_text=pieces.append)
+
+    assert transport.requests[0]["body"]["stream"] is True
+    plain, plain_transport = _provider(_ok())
+    plain.complete("connection_test", system=None, messages=[{"role": "user", "content": "Hi"}])
+    assert "stream" not in plain_transport.requests[0]["body"]
+
+
+def test_text_arrives_in_pieces_and_the_result_matches_a_whole_reply():
+    provider, _ = _streaming((200, {"request-id": "req_9"}, _stream_body()))
+    pieces = []
+
+    result = provider.complete("coach", system=None, messages=[{"role": "user", "content": "Hi"}], on_text=pieces.append)
+
+    assert pieces == ["Saturday ", "is free."]
+    assert result["text"] == "Saturday is free."
+    assert result["stop_reason"] == "end_turn"
+    assert result["model"] == "claude-opus-5-5" and result["request_id"] == "req_9"
+    assert result["usage"] == {"input_tokens": 40, "output_tokens": 25, "cache_read_tokens": 7, "cache_write_tokens": 0}
+    # The thinking block comes back whole, signature included, for the next turn.
+    assert result["content"][0] == {"type": "thinking", "thinking": "", "signature": "sig-abc"}
+
+
+def test_a_streamed_tool_call_is_put_back_together():
+    call = {"name": "move_session", "input": {"session_id": 2, "day": 4, "reason": "Friday is free."}}
+    provider, _ = _streaming((200, {}, _stream_body(tool=call)))
+
+    result = provider.complete("coach", system=None, messages=[{"role": "user", "content": "Hi"}], on_text=lambda _t: None)
+
+    assert result["tool_calls"] == [{"id": "toolu_1", "name": "move_session", "input": call["input"]}]
+    assert result["content"][2] == {"type": "tool_use", "id": "toolu_1", "name": "move_session", "input": call["input"]}
+
+
+def test_an_error_before_the_stream_starts_is_retried_like_any_call():
+    provider, transport = _streaming(_error(529, "overloaded_error"), (200, {}, _stream_body()))
+
+    result = provider.complete("coach", system=None, messages=[{"role": "user", "content": "Hi"}], on_text=lambda _t: None)
+
+    assert result["text"] == "Saturday is free." and len(transport.requests) == 2
+
+
+def test_an_error_in_the_middle_of_a_stream_is_named_and_not_retried():
+    broken = _stream_body()[:12] + _sse({"type": "error", "error": {"type": "overloaded_error", "message": "Overloaded"}})
+    provider, transport = _streaming((200, {}, broken), (200, {}, _stream_body()))
+
+    with pytest.raises(ProviderError) as err:
+        provider.complete("coach", system=None, messages=[{"role": "user", "content": "Hi"}], on_text=lambda _t: None)
+
+    # Text may already be on screen, so the agent decides what happens next, not a silent retry.
+    assert err.value.kind == "overloaded"
+    assert len(transport.requests) == 1
+    assert KEY not in str(err.value)
+
+
+def test_the_fake_provider_streams_its_text_too():
+    fake = FakeProvider([{"text": "Saturday is free."}])
+    pieces = []
+
+    result = fake.complete("coach", system=None, messages=[], on_text=pieces.append)
+
+    assert "".join(pieces) == "Saturday is free." and len(pieces) > 1
+    assert result["text"] == "Saturday is free."

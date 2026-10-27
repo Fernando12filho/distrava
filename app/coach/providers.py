@@ -6,6 +6,7 @@ and a conftest guard that makes `_urlopen` refuse.
 """
 
 import json
+import re
 import time
 import urllib.error
 import urllib.request
@@ -14,6 +15,8 @@ from app.coach import llm_config
 
 _RETRYABLE = {429: "rate_limit", 500: "server", 502: "server", 503: "server", 504: "server", 529: "overloaded"}
 _FINAL = {400: "bad_request", 401: "auth", 402: "billing", 403: "permission", 404: "not_found", 413: "too_large"}
+# An "error" event inside a stream that already started (no HTTP status by then).
+_STREAM_ERRORS = {"overloaded_error": "overloaded", "rate_limit_error": "rate_limit", "api_error": "server"}
 _MESSAGES = {
     "auth": "The API key was rejected. Check it in the Anthropic console.",
     "billing": "The Anthropic account needs billing set up or more credit.",
@@ -49,6 +52,63 @@ def _send(url, headers, body, timeout):
         raise ConnectionError(str(err)) from None
 
 
+def _open_stream(url, headers, body, timeout):
+    """(status, headers, lines) for a streamed reply; on an HTTP error the third item is the error body."""
+    request = urllib.request.Request(url, data=body, headers=headers, method="POST")
+    try:
+        response = _urlopen(request, timeout=timeout)
+    except urllib.error.HTTPError as err:
+        return err.code, dict(err.headers or {}), err.read()
+    except (urllib.error.URLError, TimeoutError, OSError) as err:
+        raise ConnectionError(str(err)) from None
+
+    def lines():
+        with response:
+            for raw in response:
+                yield raw.decode("utf-8").rstrip("\r\n")
+
+    return response.status, dict(response.headers), lines()
+
+
+def _read_stream(lines, on_text):
+    """Rebuilds the whole reply from server-sent events, passing each piece of text
+    on as it arrives. Blocks come back whole (thinking signatures included), since a
+    follow-up turn must send them back unchanged."""
+    message, blocks, partial_json, usage, stop_reason = {}, {}, {}, {}, None
+    try:
+        for line in lines:
+            if not line.startswith("data:"):
+                continue
+            event = json.loads(line[5:].strip())
+            kind, index = event["type"], event.get("index")
+            if kind == "message_start":
+                message = event["message"]
+                usage.update(message.get("usage") or {})
+            elif kind == "content_block_start":
+                blocks[index] = dict(event["content_block"])
+            elif kind == "content_block_delta":
+                block, delta = blocks[index], event["delta"]
+                if delta["type"] == "text_delta":
+                    block["text"] = block.get("text", "") + delta["text"]
+                    on_text(delta["text"])
+                elif delta["type"] == "input_json_delta":
+                    partial_json[index] = partial_json.get(index, "") + delta["partial_json"]
+                elif delta["type"] == "thinking_delta":
+                    block["thinking"] = block.get("thinking", "") + delta["thinking"]
+                elif delta["type"] == "signature_delta":
+                    block["signature"] = block.get("signature", "") + delta["signature"]
+            elif kind == "content_block_stop" and index in partial_json:
+                blocks[index]["input"] = json.loads(partial_json.pop(index) or "{}")
+            elif kind == "message_delta":
+                stop_reason = event["delta"].get("stop_reason")
+                usage.update(event.get("usage") or {})
+            elif kind == "error":
+                raise ProviderError(_STREAM_ERRORS.get(event["error"].get("type"), "server"))
+    except OSError:
+        raise ProviderError("network") from None
+    return {"content": [blocks[i] for i in sorted(blocks)], "model": message.get("model"), "stop_reason": stop_reason, "usage": usage}
+
+
 def _usage(raw):
     return {
         "input_tokens": raw.get("input_tokens") or 0,
@@ -82,16 +142,17 @@ def _tool_calls(content):
 class AnthropicProvider:
     name = "anthropic"
 
-    def __init__(self, api_key, send=_send, sleep=time.sleep):
+    def __init__(self, api_key, send=_send, sleep=time.sleep, stream=_open_stream):
         self._api_key = api_key
         self._send = send
         self._sleep = sleep
+        self._stream = stream
 
     def __repr__(self):
         # Never the key, even in a traceback.
         return "AnthropicProvider()"
 
-    def _request(self, task, system, messages, tools):
+    def _request(self, task, system, messages, tools, stream=False):
         config = llm_config.TASKS[task]
         body = {
             "model": config["model"],
@@ -99,6 +160,8 @@ class AnthropicProvider:
             "messages": messages,
             "output_config": {"effort": config["effort"]},
         }
+        if stream:
+            body["stream"] = True
         if system:
             body["system"] = system
         if tools:
@@ -113,18 +176,24 @@ class AnthropicProvider:
             headers["anthropic-beta"] = llm_config.FALLBACK_BETA
         return config["model"], headers, json.dumps(body).encode()
 
-    def complete(self, task, system, messages, tools=None):
-        requested_model, headers, body = self._request(task, system, messages, tools)
+    def complete(self, task, system, messages, tools=None, on_text=None):
+        """on_text, when given, streams the reply (#43): it gets each piece of text as
+        it arrives. Only errors before the stream starts are retried — after that,
+        text may already be on screen."""
+        requested_model, headers, body = self._request(task, system, messages, tools, stream=on_text is not None)
+        send = self._stream if on_text is not None else self._send
         for attempt in range(llm_config.MAX_RETRIES + 1):
             last = attempt == llm_config.MAX_RETRIES
             try:
-                status, response_headers, raw = self._send(llm_config.API_URL, headers, body, llm_config.TIMEOUT_SECONDS)
+                status, response_headers, raw = send(llm_config.API_URL, headers, body, llm_config.TIMEOUT_SECONDS)
             except ConnectionError:
                 if last:
                     raise ProviderError("network") from None
                 self._sleep(_retry_wait({}, attempt))
                 continue
             if status == 200:
+                if on_text is not None:
+                    return self._result(requested_model, response_headers, _read_stream(raw, on_text))
                 return self._parse(requested_model, response_headers, raw)
             if status in _RETRYABLE and not last:
                 self._sleep(_retry_wait(response_headers, attempt))
@@ -135,9 +204,12 @@ class AnthropicProvider:
             raise ProviderError(kind, _rejection(raw) if kind == "bad_request" else None)
         raise ProviderError("server")  # unreachable: the last attempt returns or raises
 
+    @classmethod
+    def _parse(cls, requested_model, headers, raw):
+        return cls._result(requested_model, headers, json.loads(raw))
+
     @staticmethod
-    def _parse(requested_model, headers, raw):
-        data = json.loads(raw)
+    def _result(requested_model, headers, data):
         lowered = {k.lower(): v for k, v in headers.items()}
         content = data.get("content", [])
         return {
@@ -164,11 +236,15 @@ class FakeProvider:
         self.calls = []
         self._next_id = 0
 
-    def complete(self, task, system, messages, tools=None):
+    def complete(self, task, system, messages, tools=None, on_text=None):
         self.calls.append({"task": task, "system": system, "messages": messages, "tools": tools})
         reply = self.replies.pop(0)
         if isinstance(reply, Exception):
             raise reply
+        if on_text is not None:
+            # Word by word, so streaming code is exercised with more than one piece.
+            for piece in re.findall(r"\S+\s*", reply.get("text", "")):
+                on_text(piece)
         model = reply.get("model", llm_config.TASKS[task]["model"])
         content = [{"type": "text", "text": reply["text"]}] if reply.get("text") else []
         for call in reply.get("tool_calls", []):
