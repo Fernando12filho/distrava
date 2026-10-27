@@ -286,6 +286,65 @@ def test_an_added_session_you_edit_after_accepting_cannot_be_undone(client, db_s
     assert _latest(db_session).status == "accepted"
 
 
+# --- AC-20: drafts over several weeks ---------------------------------------------
+
+NEXT = "2026-10-26"
+
+
+def test_ac_20_a_two_week_draft_is_previewed_on_both_weeks(client, db_session, fake, week):
+    before = _board_rows(db_session)
+    fake.replies.extend([{"tool_calls": [_add_call(), _add_call(week_start=NEXT, day=2)]}, {}])
+
+    _ask(client, "Prepare my next 2 weeks")
+
+    assert _board_rows(db_session) == before
+    proposal = _latest(db_session)
+    assert proposal.status == "pending"
+    assert proposal.changes == ["Week of Oct 19 · Easy run on Fri: added (8.0 km)", "Week of Oct 26 · Easy run on Wed: added (8.0 km)"]
+    next_week = client.get(f"/coach/?week={NEXT}").get_data(as_text=True)
+    assert "ghost-add" in next_week and f"/coach/proposals/{proposal.id}/accept" in next_week
+
+
+def test_ac_20_accept_writes_every_week_and_undo_restores_them_all(client, db_session, fake, week):
+    before = _board_rows(db_session)
+    fake.replies.extend([{"tool_calls": [_add_call(), _add_call(week_start=NEXT, day=2)]}, {}])
+    _ask(client, "Prepare my next 2 weeks")
+    proposal_id = _latest(db_session).id
+
+    client.post(f"/coach/proposals/{proposal_id}/accept")
+
+    db_session.expire_all()
+    next_week = db_session.query(CoachWeek).filter_by(week_start=date(2026, 10, 26)).one()
+    assert [(s.focus, s.day_index) for s in next_week.sessions] == [("Easy run", 2)]
+    assert db_session.query(CoachSession).filter_by(focus="Easy run").count() == 2
+
+    client.post(f"/coach/proposals/{proposal_id}/undo")
+
+    # Byte-for-byte, the week row the accept created included.
+    assert _board_rows(db_session) == before
+    assert _latest(db_session).status == "undone"
+
+
+def test_ac_04_an_edit_in_any_week_of_the_draft_blocks_the_whole_accept(client, db_session, fake, week):
+    client.post("/coach/sessions", data={"template": "running_day", "day_index": "3", "week_start": NEXT})
+    db_session.expire_all()
+    later_run = db_session.query(CoachSession).join(CoachWeek).filter(CoachWeek.week_start == date(2026, 10, 26)).one()
+    item_id = later_run.items[0].id
+    adjust = _call("adjust_item", reason="As you asked.", item_id=item_id, sets=None, reps=None, duration_seconds=None, distance_meters=5000.0)
+    fake.replies.extend(
+        [{"tool_calls": [{"name": "get_week", "input": {"week_start": NEXT}}]}, {"tool_calls": [_add_call(), adjust]}, {}]
+    )
+    _ask(client, "Add a Friday run, and make next Thursday 5000 m")
+    proposal_id = _latest(db_session).id
+    client.post(f"/coach/sessions/{later_run.id}/move", data={"day_index": "5"})
+    before = _board_rows(db_session)
+
+    client.post(f"/coach/proposals/{proposal_id}/accept")
+
+    assert _board_rows(db_session) == before  # this week's add isn't written either
+    assert _latest(db_session).status == "stale"
+
+
 def test_a_new_request_replaces_the_pending_preview(client, db_session, fake, week):
     fake.replies.append({"tool_calls": [_call("move_session", session_id=week["run"], day=5)]})
     fake.replies.append({})

@@ -246,9 +246,10 @@ _FITS_KIND = {
 }
 
 
-def _new_id(ids):
-    # Negative until accepted: the database gives the real id then.
-    return min([0, *ids]) - 1
+def _new_id(ids, floor=0):
+    # Negative until accepted: the database gives the real id then. A multi-week
+    # draft passes a floor so new ids stay unique across its weeks.
+    return min([0, floor, *ids]) - 1
 
 
 def _new_item(raw, kind, catalog, item_id, position):
@@ -295,10 +296,10 @@ def _add(week, args, catalog):
     item_ids = [i["id"] for s in week["sessions"] for i in s["items"]]
     items = []
     for position, raw in enumerate(raw_items):
-        items.append(_new_item(raw, kind, catalog, _new_id(item_ids + [i["id"] for i in items]), position))
+        items.append(_new_item(raw, kind, catalog, _new_id(item_ids + [i["id"] for i in items], week.get("new_item_id_floor", 0)), position))
     week["sessions"].append(
         {
-            "id": _new_id([s["id"] for s in week["sessions"]]),
+            "id": _new_id([s["id"] for s in week["sessions"]], week.get("new_id_floor", 0)),
             "day_index": day,
             "position": max((s["position"] for s in week["sessions"] if s["day_index"] == day), default=-1) + 1,
             "kind": kind,

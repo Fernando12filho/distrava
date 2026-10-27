@@ -466,15 +466,22 @@ def _coach_view(db, week_start, sessions, days, units):
     proposals = list(week.proposals) if week else []
     latest = proposals[-1] if proposals else None
     pending = next((p for p in proposals if p.status == "pending"), None)
+    before, after = (pending.before, pending.after) if pending else ({}, {})
+    if pending is None:
+        # AC-20: a draft asked from another week shows here too, with its Accept.
+        for waiting in db.query(CoachProposal).filter_by(status="pending"):
+            part = (waiting.other_weeks or {}).get(week_start.isoformat())
+            if part:
+                pending, before, after = waiting, part["before"], part["after"]
     if pending:
-        changed = {int(k) for k in pending.before}
+        changed = {int(k) for k in before}
         for session in sessions:
             if session["id"] in changed:
                 session["ghost"] = "remove"
         for day in days:
             day["ghosts"] = [
                 _ghost_view(state, units)
-                for state in sorted((s for s in pending.after.values() if s), key=lambda s: s["position"])
+                for state in sorted((s for s in after.values() if s), key=lambda s: s["position"])
                 if state["day_index"] == day["index"]
             ]
     return {
@@ -749,7 +756,7 @@ def _catalog(db):
 
 def _current(db, week, ids):
     """The board now, for the sessions a proposal touches (JSON keys are strings)."""
-    sessions = {s.id: s for s in week.sessions}
+    sessions = {s.id: s for s in week.sessions} if week is not None else {}
     return {str(i): (_session_state(sessions[int(i)]) if int(i) in sessions else None) for i in ids}
 
 
@@ -794,11 +801,11 @@ def _write_state(db, week, session_id, state):
         session.items.remove(leftover)
 
 
-def _create_new_sessions(db, week, proposal):
+def _create_new_sessions(db, week, before, after):
     """Sessions the coach added carry negative ids until accepted. They're created
-    here with real ids, and the proposal is rewritten with them so undo removes
+    here with real ids, and the maps come back rewritten with them so undo removes
     exactly these rows."""
-    before, after = dict(proposal.before), dict(proposal.after)
+    before, after = dict(before), dict(after)
     with db.no_autoflush:
         for key in [k for k in after if int(k) < 0]:
             state = after.pop(key)
@@ -816,7 +823,16 @@ def _create_new_sessions(db, week, proposal):
             db.flush()
             after[str(session.id)] = _session_state(session)
             before[str(session.id)] = None
-    proposal.before, proposal.after = before, after
+    return before, after
+
+
+def _week_parts(db, proposal):
+    """(week or None, week_start, before, after) for every week a proposal changes."""
+    parts = [(proposal.week, proposal.week.week_start, proposal.before, proposal.after)]
+    for iso, part in (proposal.other_weeks or {}).items():
+        start = date.fromisoformat(iso)
+        parts.append((db.query(CoachWeek).filter_by(week_start=start).first(), start, part["before"], part["after"]))
+    return parts
 
 
 def _proposal_context(db, week, today, units):
@@ -832,15 +848,15 @@ def _proposal_context(db, week, today, units):
     }
 
 
-def _week_reader(db, today, context):
-    """get_week for the coach: any other week, read-only — reading never creates a week."""
+def _week_loader(db, today):
+    """Another week for the coach's draft — reading never creates a week."""
 
-    def get_week(week_start):
+    def load_week(week_start):
         found = db.query(CoachWeek).filter_by(week_start=week_start).first()
         state = _week_state(found, today) if found else {"today_index": _first_changeable_day(week_start, today), "sessions": []}
-        return agent.payload(state, {**context, "week_start": week_start, "week_check": []})
+        return {"state": state, "rebalancer": _rebalancer_week(db, week_start)}
 
-    return get_week
+    return load_week
 
 
 @bp.route("/weeks/<week>/ask", methods=["POST"])
@@ -864,8 +880,8 @@ def ask_coach(week):
         coach_week = CoachWeek(week_start=week_start)
         db.add(coach_week)
         db.flush()
-    # One preview at a time: a new request replaces the one still waiting.
-    for waiting in db.query(CoachProposal).filter_by(week_id=coach_week.id, status="pending"):
+    # One preview at a time: a new request replaces the one still waiting, in any week.
+    for waiting in db.query(CoachProposal).filter_by(status="pending"):
         waiting.status = "discarded"
     db.commit()
 
@@ -880,16 +896,17 @@ def ask_coach(week):
 
     history = [{"request": p.request, "reply": p.reply, "status": p.status} for p in coach_week.proposals]
     try:
-        readers = {"get_week": _week_reader(db, today, context)}
+        readers = {"load_week": _week_loader(db, today)}
         result = agent.propose(complete, state, catalog, check["sessions"], message, context, history, readers)
     except ProviderError as err:
         result = {"status": "failed", "reply": str(err), "calls": [], "after": None, "changes": []}
 
-    before = after = None
+    before = after = other_weeks = None
     if result["status"] == "pending":
-        old, new = coach_tools.touched(state, result["after"])
-        before = {str(k): v for k, v in old.items()}
-        after = {str(k): v for k, v in new.items()}
+        parts = dict(result["weeks"])
+        here = parts.pop(week_start.isoformat(), {"before": {}, "after": {}})
+        before, after = here["before"], here["after"]
+        other_weeks = {iso: {**part, "created_week": False} for iso, part in parts.items()} or None
     db.add(
         CoachProposal(
             week=coach_week,
@@ -900,6 +917,7 @@ def ask_coach(week):
             changes=result["changes"],
             before=before,
             after=after,
+            other_weeks=other_weeks,
         )
     )
     db.commit()
@@ -919,12 +937,26 @@ def accept_proposal(proposal_id):
     proposal = _proposal_or_404(db, proposal_id)
     if proposal.status != "pending":
         abort(400)
-    # AC-04: a manual edit since the preview wins; the proposal is not applied.
-    if _current(db, proposal.week, proposal.before) != proposal.before:
+    parts = _week_parts(db, proposal)
+    # AC-04: a manual edit since the preview, in any of its weeks, wins; nothing is applied.
+    if any(_current(db, week, before) != before for week, _start, before, _after in parts):
         proposal.status = "stale"
     else:
-        _create_new_sessions(db, proposal.week, proposal)
-        _write_states(db, proposal.week, proposal.after)
+        # AC-20: every week of the draft, or none.
+        other_weeks = {}
+        for week, start, before, after in parts:
+            created = week is None
+            if created:
+                week = CoachWeek(week_start=start)
+                db.add(week)
+                db.flush()
+            before, after = _create_new_sessions(db, week, before, after)
+            _write_states(db, week, after)
+            if week is proposal.week:
+                proposal.before, proposal.after = before, after
+            else:
+                other_weeks[start.isoformat()] = {"before": before, "after": after, "created_week": created}
+        proposal.other_weeks = other_weeks or None
         proposal.status = "accepted"
     db.commit()
     return redirect(_board_url(proposal.week.week_start), code=303)
@@ -942,7 +974,7 @@ def discard_proposal(proposal_id):
 
 
 def _undoable(db, proposal):
-    return proposal.status == "accepted" and _current(db, proposal.week, proposal.after) == proposal.after
+    return proposal.status == "accepted" and all(_current(db, week, after) == after for week, _start, _before, after in _week_parts(db, proposal))
 
 
 @bp.route("/proposals/<int:proposal_id>/undo", methods=["POST"])
@@ -954,7 +986,15 @@ def undo_proposal(proposal_id):
     # Once a changed session is used or edited, undo would overwrite your
     # record, so it is no longer offered.
     if _undoable(db, proposal):
-        _write_states(db, proposal.week, proposal.before)
+        for week, start, before, _after in _week_parts(db, proposal):
+            _write_states(db, week, before)
+            part = (proposal.other_weeks or {}).get(start.isoformat())
+            # A week the accept created goes again, so undo is byte-for-byte (AC-10).
+            if part and part["created_week"]:
+                db.flush()
+                db.refresh(week)
+                if not week.sessions and not week.proposals:
+                    db.delete(week)
         proposal.status = "undone"
         db.commit()
     return redirect(_board_url(proposal.week.week_start), code=303)

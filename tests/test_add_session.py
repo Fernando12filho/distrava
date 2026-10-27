@@ -147,12 +147,3 @@ def test_a_volume_the_user_gave_is_accepted():
     result = _run(fake, request="Add a 12000 m easy run on Friday")
 
     assert result["status"] == "pending"
-
-
-def test_only_this_week_can_be_planned_for_now():
-    fake = FakeProvider([{"tool_calls": [_add(week_start="2026-10-26")]}, {"text": "OK."}])
-
-    _run(fake)
-
-    error = fake.calls[1]["messages"][-1]["content"][0]
-    assert error["is_error"] is True and "this week" in error["content"]

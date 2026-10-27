@@ -19,6 +19,8 @@ from app.coach.usage import call_cost
 MAX_BAD_ROUNDS = 2
 # Enough to follow up on a review and its options without resending a long week of chat.
 MAX_HISTORY_TURNS = 10
+# How far ahead one request may plan: a bound on the draft, not training advice.
+MAX_WEEKS_AHEAD = 4
 
 _OUTCOMES = {
     "accepted": "(You proposed that change and the user accepted it.)",
@@ -36,7 +38,7 @@ TOO_LONG = "The coach's answer was cut off. The board is unchanged; try a shorte
 STOPPED = "The coach reached its limit for one request before finishing. The board is unchanged; try a smaller request."
 STOPPED_WITH_DRAFT = "(The coach reached its limit for one request; this is what it had.)"
 
-_INSTRUCTIONS = """You are the coach inside Distrava, a private training app for a runner who also lifts.
+_INSTRUCTIONS = f"""You are the coach inside Distrava, a private training app for a runner who also lifts.
 The user's week arrives as JSON in <week> tags, followed by their request.
 Earlier messages are this week's conversation so far; when the user refers to something you offered, follow it, but the <week> in the latest message is the current state.
 
@@ -47,6 +49,7 @@ How you work:
 - Only sessions with "can_change": true can change. Days are 0 = Monday … 6 = Sunday.
 - Make the smallest change that does what the user asked. Don't redesign the week unless they ask you to plan it.
 - To plan or fill a week, add sessions with add_session. Take volumes from the user's past weeks (read them with get_week) or from their request; if neither has them, ask the user instead of choosing numbers.
+- You can plan up to {MAX_WEEKS_AHEAD} weeks ahead: read each week with get_week first, then add to it with add_session and its week_start. The user accepts or undoes the whole draft at once.
 - Every tool takes a "reason": one short sentence for the user, in plain words.
 - If the request needs something the tools can't do, or it's a question, answer in two or three sentences without tools.
 
@@ -178,52 +181,137 @@ def _new_volumes(call, allowed):
         )
 
 
-def _write(draft, call, catalog, allowed, units, week_start):
-    """The draft after one write call; a rejected call raises ToolError and leaves it."""
-    if call["name"] == "add_session" and call["input"]["week_start"] != week_start.isoformat():
-        raise tools.ToolError("Only this week can be planned for now.")
+class _Weeks:
+    """The request's drafts: one per week it has read or changed, by week start.
+    Other weeks come from load_week(week_start) -> {"state", "rebalancer"}."""
+
+    def __init__(self, week, rebalancer_sessions, context, load_week):
+        self.current = context["week_start"]
+        self.original = {self.current: week}
+        self.draft = {self.current: copy.deepcopy(week)}
+        self.rebalancer = {self.current: rebalancer_sessions}
+        self.context = {self.current: context}
+        self._load_week = load_week
+
+    def load(self, week_start):
+        if week_start not in self.draft:
+            if self._load_week is None:
+                raise tools.ToolError("Other weeks can't be read here.")
+            loaded = self._load_week(week_start)
+            self.original[week_start] = loaded["state"]
+            self.draft[week_start] = copy.deepcopy(loaded["state"])
+            self.rebalancer[week_start] = loaded["rebalancer"]
+            # The distance check needs imported runs, which only the asked-from week carries.
+            self.context[week_start] = {**self.context[self.current], "week_start": week_start, "week_check": [], "distance": None}
+        return self.draft[week_start]
+
+    def view(self, week_start):
+        return payload(self.load(week_start), self.context[week_start])
+
+    def owner(self, call):
+        """The week holding the session or exercise a call names (this week if none does)."""
+        session_id, item_id = call["input"].get("session_id"), call["input"].get("item_id")
+        for week_start, draft in self.draft.items():
+            for session in draft["sessions"]:
+                if session["id"] == session_id or any(i["id"] == item_id for i in session["items"]):
+                    return week_start
+        return self.current
+
+    def floors(self):
+        sessions = [s for d in self.draft.values() for s in d["sessions"]]
+        return min([0, *(s["id"] for s in sessions)]), min([0, *(i["id"] for s in sessions for i in s["items"])])
+
+    def changed(self):
+        return [w for w in sorted(self.draft) if self.draft[w] != self.original[w]]
+
+    def new_conflicts(self, catalog):
+        return {w: tools.new_conflicts(self.rebalancer[w], self.draft[w], catalog) for w in self.changed()}
+
+    def check(self, catalog):
+        result = plan_check(self.draft[self.current], catalog, self.rebalancer[self.current], self.context[self.current])
+        others = [w for w in self.changed() if w != self.current]
+        if others:
+            result["other_weeks"] = {
+                w.isoformat(): {k: v for k, v in plan_check(self.draft[w], catalog, self.rebalancer[w], self.context[w]).items() if k != "distance"}
+                for w in others
+            }
+        return result
+
+    def change_lines(self, catalog, units):
+        changed = self.changed()
+        lines = []
+        for w in changed:
+            week_lines = tools.change_lines(self.original[w], self.draft[w], catalog, units)
+            # One week asked about and changed reads as before; anything else names its week.
+            label = "" if changed == [self.current] else f"Week of {w:%b %d} · "
+            lines += [label + line for line in week_lines]
+        return lines
+
+
+def _add_target(weeks, call):
+    week_start = read_tools.monday(call["input"]["week_start"])
+    if week_start < weeks.current:
+        raise tools.ToolError(f"The week of {week_start.isoformat()} is past.")
+    if (week_start - weeks.current).days > 7 * MAX_WEEKS_AHEAD:
+        raise tools.ToolError(f"Plan at most {MAX_WEEKS_AHEAD} weeks ahead of this one.")
+    return week_start
+
+
+def _write(weeks, call, catalog, allowed, units):
+    """Applies one write call to the week it belongs to; a rejected call raises ToolError and changes nothing."""
+    week_start = _add_target(weeks, call) if call["name"] == "add_session" else weeks.owner(call)
     _new_volumes(call, allowed)
-    after = tools.apply(draft, call, catalog)
+    before = weeks.load(week_start)
+    sessions_floor, items_floor = weeks.floors()
+    after = tools.apply({**before, "new_id_floor": sessions_floor, "new_item_id_floor": items_floor}, call, catalog)
+    after.pop("new_id_floor")
+    after.pop("new_item_id_floor")
     # A reason is shown to the user beside the change, so it's held to the same number rule.
-    stray = _strays(call["input"].get("reason") or "", allowed + "\n" + "\n".join(tools.change_lines(draft, after, catalog, units)))
+    stray = _strays(call["input"].get("reason") or "", allowed + "\n" + "\n".join(tools.change_lines(before, after, catalog, units)))
     if stray:
         raise tools.ToolError(stray)
-    return after
+    weeks.draft[week_start] = after
 
 
-def _finish_problems(text, week, draft, catalog, rebalancer_sessions, allowed, units):
+def _finish_problems(text, weeks, catalog, allowed, units):
     problems = []
-    clashes = tools.new_conflicts(rebalancer_sessions, draft, catalog) if draft != week else []
+    clashes = [c for found in weeks.new_conflicts(catalog).values() for c in found]
     if clashes:
         problems.append(
             "These changes break the week's spacing rules, so they can't be offered: "
             + "; ".join(_clash_text(c) for c in clashes)
             + ". Change the draft with more tool calls, or explain why it can't be done."
         )
-    stray = _strays(text, allowed + "\n" + "\n".join(tools.change_lines(week, draft, catalog, units)))
+    stray = _strays(text, allowed + "\n" + "\n".join(weeks.change_lines(catalog, units)))
     if stray:
         problems.append(stray)
     return problems
 
 
-def _proposal(text, week, draft, catalog, units, applied):
-    if draft == week:
+def _proposal(text, weeks, catalog, units, applied):
+    changed = weeks.changed()
+    if not changed:
         return {"status": "answer", "reply": text, "calls": [], "after": None, "changes": []}
     reasons = " ".join(dict.fromkeys(r for r in (c["input"].get("reason", "").strip() for c in applied) if r))
+    by_week = {}
+    for w in changed:
+        old, new = tools.touched(weeks.original[w], weeks.draft[w])
+        by_week[w.isoformat()] = {"before": {str(k): v for k, v in old.items()}, "after": {str(k): v for k, v in new.items()}}
     return {
         "status": "pending",
         "reply": text or reasons,
         "calls": [{"name": c["name"], "input": c["input"]} for c in applied],
-        "after": draft,
-        "changes": tools.change_lines(week, draft, catalog, units),
+        "after": weeks.draft[weeks.current],
+        "weeks": by_week,
+        "changes": weeks.change_lines(catalog, units),
     }
 
 
-def _stopped(week, draft, catalog, rebalancer_sessions, units, applied):
+def _stopped(weeks, catalog, units, applied):
     # AC-14: show what it has only if that draft would pass the final check.
-    if draft == week or tools.new_conflicts(rebalancer_sessions, draft, catalog):
+    if not weeks.changed() or any(weeks.new_conflicts(catalog).values()):
         return _failed(STOPPED)
-    result = _proposal("", week, draft, catalog, units, applied)
+    result = _proposal("", weeks, catalog, units, applied)
     result["reply"] = f"{result['reply']} {STOPPED_WITH_DRAFT}".strip()
     return result
 
@@ -252,7 +340,8 @@ def propose(complete, week, catalog, rebalancer_sessions, request, context, hist
     system, defined = system_prompt(catalog), tool_definitions()
     limits, units = llm_config.TASKS["coach"], context["units"]
 
-    draft, applied, bad_rounds, spent = copy.deepcopy(week), [], 0, 0.0
+    weeks = _Weeks(week, rebalancer_sessions, context, (readers or {}).get("load_week"))
+    applied, bad_rounds, spent = [], 0, 0.0
     for _step in range(limits["max_steps"]):
         result = complete(system, messages, defined)
         spent += call_cost(result["model"], result["usage"]) or 0.0
@@ -266,16 +355,10 @@ def propose(complete, week, catalog, rebalancer_sessions, request, context, hist
             for call in result["tool_calls"]:
                 try:
                     if call["name"] in read_tools.NAMES:
-                        content = read_tools.run(
-                            call,
-                            readers or {},
-                            context["week_start"],
-                            lambda: payload(draft, context),
-                            lambda: plan_check(draft, catalog, rebalancer_sessions, context),
-                        )
+                        content = read_tools.run(call, weeks.view, lambda: weeks.check(catalog))
                         allowed += "\n" + content
                     else:
-                        draft = _write(draft, call, catalog, allowed, units, context["week_start"])
+                        _write(weeks, call, catalog, allowed, units)
                         applied.append(call)
                         content = "OK"
                     feedback.append({"type": "tool_result", "tool_use_id": call["id"], "content": content})
@@ -284,9 +367,9 @@ def propose(complete, week, catalog, rebalancer_sessions, request, context, hist
                     feedback.append({"type": "tool_result", "tool_use_id": call["id"], "content": str(err), "is_error": True})
         else:
             text = result["text"].strip()
-            problems = _finish_problems(text, week, draft, catalog, rebalancer_sessions, allowed, units)
+            problems = _finish_problems(text, weeks, catalog, allowed, units)
             if not problems:
-                return _proposal(text, week, draft, catalog, units, applied)
+                return _proposal(text, weeks, catalog, units, applied)
             bad = True
             feedback.append({"type": "text", "text": " ".join(problems)})
 
@@ -294,9 +377,9 @@ def propose(complete, week, catalog, rebalancer_sessions, request, context, hist
         if bad_rounds >= MAX_BAD_ROUNDS:
             return _failed(GAVE_UP)
         if spent >= limits["max_cost_usd"]:
-            return _stopped(week, draft, catalog, rebalancer_sessions, units, applied)
+            return _stopped(weeks, catalog, units, applied)
         messages = messages + [{"role": "assistant", "content": result["content"]}, {"role": "user", "content": feedback}]
-    return _stopped(week, draft, catalog, rebalancer_sessions, units, applied)
+    return _stopped(weeks, catalog, units, applied)
 
 
 def _failed(message):

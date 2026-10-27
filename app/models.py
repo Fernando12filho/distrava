@@ -323,6 +323,9 @@ class CoachProposal(Base):
     changes = Column(JSON, nullable=False, default=list)
     before = Column(JSON, nullable=True)
     after = Column(JSON, nullable=True)
+    # A draft over several weeks (AC-20): {week_start: {"before", "after", "created_week"}}
+    # for every week but the one asked from, accepted and undone together with it.
+    other_weeks = Column(JSON, nullable=True)
 
     week = relationship("CoachWeek", backref=backref("proposals", cascade="all, delete-orphan", order_by="CoachProposal.id"))
 

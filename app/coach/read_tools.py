@@ -1,6 +1,6 @@
 """The coach's read tools: they answer from what the app already knows and
-never write (AC-15). Pure: anything that needs the database comes in as a
-reader function from the route, and results go back as compact JSON.
+never write (AC-15). Pure: the request's drafts answer through functions passed
+in, and results go back as compact JSON.
 """
 
 import json
@@ -33,7 +33,7 @@ READ_TOOLS = [
 NAMES = {tool["name"] for tool in READ_TOOLS}
 
 
-def _monday(value):
+def monday(value):
     try:
         day = date.fromisoformat(value)
     except (TypeError, ValueError):
@@ -43,18 +43,11 @@ def _monday(value):
     return day
 
 
-def run(call, readers, week_start, draft_view, draft_check):
+def run(call, view_week, check):
     """The result text for one read call; a bad argument raises ToolError.
-    draft_view and draft_check answer about the request's own draft."""
+    view_week(week_start) and check() answer from the request's drafts."""
     if call["name"] == "check_plan":
-        return json.dumps(draft_check(), ensure_ascii=False, sort_keys=True)
+        return json.dumps(check(), ensure_ascii=False, sort_keys=True)
     if call["name"] == "get_week":
-        wanted = _monday(call["input"].get("week_start"))
-        if wanted == week_start:
-            data = draft_view()
-        elif "get_week" in readers:
-            data = readers["get_week"](wanted)
-        else:
-            raise ToolError("Other weeks can't be read here.")
-        return json.dumps(data, ensure_ascii=False, sort_keys=True)
+        return json.dumps(view_week(monday(call["input"].get("week_start"))), ensure_ascii=False, sort_keys=True)
     raise ToolError(f"Unknown tool {call['name']}.")

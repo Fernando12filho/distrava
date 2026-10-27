@@ -19,16 +19,25 @@ LAST_WEEK = date(2026, 10, 12)
 EASY = {"name": "set_planned_effort", "input": {"session_id": 2, "effort": "easy", "reason": "Keep it easy."}}
 
 
-def _last_week_payload():
-    return {"week_start": LAST_WEEK.isoformat(), "sessions": [{"id": 7, "day": "Tue 2026-10-13", "items": [{"volume": "6.0 km"}]}]}
+def _last_week_state():
+    return {
+        "today_index": 7,
+        "sessions": [
+            {
+                "id": 7, "day_index": 1, "position": 0, "kind": "run", "focus": "Running day", "status": "done",
+                "planned_effort": None, "locked": True,
+                "items": [{"id": 70, "position": 0, "exercise": "easy_run", "sets": None, "reps": None, "duration_seconds": None, "distance_meters": 6000.0}],
+            }
+        ],
+    }
 
 
 def _run(fake, request="Move Thursday's run to Friday", readers=None):
     asked = []
 
-    def get_week(week_start):
+    def load_week(week_start):
         asked.append(week_start)
-        return _last_week_payload()
+        return {"state": _last_week_state(), "rebalancer": []}
 
     def complete(system, messages, tools):
         return fake.complete("coach", system=system, messages=messages, tools=tools)
@@ -40,7 +49,7 @@ def _run(fake, request="Move Thursday's run to Friday", readers=None):
         rebalancer_sessions=[],
         request=request,
         context={"week_start": WEEK_START, "today": TODAY, "units": "metric", "profile": {}, "week_check": []},
-        readers=readers or {"get_week": get_week},
+        readers=readers or {"load_week": load_week},
     )
     return result, asked
 
@@ -80,8 +89,9 @@ def test_ac_15_reading_another_week_answers_without_writing():
     result, asked = _run(fake, request="What did I do last week?")
 
     assert asked == [LAST_WEEK]
-    content = _tool_results(fake.calls[1])[0]["content"]
-    assert json.loads(content) == _last_week_payload()
+    seen = json.loads(_tool_results(fake.calls[1])[0]["content"])
+    assert seen["week_start"] == "2026-10-12"
+    assert [(s["day"], s["can_change"], s["items"][0]["volume"]) for s in seen["sessions"]] == [("Tue 2026-10-13", False, "6.0 km")]
     # 6.0 came from a tool result, so it isn't an invented number.
     assert result == {"status": "answer", "reply": "Last week you ran 6.0 km on Tuesday.", "calls": [], "after": None, "changes": []}
 
