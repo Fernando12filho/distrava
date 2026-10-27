@@ -11,7 +11,7 @@ import copy
 import json
 from datetime import timedelta
 
-from app.coach import board, llm_config, read_tools, tools
+from app.coach import board, llm_config, progression, read_tools, rebalancer, tools
 from app.coach.usage import call_cost
 
 # A bad round is a rejected write or a finish that fails the final check: the
@@ -42,6 +42,7 @@ Earlier messages are this week's conversation so far; when the user refers to so
 
 How you work:
 - Work in steps. Read tools (like get_week) answer from the app; write tools change a draft of this week. Each write is checked by the app, and your draft builds up across steps.
+- Before you finish a change, call check_plan and fix every clash marked "new"; clashes already on the board are the user's to decide.
 - When you're done, reply without calling a tool: one or two plain sentences for the user. The user then sees the whole draft as one preview they accept or undo; nothing changes without them.
 - Only sessions with "can_change": true can change. Days are 0 = Monday … 6 = Sunday.
 - Make the smallest change that does what the user asked. Don't redesign the week.
@@ -120,6 +121,38 @@ def payload(week, context):
 def _clash_text(clash):
     groups = f" ({', '.join(clash['groups'])})" if clash["groups"] else ""
     return f"{clash['rule']}: sessions {', '.join(str(i) for i in clash['session_ids'])}{groups}"
+
+
+def _label(session):
+    day = board.DOW_LABELS[session["day_index"]].title() if 0 <= session["day_index"] < len(board.DOW_LABELS) else "Last week"
+    return f"{day} {session['focus']} (session {session['id']})"
+
+
+def plan_check(draft, catalog, rebalancer_sessions, context):
+    """check_plan (AC-16): the Week check's three parts, computed on the draft."""
+    rebuilt = tools.rebuild(rebalancer_sessions, draft, catalog)
+    by_id, is_new = {s["id"]: s for s in rebuilt}, tools.is_new_conflict(rebalancer_sessions)
+    clashes = [
+        {"rule": c["rule"], "reason": c["reason"], "sessions": [_label(by_id[i]) for i in c["session_ids"]], "groups": c["groups"], "new": is_new(c)}
+        for c in rebalancer.check_week(rebuilt)
+    ]
+    # RULE-WEEK-01, by session count, as on the Week check.
+    hard_runs = progression.run_balance(
+        [rebalancer.effort(s)["hard"] for s in rebuilt if s["kind"] == "run" and s["day_index"] >= 0 and s["status"] != "skipped"]
+    )
+    # RULE-PROG-02: imported so far plus the draft's runs still to come.
+    distance = None
+    if context.get("distance"):
+        ahead = sum(
+            item["distance_meters"] or 0.0
+            for s in draft["sessions"]
+            if s["kind"] == "run" and s["status"] == "planned" and s["day_index"] >= draft["today_index"]
+            for item in s["items"]
+        )
+        # Standing rule: at most 2 decimals, in what the coach sees too.
+        this_week = round(context["distance"]["so_far_meters"] + ahead, 2)
+        distance = progression.distance_change(this_week, [round(m, 2) for m in context["distance"]["previous_weeks_meters"]])
+    return {"clashes": clashes, "hard_runs": hard_runs, "distance": distance}
 
 
 STRAYS = "Your words used numbers that aren't in the week, a tool result or the request: {}. Don't calculate; use only numbers you were given. The app shows exact values itself."
@@ -215,7 +248,13 @@ def propose(complete, week, catalog, rebalancer_sessions, request, context, hist
             for call in result["tool_calls"]:
                 try:
                     if call["name"] in read_tools.NAMES:
-                        content = read_tools.run(call, readers or {}, context["week_start"], lambda: payload(draft, context))
+                        content = read_tools.run(
+                            call,
+                            readers or {},
+                            context["week_start"],
+                            lambda: payload(draft, context),
+                            lambda: plan_check(draft, catalog, rebalancer_sessions, context),
+                        )
                         allowed += "\n" + content
                     else:
                         draft = _write(draft, call, catalog, allowed, units)

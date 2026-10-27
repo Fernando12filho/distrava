@@ -282,9 +282,8 @@ def _conflict_key(conflict):
     return (conflict["rule"], conflict["reason"], frozenset(conflict["session_ids"]))
 
 
-# AC-05: a proposal may not add a spacing clash. Clashes already in the week are
-# the user's to see on the Week check, not a reason to block every change.
-def new_conflicts(rebalancer_sessions, after, catalog):
+def rebuild(rebalancer_sessions, after, catalog):
+    """The rebalancer's view of a draft: moved days, new efforts and muscle groups."""
     planned = {s["id"]: s for s in after["sessions"]}
     in_week = {s["id"] for s in rebalancer_sessions if s["day_index"] >= 0}
     rebuilt = []
@@ -305,8 +304,19 @@ def new_conflicts(rebalancer_sessions, after, catalog):
                 "muscle_groups": groups or session["muscle_groups"],
             }
         )
+    return rebuilt
+
+
+def is_new_conflict(rebalancer_sessions):
     existing = {_conflict_key(c) for c in rebalancer.check_week(rebalancer_sessions)}
-    return [c for c in rebalancer.check_week(rebuilt) if _conflict_key(c) not in existing]
+    return lambda conflict: _conflict_key(conflict) not in existing
+
+
+# AC-05: a proposal may not add a spacing clash. Clashes already in the week are
+# the user's to see on the Week check, not a reason to block every change.
+def new_conflicts(rebalancer_sessions, after, catalog):
+    is_new = is_new_conflict(rebalancer_sessions)
+    return [c for c in rebalancer.check_week(rebuild(rebalancer_sessions, after, catalog)) if is_new(c)]
 
 
 _NUMBER = re.compile(r"\d+(?:\.\d+)?")

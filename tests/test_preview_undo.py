@@ -198,6 +198,34 @@ def test_reading_a_week_with_no_plan_says_it_is_empty(client, db_session, fake, 
     assert db_session.query(CoachWeek).filter_by(week_start=date(2026, 11, 2)).count() == 0  # reading never creates
 
 
+def test_check_plan_from_the_board_has_the_weeks_distance_inputs(client, db_session, fake, week):
+    fake.replies.extend([{"tool_calls": [{"name": "check_plan", "input": {}}]}, {"text": "All clear."}])
+
+    _ask(client, "Is this week OK?")
+
+    checked = json.loads(fake.calls[1]["messages"][-1]["content"][0]["content"])
+    assert checked["clashes"] == []
+    # No runs in the last two weeks: no baseline, so no distance change to report.
+    assert checked["distance"] is None
+    assert _latest(db_session).status == "answer"
+
+
+def test_check_plan_compares_the_draft_with_the_last_two_weeks_of_runs(client, db_session, fake, week, make_activity):
+    from datetime import datetime
+
+    for n, day in enumerate((date(2026, 10, 7), date(2026, 10, 14), date(2026, 10, 19))):
+        start = datetime.combine(day, datetime.min.time()).replace(hour=8)
+        meters = 2000.0 if day.day == 19 else 5000.0
+        make_activity(start_time=start, end_time=start, distance_meters=meters, source_id=f"run-{n}", dedup_key=f"Run|{start.isoformat()}|1800")
+    fake.replies.extend([{"tool_calls": [{"name": "check_plan", "input": {}}]}, {"text": "All clear."}])
+
+    _ask(client, "Is this week OK?")
+
+    checked = json.loads(fake.calls[1]["messages"][-1]["content"][0]["content"])
+    # RULE-PROG-02: Monday's 2 km plus Thursday's planned 8 km against a 5 km average.
+    assert checked["distance"] == {"this_week_meters": 10000.0, "baseline_meters": 5000.0, "pct": 100.0, "level": "big"}
+
+
 def test_a_new_request_replaces_the_pending_preview(client, db_session, fake, week):
     fake.replies.append({"tool_calls": [_call("move_session", session_id=week["run"], day=5)]})
     fake.replies.append({})

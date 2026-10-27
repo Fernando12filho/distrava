@@ -21,6 +21,13 @@ READ_TOOLS = [
             "additionalProperties": False,
         },
     },
+    {
+        "name": "check_plan",
+        "description": "Run the app's Week check on your draft: spacing clashes (new ones are yours to fix), "
+        "hard runs against the suggested number, and this week's running distance against recent weeks.",
+        "strict": True,
+        "input_schema": {"type": "object", "properties": {}, "required": [], "additionalProperties": False},
+    },
 ]
 
 NAMES = {tool["name"] for tool in READ_TOOLS}
@@ -36,8 +43,11 @@ def _monday(value):
     return day
 
 
-def run(call, readers, week_start, draft_view):
-    """The result text for one read call; a bad argument raises ToolError."""
+def run(call, readers, week_start, draft_view, draft_check):
+    """The result text for one read call; a bad argument raises ToolError.
+    draft_view and draft_check answer about the request's own draft."""
+    if call["name"] == "check_plan":
+        return json.dumps(draft_check(), ensure_ascii=False, sort_keys=True)
     if call["name"] == "get_week":
         wanted = _monday(call["input"].get("week_start"))
         if wanted == week_start:

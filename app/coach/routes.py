@@ -274,10 +274,21 @@ def _distance_label(meters, units):
     return f"{_trim2(value)} {unit}"
 
 
+def _distance_inputs(db, week_start, today):
+    """RULE-PROG-02 inputs: imported running so far this week, and each of the weeks before."""
+    week_end = week_start + timedelta(days=DAYS_PER_WEEK)
+    return {
+        "so_far_meters": _run_meters(db, week_start, min(week_end, today + timedelta(days=1))),
+        "previous_weeks_meters": [
+            _run_meters(db, week_start - timedelta(days=DAYS_PER_WEEK * k), week_start - timedelta(days=DAYS_PER_WEEK * (k - 1)))
+            for k in range(1, DISTANCE_BASELINE_WEEKS + 1)
+        ],
+    }
+
+
 def _progression_view(db, week_start, today, today_index, rebalancer_sessions):
     week = db.query(CoachWeek).filter_by(week_start=week_start).first()
     units = _get_units(db.query(UserSettings).first())
-    week_end = week_start + timedelta(days=DAYS_PER_WEEK)
 
     # RULE-PROG-02: imported runs so far plus planned runs still to come.
     planned_ahead = sum(
@@ -286,12 +297,8 @@ def _progression_view(db, week_start, today, today_index, rebalancer_sessions):
         if s.kind == "run" and s.status == "planned" and s.day_index >= today_index
         for item in s.items
     )
-    this_week = _run_meters(db, week_start, min(week_end, today + timedelta(days=1))) + planned_ahead
-    previous = [
-        _run_meters(db, week_start - timedelta(days=DAYS_PER_WEEK * k), week_start - timedelta(days=DAYS_PER_WEEK * (k - 1)))
-        for k in range(1, DISTANCE_BASELINE_WEEKS + 1)
-    ]
-    change = progression.distance_change(this_week, previous)
+    inputs = _distance_inputs(db, week_start, today)
+    change = progression.distance_change(inputs["so_far_meters"] + planned_ahead, inputs["previous_weeks_meters"])
     distance = (
         {
             "level": change["level"],
@@ -796,6 +803,7 @@ def _proposal_context(db, week, today, units):
         "units": units,
         "profile": {f: getattr(profile, f) for f in coach_profile.FIELDS if getattr(profile, f) is not None} if profile else {},
         "week_check": [f"{c['text']} ({', '.join(c['sessions'])}; {c['rule']})" for c in check["conflicts"]],
+        "distance": _distance_inputs(db, week.week_start, today),
     }
 
 
