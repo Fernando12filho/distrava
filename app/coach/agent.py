@@ -9,7 +9,8 @@ touches the database — a result is only a proposal for the user to accept.
 
 import copy
 import json
-from datetime import timedelta
+import re
+from datetime import date, timedelta
 
 from app.coach import board, llm_config, progression, read_tools, rebalancer, tools
 from app.coach.usage import call_cost
@@ -249,6 +250,52 @@ class _Weeks:
         return lines
 
 
+# A sentence ends at . ! or ? followed by whitespace, or at a line break, so "8.0 km"
+# is never cut at its decimal point.
+_SENTENCE = re.compile(r".*?(?:[.!?](?=\s)|\n)", re.DOTALL)
+
+
+class _Sentences:
+    """Streams the coach's text one complete sentence at a time (#43). Each sentence
+    must pass the number check before it is sent; the first that fails stops the
+    stream, so an invented number never reaches the screen."""
+
+    def __init__(self, on_event, passes):
+        self._on_event, self._passes = on_event, passes
+        self._buffer, self.stopped, self.sent = "", False, False
+
+    def feed(self, piece):
+        self._buffer += piece
+        while (match := _SENTENCE.match(self._buffer)) is not None:
+            self._buffer = self._buffer[match.end() :]
+            self._send(match.group(0))
+
+    def flush(self):
+        self._send(self._buffer)
+        self._buffer = ""
+
+    def _send(self, sentence):
+        if self.stopped or not sentence.strip():
+            return
+        if not self._passes(sentence):
+            self.stopped = True
+            return
+        self.sent = True
+        self._on_event({"type": "text", "text": sentence})
+
+
+REFUSED_STEP = "The app refused one change; the coach is adjusting"
+
+
+def step_label(call, change_lines):
+    """What the coach just did, in code-written words: never the model's own text."""
+    if call["name"] == "get_week":
+        return f"Read the week of {date.fromisoformat(call['input']['week_start']):%b %d}"
+    if call["name"] == "check_plan":
+        return "Checked the draft against the Week check"
+    return "; ".join(change_lines) or "Changed the draft"
+
+
 def _add_target(weeks, call):
     week_start = read_tools.monday(call["input"]["week_start"])
     if week_start < weeks.current:
@@ -268,10 +315,12 @@ def _write(weeks, call, catalog, allowed, units, user_units):
     after.pop("new_id_floor")
     after.pop("new_item_id_floor")
     # A reason is shown to the user beside the change, so it's held to the same number rule.
-    stray = _strays(call["input"].get("reason") or "", allowed + "\n" + "\n".join(tools.change_lines(before, after, catalog, units)))
+    lines = tools.change_lines(before, after, catalog, units)
+    stray = _strays(call["input"].get("reason") or "", allowed + "\n" + "\n".join(lines))
     if stray:
         raise tools.ToolError(stray)
     weeks.draft[week_start] = after
+    return lines
 
 
 def _finish_problems(text, weeks, catalog, allowed, units):
@@ -332,7 +381,10 @@ def _conversation(history, week_start):
     return messages, outcome
 
 
-def propose(complete, week, catalog, rebalancer_sessions, request, context, history=(), readers=None):
+def propose(complete, week, catalog, rebalancer_sessions, request, context, history=(), readers=None, on_event=None):
+    """on_event, when given, streams the request (#43): {"type": "text"} for each
+    checked sentence, {"type": "step"} for each tool call, and {"type": "reset"}
+    when a finished answer is sent back for correction."""
     data = payload(week, context)
     week_json = json.dumps(data, ensure_ascii=False, sort_keys=True)
     earlier, outcome = _conversation(history, context["week_start"])
@@ -349,7 +401,13 @@ def propose(complete, week, catalog, rebalancer_sessions, request, context, hist
     weeks = _Weeks(week, rebalancer_sessions, context, (readers or {}).get("load_week"))
     applied, bad_rounds, spent = [], 0, 0.0
     for _step in range(limits["max_steps"]):
-        result = complete(system, messages, defined)
+        if on_event is None:
+            result = complete(system, messages, defined)
+        else:
+            # `allowed` grows with tool results, so the check reads it when each sentence ends.
+            sentences = _Sentences(on_event, lambda s: not _strays(s, allowed + "\n" + "\n".join(weeks.change_lines(catalog, units))))
+            result = complete(system, messages, defined, on_text=sentences.feed)
+            sentences.flush()
         spent += call_cost(result["model"], result["usage"]) or 0.0
         if result["stop_reason"] == "refusal":
             return _failed(DECLINED)
@@ -363,14 +421,20 @@ def propose(complete, week, catalog, rebalancer_sessions, request, context, hist
                     if call["name"] in read_tools.NAMES:
                         content = read_tools.run(call, weeks.view, lambda: weeks.check(catalog))
                         allowed += "\n" + content
+                        lines = []
                     else:
-                        _write(weeks, call, catalog, allowed, units, user_units)
+                        lines = _write(weeks, call, catalog, allowed, units, user_units)
                         applied.append(call)
                         content = "OK"
                     feedback.append({"type": "tool_result", "tool_use_id": call["id"], "content": content})
+                    if on_event:
+                        on_event({"type": "step", "text": step_label(call, lines)})
                 except tools.ToolError as err:
-                    bad = bad or call["name"] not in read_tools.NAMES
+                    refused_write = call["name"] not in read_tools.NAMES
+                    bad = bad or refused_write
                     feedback.append({"type": "tool_result", "tool_use_id": call["id"], "content": str(err), "is_error": True})
+                    if on_event and refused_write:
+                        on_event({"type": "step", "text": REFUSED_STEP})
         else:
             text = result["text"].strip()
             problems = _finish_problems(text, weeks, catalog, allowed, units)
@@ -378,6 +442,8 @@ def propose(complete, week, catalog, rebalancer_sessions, request, context, hist
                 return _proposal(text, weeks, catalog, units, applied)
             bad = True
             feedback.append({"type": "text", "text": " ".join(problems)})
+            if on_event and sentences.sent:
+                on_event({"type": "reset"})
 
         bad_rounds += bad
         if bad_rounds >= MAX_BAD_ROUNDS:
