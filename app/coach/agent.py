@@ -316,13 +316,16 @@ def _stopped(weeks, catalog, units, applied):
     return result
 
 
-def _conversation(history):
+def _conversation(history, week_start):
     """Earlier turns as plain text, oldest first, so the coach can refer back
-    to what it offered. Failed turns were app errors, not the coach speaking."""
+    to what it offered. Failed turns were app errors, not the coach speaking.
+    A turn asked while viewing another week says which (#43)."""
     turns = [t for t in history if t["status"] != "failed"][-MAX_HISTORY_TURNS:]
     messages, outcome = [], None
     for turn in turns:
-        messages.append({"role": "user", "content": (f"{outcome}\n\n" if outcome else "") + turn["request"]})
+        asked = turn.get("week_start", week_start)
+        where = f"(Asked while viewing the week of {asked.isoformat()}.)\n\n" if asked != week_start else ""
+        messages.append({"role": "user", "content": (f"{outcome}\n\n" if outcome else "") + where + turn["request"]})
         messages.append({"role": "assistant", "content": turn["reply"] or ""})
         outcome = _OUTCOMES.get(turn["status"])
     return messages, outcome
@@ -331,7 +334,7 @@ def _conversation(history):
 def propose(complete, week, catalog, rebalancer_sessions, request, context, history=(), readers=None):
     data = payload(week, context)
     week_json = json.dumps(data, ensure_ascii=False, sort_keys=True)
-    earlier, outcome = _conversation(history)
+    earlier, outcome = _conversation(history, context["week_start"])
     # Only the latest message carries the week: earlier weeks are out of date.
     latest = f"<week>{week_json}</week>\n\n{request}"
     messages = earlier + [{"role": "user", "content": f"{outcome}\n\n{latest}" if outcome else latest}]

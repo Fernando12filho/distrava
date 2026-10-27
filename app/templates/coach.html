@@ -262,6 +262,17 @@
       </button>
       <div class="coach-panel-title"><span class="status-dot{% if not provider_connected %} off{% endif %}"></span><span class="coach-panel-name">Coach</span></div>
       <span class="coach-provider">{{ 'YOUR API KEY' if provider_connected else 'NOT CONNECTED' }}</span>
+      {% if provider_connected %}
+      {# DS-05: one chat across weeks; a new one starts here. #}
+      <form method="post" action="{{ url_for('coach.new_conversation') }}" class="new-chat" data-live-form data-busy-label="…">
+        <input type="hidden" name="week" value="{{ week_start.isoformat() }}" />
+        <button type="submit" class="sidebar-toggle" title="New chat" aria-label="New chat">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+          </svg>
+        </button>
+      </form>
+      {% endif %}
     </div>
     <div class="coach-panel-body">
       <div class="today-card">
@@ -371,6 +382,7 @@
       {% if coach.thread %}
       <div class="coach-thread">
         {% for m in coach.thread %}
+        {% if m.week_label %}<span class="msg-note msg-week">{{ m.week_label }}</span>{% endif %}
         <div class="msg user">{{ m.request }}</div>
         {% if m.reply %}<div class="msg coach"><span class="who">COACH</span>{{ m.reply }}</div>{% endif %}
         {% if m.note %}<span class="msg-note">{{ m.note }}</span>{% endif %}

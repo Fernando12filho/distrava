@@ -92,6 +92,18 @@ def test_what_the_user_did_with_a_proposal_is_told_to_the_coach():
     assert fake.calls[0]["messages"][2]["content"].startswith("(You proposed that change and the user accepted it.)")
 
 
+def test_a_turn_asked_from_another_week_says_which_week():
+    other = {"request": "Plan next week", "reply": "Two options.", "status": "answer", "week_start": date(2026, 10, 26)}
+    same = {"request": "And this week?", "reply": "Fine.", "status": "answer", "week_start": WEEK_START}
+    fake = FakeProvider([{"text": "OK."}])
+
+    _run(fake, request="Go on", history=[other, same])
+
+    sent = [m["content"] for m in fake.calls[0]["messages"]]
+    assert sent[0] == "(Asked while viewing the week of 2026-10-26.)\n\nPlan next week"
+    assert sent[2] == "And this week?"
+
+
 def test_failed_turns_are_left_out_and_only_the_latest_turns_are_kept():
     failed = {"request": "hello", "reply": "The request was not accepted.", "status": "failed"}
     turns = [{"request": f"Question {i}", "reply": f"Answer {i}", "status": "answer"} for i in range(agent.MAX_HISTORY_TURNS + 3)]

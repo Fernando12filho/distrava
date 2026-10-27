@@ -2667,6 +2667,7 @@ a.recent-row:hover {
 
 .coach-panel-collapsed .coach-panel-name,
 .coach-panel-collapsed .coach-provider,
+.coach-panel-collapsed .new-chat,
 .coach-panel-collapsed .coach-panel-body,
 .coach-panel-collapsed .coach-panel-foot {
   display: none;
@@ -2975,6 +2976,13 @@ a.recent-row:hover {
   font-size: 10px;
   letter-spacing: 0.08em;
   color: var(--text-muted);
+}
+
+/* DS-05: the chat is the same on every week, so a message asked from another
+   week names it above the bubble. */
+.msg-week {
+  align-self: flex-end;
+  text-transform: uppercase;
 }
 
 .coach-panel-foot {

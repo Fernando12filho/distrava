@@ -18,6 +18,7 @@ from app.models import (
     PLANNED_EFFORTS,
     Activity,
     ActivityStream,
+    CoachConversation,
     CoachExercise,
     CoachProposal,
     CoachSession,
@@ -463,6 +464,7 @@ def _ghost_view(state, units):
 # become dashed beside it — with the reason and the exact changes above.
 def _coach_view(db, week_start, sessions, days, units):
     week = db.query(CoachWeek).filter_by(week_start=week_start).first()
+    conversation = _active_conversation(db)
     proposals = list(week.proposals) if week else []
     latest = proposals[-1] if proposals else None
     pending = next((p for p in proposals if p.status == "pending"), None)
@@ -488,7 +490,16 @@ def _coach_view(db, week_start, sessions, days, units):
         "pending": pending,
         "applied": latest if latest is not None and _undoable(db, latest) else None,
         "stale": latest if latest is not None and latest.status == "stale" else None,
-        "thread": [{"request": p.request, "reply": p.reply, "note": _THREAD_NOTES.get(p.status)} for p in proposals],
+        "thread": [
+            {
+                "request": p.request,
+                "reply": p.reply,
+                "note": _THREAD_NOTES.get(p.status),
+                # #43: the chat is the same on every week, so a message from another week says which.
+                "week_label": None if p.week.week_start == week_start else f"Week of {p.week.week_start:%b %d}",
+            }
+            for p in (conversation.proposals if conversation else [])
+        ],
     }
 
 
@@ -894,7 +905,10 @@ def ask_coach(week):
     def complete(system, messages, tools):
         return assistant.run_task(db, chosen, "coach", system, messages, tools=tools)
 
-    history = [{"request": p.request, "reply": p.reply, "status": p.status} for p in coach_week.proposals]
+    conversation = _active_conversation(db) or CoachConversation()
+    history = [
+        {"request": p.request, "reply": p.reply, "status": p.status, "week_start": p.week.week_start} for p in conversation.proposals
+    ]
     try:
         readers = {"load_week": _week_loader(db, today)}
         result = agent.propose(complete, state, catalog, check["sessions"], message, context, history, readers)
@@ -910,6 +924,7 @@ def ask_coach(week):
     db.add(
         CoachProposal(
             week=coach_week,
+            conversation=conversation,
             request=message,
             reply=result["reply"],
             status=result["status"],
@@ -920,6 +935,28 @@ def ask_coach(week):
             other_weeks=other_weeks,
         )
     )
+    db.commit()
+    return redirect(_board_url(week_start), code=303)
+
+
+def _active_conversation(db):
+    return db.query(CoachConversation).order_by(CoachConversation.id.desc()).first()
+
+
+@bp.route("/conversations", methods=["POST"])
+def new_conversation():
+    """New chat (#43): the coach starts without the earlier turns, and a preview
+    still waiting belonged to that chat, so it goes too."""
+    db = get_db()
+    try:
+        week_start = date.fromisoformat(request.form.get("week", ""))
+    except ValueError:
+        abort(400)
+    if week_start.weekday() != 0:
+        abort(400)
+    for waiting in db.query(CoachProposal).filter_by(status="pending"):
+        waiting.status = "discarded"
+    db.add(CoachConversation())
     db.commit()
     return redirect(_board_url(week_start), code=303)
 

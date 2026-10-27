@@ -302,6 +302,15 @@ class CoachCheckin(Base):
     note = Column(Text, nullable=True)
 
 
+# One chat with the coach, across weeks (#43). The newest is the one the panel
+# shows; "New chat" starts another.
+class CoachConversation(Base):
+    __tablename__ = "coach_conversations"
+
+    id = Column(Integer, primary_key=True)
+    started_at = Column(DateTime, nullable=False, default=_utc_now)
+
+
 # One coach request and what came of it. A proposal never touches the board
 # until accepted (AC-04); `before` and `after` hold every session it changes
 # (None = absent), so accept and undo each check the board still matches and
@@ -326,7 +335,12 @@ class CoachProposal(Base):
     # A draft over several weeks (AC-20): {week_start: {"before", "after", "created_week"}}
     # for every week but the one asked from, accepted and undone together with it.
     other_weeks = Column(JSON, nullable=True)
+    # Null only between an upgrade and the first start that groups older messages.
+    conversation_id = Column(Integer, ForeignKey("coach_conversations.id", ondelete="CASCADE"), nullable=True)
 
+    conversation = relationship(
+        "CoachConversation", backref=backref("proposals", cascade="all, delete-orphan", order_by="CoachProposal.id")
+    )
     week = relationship("CoachWeek", backref=backref("proposals", cascade="all, delete-orphan", order_by="CoachProposal.id"))
 
 
