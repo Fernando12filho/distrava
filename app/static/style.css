@@ -2974,8 +2974,11 @@ a.recent-row:hover {
   padding: 10px 13px;
 }
 
+/* DS-07: as in VS Code's chat, the coach's replies run the panel's full width;
+   only your messages sit in a bubble. */
 .msg.coach {
-  align-self: flex-start;
+  align-self: stretch;
+  max-width: none;
 }
 
 .msg .who {
@@ -3010,27 +3013,61 @@ a.recent-row:hover {
   border-top: 1px solid var(--divider);
 }
 
+/* DS-07: one box holds the text and the send arrow. The text area has no
+   resize handle; it grows with what you type up to about 8 lines (coach.js),
+   then scrolls inside. */
 .composer {
   display: flex;
   gap: 8px;
   align-items: flex-end;
+  padding: 8px 8px 8px 12px;
+  background: var(--surface-input);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+}
+
+.composer:focus-within {
+  border-color: var(--accent);
 }
 
 .composer textarea {
   flex: 1;
-  resize: vertical;
-  background: var(--surface-input);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-control);
-  padding: 9px 12px;
+  resize: none;
+  max-height: 160px;
+  overflow-y: auto;
+  padding: 5px 0;
+  background: transparent;
+  border: 0;
   color: var(--text-primary);
   font: inherit;
   font-size: 13px;
+  line-height: 20px;
 }
 
 .composer textarea:focus {
   outline: none;
-  border-color: var(--accent);
+}
+
+.composer-send {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--bg-base);
+  cursor: pointer;
+}
+
+.composer-send:hover {
+  background: var(--accent-hover);
+}
+
+.composer-send:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .composer-note {

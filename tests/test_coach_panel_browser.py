@@ -133,3 +133,61 @@ def test_on_load_the_chat_opens_at_the_last_message(browser, server, fake):
     overflow = page.evaluate("(() => { const b = document.querySelector('.coach-panel-body'); return b.scrollHeight - b.clientHeight; })()")
     assert overflow > 0  # the thread is taller than the panel, so where it opens matters
     assert gap <= 1
+
+
+# --- #43: the chat panel after VS Code's chat (DS-07) -------------------------------
+
+
+def test_the_message_box_has_no_resize_handle_and_grows_as_you_type(browser, server):
+    page = _open(browser, server)
+    box = ".composer textarea"
+    assert page.evaluate(f"getComputedStyle(document.querySelector('{box}')).resize") == "none"
+    empty = page.evaluate(f"document.querySelector('{box}').getBoundingClientRect().height")
+
+    page.fill(box, "line\n" * 4 + "line")
+    five = page.evaluate(f"document.querySelector('{box}').getBoundingClientRect().height")
+    page.fill(box, "line\n" * 30 + "line")
+    many = page.evaluate(f"document.querySelector('{box}').getBoundingClientRect().height")
+
+    assert five > empty
+    assert many < 220  # about 8 lines, then it scrolls inside
+    assert page.evaluate(f"(() => {{ const t = document.querySelector('{box}'); return t.scrollHeight > t.clientHeight; }})()")
+
+
+def test_enter_sends_and_shift_enter_adds_a_line(browser, server, fake):
+    fake.replies.append({"text": "Sent with Enter."})
+    page = _open(browser, server)
+    box = ".composer textarea"
+
+    page.click(box)
+    page.keyboard.type("first line")
+    page.keyboard.press("Shift+Enter")
+    page.keyboard.type("second line")
+    assert page.input_value(box) == "first line\nsecond line"
+
+    page.keyboard.press("Enter")
+    page.wait_for_selector("text=Sent with Enter.")
+    assert "first line" in page.inner_text(".coach-thread")
+
+
+def test_the_send_button_sits_inside_the_message_box(browser, server):
+    page = _open(browser, server)
+
+    composer = page.locator(".composer").bounding_box()
+    send = page.locator(".composer button[type=submit]").bounding_box()
+
+    # The bordered box is the composer itself, not just the text area beside the button.
+    assert page.evaluate("getComputedStyle(document.querySelector('.composer')).borderTopWidth") != "0px"
+    assert page.evaluate("getComputedStyle(document.querySelector('.composer textarea')).borderTopWidth") == "0px"
+    assert composer["x"] <= send["x"] and send["x"] + send["width"] <= composer["x"] + composer["width"]
+    assert composer["y"] <= send["y"] and send["y"] + send["height"] <= composer["y"] + composer["height"]
+
+
+def test_coach_replies_use_the_panels_full_width(browser, server, fake):
+    fake.replies.append({"text": "A reply long enough to fill the line. " * 6})
+    page = _open(browser, server)
+    page.fill(".composer textarea", "Hi")
+    page.click(".composer button[type=submit]")
+    page.wait_for_selector("text=A reply long enough")
+
+    assert _width(page, ".msg.coach") >= _width(page, ".coach-thread") - 1

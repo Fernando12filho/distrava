@@ -252,6 +252,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-27 | One coach chat across weeks (#43, DS-05): the same conversation on every week's page; a message asked from another week is labelled with its week, and the coach is told which week each turn came from. "+" in the panel header starts a new chat. Your earlier messages became one earlier conversation on first start |
 | 2026-10-27 | Fixed from your test chat: you said "12 kilometers" and the coach gave up, because sessions store metres and 12000 wasn't in your words. Now the code converts numbers you give with a unit (km, k, miles, min, hours) to metres or seconds, so they count as yours; a bare "12" still doesn't become 12 km |
 | 2026-10-27 | Option B (#43, DS-06): Today, Hard sets and Week check moved from the Coach panel to a strip above the week; the panel is only chat. On a narrow window the strip wraps to two rows and pushes the week down — a polish item for later |
+| 2026-10-27 | Chat restyled after VS Code's chat (#43, DS-07): one message box with the send arrow inside, no resize handle, grows up to about 8 lines; Enter sends, Shift+Enter adds a line (was Cmd+Enter); the coach's replies use the panel's full width |
 
 ## 8. Waiting on
 

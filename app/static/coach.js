@@ -114,6 +114,7 @@ function showPendingMessage(form) {
   thinking.append(who, "Coach is thinking…");
   thread.append(question, thinking);
   textarea.value = "";
+  growComposer(textarea);
   panelBody.scrollTop = panelBody.scrollHeight;
 
   return {
@@ -125,18 +126,26 @@ function showPendingMessage(form) {
       note.textContent = "Couldn't reach the coach. Nothing changed; your message is back in the box.";
       thread.appendChild(note);
       textarea.value = text;
+      growComposer(textarea);
     },
   };
 }
 
-// Forms marked data-live-form post in the background and re-render the board
-// and panel in place instead of reloading the whole page.
 // A chat reads from its latest message, so a reload opens there, not at the top.
 function scrollThreadToEnd() {
   const panelBody = document.querySelector(".coach-panel-body");
   if (panelBody && panelBody.querySelector(".coach-thread")) panelBody.scrollTop = panelBody.scrollHeight;
 }
 
+// DS-07: the message box fits what's typed; the CSS max-height caps it at about
+// 8 lines, after which it scrolls inside.
+function growComposer(textarea) {
+  textarea.style.height = "auto";
+  textarea.style.height = `${textarea.scrollHeight}px`;
+}
+
+// Forms marked data-live-form post in the background and re-render the board
+// and panel in place instead of reloading the whole page.
 function initLiveForms() {
   document.addEventListener("submit", async (event) => {
     const form = event.target.closest("[data-live-form]");
@@ -148,10 +157,12 @@ function initLiveForms() {
     const isQuestion = form.classList.contains("composer");
     const pending = isQuestion ? showPendingMessage(form) : null;
     const button = event.submitter || form.querySelector("button[type=submit]");
-    const label = button.textContent;
+    // innerHTML, not text: icon buttons (send, new chat) must come back intact.
+    const label = button.innerHTML;
     form.classList.add("is-saving");
     button.disabled = true;
-    button.textContent = form.dataset.busyLabel || "Saving…";
+    // An empty busy label keeps the button as it is: the thread shows the wait.
+    if (form.dataset.busyLabel !== "") button.textContent = form.dataset.busyLabel || "Saving…";
 
     try {
       const response = await fetch(form.action, { method: "POST", body });
@@ -160,16 +171,23 @@ function initLiveForms() {
     } catch (error) {
       form.classList.remove("is-saving");
       button.disabled = false;
-      button.textContent = label;
+      button.innerHTML = label;
       if (pending) pending.fail();
       else document.getElementById("move-error").hidden = false;
     }
   });
 
-  // Cmd/Ctrl+Enter sends; plain Enter still makes a new line.
+  // DS-07, as in Claude and ChatGPT: Enter sends, Shift+Enter makes a new line.
+  // Not while an input method is still composing a character.
   document.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" || !(event.metaKey || event.ctrlKey)) return;
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
     const form = event.target.closest(".composer[data-live-form]");
-    if (form) form.requestSubmit();
+    if (!form) return;
+    event.preventDefault();
+    form.requestSubmit();
+  });
+
+  document.addEventListener("input", (event) => {
+    if (event.target.matches(".composer textarea")) growComposer(event.target);
   });
 }
