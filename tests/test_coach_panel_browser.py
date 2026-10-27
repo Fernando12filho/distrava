@@ -117,3 +117,19 @@ def test_on_a_narrow_window_the_panel_opens_over_the_board_not_below_it(browser,
     top = page.evaluate("document.querySelector('.coach-panel').getBoundingClientRect().top")
 
     assert top < 100
+
+
+def test_on_load_the_chat_opens_at_the_last_message(browser, server, fake):
+    page = _open(browser, server, height=700)
+    for n in range(6):
+        fake.replies.append({"text": f"Answer number {n}, " + "a fairly long reply that takes some room. " * 4})
+        page.fill(".composer textarea", f"Question {n}")
+        page.click(".composer button[type=submit]")
+        page.wait_for_selector(f"text=Answer number {n}")
+
+    page.reload(wait_until="networkidle")
+
+    gap = page.evaluate("(() => { const b = document.querySelector('.coach-panel-body'); return b.scrollHeight - b.clientHeight - b.scrollTop; })()")
+    overflow = page.evaluate("(() => { const b = document.querySelector('.coach-panel-body'); return b.scrollHeight - b.clientHeight; })()")
+    assert overflow > 0  # the thread is taller than the panel, so where it opens matters
+    assert gap <= 1

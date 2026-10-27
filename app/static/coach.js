@@ -131,6 +131,12 @@ function showPendingMessage(form) {
 
 // Forms marked data-live-form post in the background and re-render the board
 // and panel in place instead of reloading the whole page.
+// A chat reads from its latest message, so a reload opens there, not at the top.
+function scrollThreadToEnd() {
+  const panelBody = document.querySelector(".coach-panel-body");
+  if (panelBody && panelBody.querySelector(".coach-thread")) panelBody.scrollTop = panelBody.scrollHeight;
+}
+
 function initLiveForms() {
   document.addEventListener("submit", async (event) => {
     const form = event.target.closest("[data-live-form]");

@@ -248,6 +248,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-27 | 8a slice 2: the coach checks its own draft (`check_plan`) with the same rules as the Week check. Your call: "prepare my next 2 weeks" should work soon, so adding sessions and multi-week drafts (8b) come next, before the rest of 8a |
 | 2026-10-27 | The coach can add sessions: shown dashed as PROPOSED, created on accept, removed exactly on undo. Volumes must come from your past weeks or your request — when neither has a number, it asks instead of inventing one |
 | 2026-10-27 | "Prepare my next 2 weeks" works: the coach drafts up to 4 weeks ahead in one request, you see it on each week's board and accept or undo it as one. Not checked yet: clashes across the Sunday → Monday boundary between two drafted weeks (each week is checked against the board's previous week) |
+| 2026-10-27 | Your calls on the chat (#43): one conversation on every week's page plus "New chat"; Today / Hard sets / Week check move to a strip above the board, so the panel is only chat; panel styled after VS Code's chat; streaming sentence by sentence so the number check still runs before you see anything. Done first: the chat opens at the last message after a reload |
 
 ## 8. Waiting on
 
