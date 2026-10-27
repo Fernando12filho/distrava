@@ -35,6 +35,105 @@
 
     <div class="move-error" id="move-error" hidden>Couldn't save that change. The board is unchanged.</div>
 
+    {# #43, option B (DS-06): what describes the week sits on the board; the panel is only chat. #}
+    <div class="week-strip">
+      <div class="today-card">
+        <span class="eyebrow">Today · {{ today.strftime('%a') }} {{ today.day }}</span>
+        {% for s in today_sessions %}
+        <div class="today-session">
+          <span class="today-focus">{{ s.focus }}</span>
+          {% if s.summary %}<span class="today-meta">{{ s.summary }}</span>{% endif %}
+          {% if s.kind != 'rest' %}{{ status_chip(s.status) }}{% endif %}
+        </div>
+        {% else %}
+        <p class="today-empty">Nothing planned today.</p>
+        {% endfor %}
+      </div>
+
+      <div class="hard-sets-card">
+        <span class="eyebrow">Hard sets {{ 'this week' if is_this_week else 'week ' ~ week_number }}</span>
+        {% for g in hard_sets.groups %}
+        <div class="hard-sets-row" data-muscle="{{ g.muscle_group }}">
+          <span class="hard-sets-muscle">{{ g.muscle_group|replace('_', ' ') }}</span>
+          <span class="hard-sets-meta">{% if g.sessions %}{{ g.sessions }} session{{ 's' if g.sessions != 1 }}{% endif %}{% if g.range %} · {{ g.range }} range{% endif %}</span>
+          <span class="hard-sets-count">{{ g.hard_sets }}</span>
+        </div>
+        {% else %}
+        <p class="today-empty">No sets logged this week.</p>
+        {% endfor %}
+        {% if hard_sets.unrated %}
+        <p class="hard-sets-note">{{ hard_sets.unrated }} set{{ 's' if hard_sets.unrated != 1 }} without reps in reserve, so not counted.</p>
+        {% endif %}
+        {% call explain('RULE-WEEK-02, RULE-WEEK-03, RULE-LOAD-03 · Schoenfeld, Ogborn & Krieger 2017 · Schoenfeld, Grgic & Krieger 2019') %}
+        <p>A set counts as hard when you end it with {{ hard_set_max_rir }} or fewer reps in reserve. Each exercise counts toward its main muscle group only.</p>
+        <p>Studies of muscle growth compared under 5, 5–9 and {{ sets_improve_min }}+ hard sets per muscle a week: {{ sets_improve_min }}+ grew the most, with no upper limit found. About {{ sets_maintain_min }} a week keeps what you have, if the weights stay the same.</p>
+        <p>How many sessions you spread them over doesn't matter when the weekly total is the same. Still to be checked against the 2026 ACSM update.</p>
+        {% endcall %}
+      </div>
+
+      <div class="week-check-card">
+        <span class="eyebrow">Week check</span>
+        {% set prog = week_check.progression %}
+        {% if prog.eased %}
+        <div class="week-check-item">
+          <span class="week-check-text">Eased to {{ prog.eased }}% after your break.</span>
+          <form method="post" action="{{ url_for('coach.undo_ease', week=week_start.isoformat()) }}" class="week-check-moves">
+            <button type="submit" class="quiet-btn">Undo</button>
+          </form>
+        </div>
+        {% elif prog.return_options %}
+        <div class="week-check-item">
+          <span class="week-check-text">Back after {{ prog.days_off }} days off. Ease into the rest of this week?</span>
+          <form method="post" action="{{ url_for('coach.ease_week', week=week_start.isoformat()) }}" class="week-check-moves">
+            <span class="week-check-meta">Planned volume to</span>
+            {% for o in prog.return_options %}<button type="submit" name="factor" value="{{ o.factor }}" class="quiet-btn">{{ o.percent }}%</button>{% endfor %}
+          </form>
+          <span class="week-check-meta">Or leave it as planned · RULE-PROG-04</span>
+        </div>
+        {% endif %}
+        {% if prog.distance and prog.distance.level %}
+        <div class="week-check-item">
+          <span class="week-check-text">{{ 'A big jump in running distance' if prog.distance.level == 'big' else 'More running than usual' }}: {{ prog.distance.this_week }} this week, {{ prog.distance.pct }}% above your last {{ prog.baseline_weeks }} weeks' average of {{ prog.distance.baseline }}.</span>
+          <span class="week-check-meta">RULE-PROG-02</span>
+        </div>
+        {% endif %}
+        {% if prog.balance and prog.balance.note %}
+        <div class="week-check-item">
+          <span class="week-check-text">{{ prog.balance.hard }} of {{ prog.balance.runs }} runs are hard; the research suggests about {{ prog.balance.suggested_hard }}, with the rest easy.</span>
+          <span class="week-check-meta">RULE-WEEK-01</span>
+        </div>
+        {% endif %}
+        {% for c in week_check.conflicts %}
+        <div class="week-check-item">
+          <span class="week-check-text">{{ c.text }}</span>
+          <span class="week-check-meta">{{ c.sessions|join(' · ') }} · {{ c.rule }}</span>
+        </div>
+        {% else %}
+        <p class="today-empty">No spacing clashes this week.</p>
+        {% endfor %}
+        {% for s in week_check.skipped %}
+        <div class="week-check-item">
+          <span class="week-check-text">{{ s.label }} skipped. Dropped, not made up.</span>
+          {% if s.options %}
+          <form method="post" action="{{ url_for('coach.reschedule_session', session_id=s.id) }}" class="week-check-moves">
+            <span class="week-check-meta">It fits on</span>
+            {% for day, label in s.options %}<button type="submit" name="day_index" value="{{ day }}" class="quiet-btn">{{ label }}</button>{% endfor %}
+          </form>
+          {% endif %}
+        </div>
+        {% endfor %}
+        {% call explain('RULE-REC-01, RULE-REC-02, RULE-REC-04, RULE-LOAD-02, RULE-PROG-01, RULE-PROG-02, RULE-PROG-04, RULE-WEEK-01 · Ratamess 2009 · Schoenfeld, Grgic & Krieger 2019 · Seiler 2010 · Seiler & Kjerland 2006 · Nielsen 2014 · Buist 2008 · Mujika & Padilla 2000 · Stöggl & Sperlich 2014') %}
+        <p>The week is checked for: at most {{ week_rules.cap }} hard runs, {{ week_rules.runs_h }} h apart (RULE-REC-02); {{ week_rules.muscle_h }} h before a muscle group is trained hard again (RULE-REC-01); no hard legs in the {{ week_rules.legs_h }} h before a hard run (RULE-REC-04 — expert opinion, low confidence). Sessions have a day but no time, so the day before counts as within 24 h.</p>
+        <p>A done session is hard from what you did: a rating of {{ week_rules.srpe_hard }} or more, or {{ week_rules.z3_minutes }}+ minutes above an estimated threshold heart rate (RULE-LOAD-02). Before that, its planned effort decides. Sessions with neither never clash.</p>
+        <p>A skipped session is dropped rather than made up, and can move only to a free later day that breaks none of these rules (RULE-PROG-01). That is a design choice, not a research finding: no study has compared the options.</p>
+        <p>This week's running distance (imported runs so far plus planned runs to come) is compared with your last {{ prog.baseline_weeks }} weeks: more injuries were seen when weekly distance rose by more than 20–30 %, though no safe line is proven, and a strict 10 % rule made no difference in a trial (RULE-PROG-02).</p>
+        <p>After a break you can ease into the rest of the week; how much is your call, since the research gives a range (60–90 %) rather than one number (RULE-PROG-04). Undo puts every changed session back.</p>
+        <p>Most runs are best kept easy: at 3–4 runs a week about one hard run (RULE-WEEK-01). Counted by sessions here, since planned runs have no heart-rate time yet.</p>
+        {% endcall %}
+      </div>
+    </div>
+
+
     {% if coach.pending %}
     <div class="proposal-bar">
       <div class="proposal-why">
@@ -262,103 +361,19 @@
       </button>
       <div class="coach-panel-title"><span class="status-dot{% if not provider_connected %} off{% endif %}"></span><span class="coach-panel-name">Coach</span></div>
       <span class="coach-provider">{{ 'YOUR API KEY' if provider_connected else 'NOT CONNECTED' }}</span>
+      {% if provider_connected %}
+      {# DS-05: one chat across weeks; a new one starts here. #}
+      <form method="post" action="{{ url_for('coach.new_conversation') }}" class="new-chat" data-live-form data-busy-label="…">
+        <input type="hidden" name="week" value="{{ week_start.isoformat() }}" />
+        <button type="submit" class="sidebar-toggle" title="New chat" aria-label="New chat">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+          </svg>
+        </button>
+      </form>
+      {% endif %}
     </div>
     <div class="coach-panel-body">
-      <div class="today-card">
-        <span class="eyebrow">Today · {{ today.strftime('%a') }} {{ today.day }}</span>
-        {% for s in today_sessions %}
-        <div class="today-session">
-          <span class="today-focus">{{ s.focus }}</span>
-          {% if s.summary %}<span class="today-meta">{{ s.summary }}</span>{% endif %}
-          {% if s.kind != 'rest' %}{{ status_chip(s.status) }}{% endif %}
-        </div>
-        {% else %}
-        <p class="today-empty">Nothing planned today.</p>
-        {% endfor %}
-      </div>
-
-      <div class="hard-sets-card">
-        <span class="eyebrow">Hard sets {{ 'this week' if is_this_week else 'week ' ~ week_number }}</span>
-        {% for g in hard_sets.groups %}
-        <div class="hard-sets-row" data-muscle="{{ g.muscle_group }}">
-          <span class="hard-sets-muscle">{{ g.muscle_group|replace('_', ' ') }}</span>
-          <span class="hard-sets-meta">{% if g.sessions %}{{ g.sessions }} session{{ 's' if g.sessions != 1 }}{% endif %}{% if g.range %} · {{ g.range }} range{% endif %}</span>
-          <span class="hard-sets-count">{{ g.hard_sets }}</span>
-        </div>
-        {% else %}
-        <p class="today-empty">No sets logged this week.</p>
-        {% endfor %}
-        {% if hard_sets.unrated %}
-        <p class="hard-sets-note">{{ hard_sets.unrated }} set{{ 's' if hard_sets.unrated != 1 }} without reps in reserve, so not counted.</p>
-        {% endif %}
-        {% call explain('RULE-WEEK-02, RULE-WEEK-03, RULE-LOAD-03 · Schoenfeld, Ogborn & Krieger 2017 · Schoenfeld, Grgic & Krieger 2019') %}
-        <p>A set counts as hard when you end it with {{ hard_set_max_rir }} or fewer reps in reserve. Each exercise counts toward its main muscle group only.</p>
-        <p>Studies of muscle growth compared under 5, 5–9 and {{ sets_improve_min }}+ hard sets per muscle a week: {{ sets_improve_min }}+ grew the most, with no upper limit found. About {{ sets_maintain_min }} a week keeps what you have, if the weights stay the same.</p>
-        <p>How many sessions you spread them over doesn't matter when the weekly total is the same. Still to be checked against the 2026 ACSM update.</p>
-        {% endcall %}
-      </div>
-
-      <div class="week-check-card">
-        <span class="eyebrow">Week check</span>
-        {% set prog = week_check.progression %}
-        {% if prog.eased %}
-        <div class="week-check-item">
-          <span class="week-check-text">Eased to {{ prog.eased }}% after your break.</span>
-          <form method="post" action="{{ url_for('coach.undo_ease', week=week_start.isoformat()) }}" class="week-check-moves">
-            <button type="submit" class="quiet-btn">Undo</button>
-          </form>
-        </div>
-        {% elif prog.return_options %}
-        <div class="week-check-item">
-          <span class="week-check-text">Back after {{ prog.days_off }} days off. Ease into the rest of this week?</span>
-          <form method="post" action="{{ url_for('coach.ease_week', week=week_start.isoformat()) }}" class="week-check-moves">
-            <span class="week-check-meta">Planned volume to</span>
-            {% for o in prog.return_options %}<button type="submit" name="factor" value="{{ o.factor }}" class="quiet-btn">{{ o.percent }}%</button>{% endfor %}
-          </form>
-          <span class="week-check-meta">Or leave it as planned · RULE-PROG-04</span>
-        </div>
-        {% endif %}
-        {% if prog.distance and prog.distance.level %}
-        <div class="week-check-item">
-          <span class="week-check-text">{{ 'A big jump in running distance' if prog.distance.level == 'big' else 'More running than usual' }}: {{ prog.distance.this_week }} this week, {{ prog.distance.pct }}% above your last {{ prog.baseline_weeks }} weeks' average of {{ prog.distance.baseline }}.</span>
-          <span class="week-check-meta">RULE-PROG-02</span>
-        </div>
-        {% endif %}
-        {% if prog.balance and prog.balance.note %}
-        <div class="week-check-item">
-          <span class="week-check-text">{{ prog.balance.hard }} of {{ prog.balance.runs }} runs are hard; the research suggests about {{ prog.balance.suggested_hard }}, with the rest easy.</span>
-          <span class="week-check-meta">RULE-WEEK-01</span>
-        </div>
-        {% endif %}
-        {% for c in week_check.conflicts %}
-        <div class="week-check-item">
-          <span class="week-check-text">{{ c.text }}</span>
-          <span class="week-check-meta">{{ c.sessions|join(' · ') }} · {{ c.rule }}</span>
-        </div>
-        {% else %}
-        <p class="today-empty">No spacing clashes this week.</p>
-        {% endfor %}
-        {% for s in week_check.skipped %}
-        <div class="week-check-item">
-          <span class="week-check-text">{{ s.label }} skipped. Dropped, not made up.</span>
-          {% if s.options %}
-          <form method="post" action="{{ url_for('coach.reschedule_session', session_id=s.id) }}" class="week-check-moves">
-            <span class="week-check-meta">It fits on</span>
-            {% for day, label in s.options %}<button type="submit" name="day_index" value="{{ day }}" class="quiet-btn">{{ label }}</button>{% endfor %}
-          </form>
-          {% endif %}
-        </div>
-        {% endfor %}
-        {% call explain('RULE-REC-01, RULE-REC-02, RULE-REC-04, RULE-LOAD-02, RULE-PROG-01, RULE-PROG-02, RULE-PROG-04, RULE-WEEK-01 · Ratamess 2009 · Schoenfeld, Grgic & Krieger 2019 · Seiler 2010 · Seiler & Kjerland 2006 · Nielsen 2014 · Buist 2008 · Mujika & Padilla 2000 · Stöggl & Sperlich 2014') %}
-        <p>The week is checked for: at most {{ week_rules.cap }} hard runs, {{ week_rules.runs_h }} h apart (RULE-REC-02); {{ week_rules.muscle_h }} h before a muscle group is trained hard again (RULE-REC-01); no hard legs in the {{ week_rules.legs_h }} h before a hard run (RULE-REC-04 — expert opinion, low confidence). Sessions have a day but no time, so the day before counts as within 24 h.</p>
-        <p>A done session is hard from what you did: a rating of {{ week_rules.srpe_hard }} or more, or {{ week_rules.z3_minutes }}+ minutes above an estimated threshold heart rate (RULE-LOAD-02). Before that, its planned effort decides. Sessions with neither never clash.</p>
-        <p>A skipped session is dropped rather than made up, and can move only to a free later day that breaks none of these rules (RULE-PROG-01). That is a design choice, not a research finding: no study has compared the options.</p>
-        <p>This week's running distance (imported runs so far plus planned runs to come) is compared with your last {{ prog.baseline_weeks }} weeks: more injuries were seen when weekly distance rose by more than 20–30 %, though no safe line is proven, and a strict 10 % rule made no difference in a trial (RULE-PROG-02).</p>
-        <p>After a break you can ease into the rest of the week; how much is your call, since the research gives a range (60–90 %) rather than one number (RULE-PROG-04). Undo puts every changed session back.</p>
-        <p>Most runs are best kept easy: at 3–4 runs a week about one hard run (RULE-WEEK-01). Counted by sessions here, since planned runs have no heart-rate time yet.</p>
-        {% endcall %}
-      </div>
-
       {% if not provider_connected %}
       <div class="coach-setup">
         <div class="coach-setup-tile"><span></span></div>
@@ -371,8 +386,17 @@
       {% if coach.thread %}
       <div class="coach-thread">
         {% for m in coach.thread %}
+        {% if m.week_label %}<span class="msg-note msg-week">{{ m.week_label }}</span>{% endif %}
         <div class="msg user">{{ m.request }}</div>
-        {% if m.reply %}<div class="msg coach"><span class="who">COACH</span>{{ m.reply }}</div>{% endif %}
+        {# DS-08: what the coach did, written by the app, folded away above its answer. The bubble
+           keeps line breaks (pre-line), so nothing between the tags may add one. #}
+        {% if m.reply %}<div class="msg coach"><span class="who">COACH</span>
+          {%- if m.steps -%}
+          <details class="msg-steps"><summary>{{ m.steps|length }} step{{ 's' if m.steps|length != 1 }}</summary><ul>
+            {%- for step in m.steps %}<li>{{ step }}</li>{% endfor -%}
+          </ul></details>
+          {%- endif -%}
+          {{ m.reply }}</div>{% endif %}
         {% if m.note %}<span class="msg-note">{{ m.note }}</span>{% endif %}
         {% endfor %}
       </div>
@@ -380,11 +404,17 @@
     </div>
     {% if provider_connected %}
     <div class="coach-panel-foot">
-      <form method="post" action="{{ url_for('coach.ask_coach', week=week_start.isoformat()) }}" class="composer" data-live-form data-busy-label="Sending…">
-        <textarea name="message" rows="2" maxlength="1000" required placeholder="Ask your coach to change this week…"></textarea>
-        <button type="submit" class="btn btn-primary">Send</button>
+      {# DS-07: one box that grows as you type, the send arrow inside it. While the
+         coach works, the thread's "Coach is thinking…" is the loading state. #}
+      <form method="post" action="{{ url_for('coach.ask_coach', week=week_start.isoformat()) }}" class="composer" data-live-form data-busy-label="">
+        <textarea name="message" rows="1" maxlength="1000" required placeholder="Ask your coach…" aria-label="Message the coach"></textarea>
+        <button type="submit" class="composer-send" title="Send (Enter)" aria-label="Send">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
       </form>
-      <p class="composer-note">Changes appear on the board as a preview. Nothing changes until you accept.</p>
+      <p class="composer-note">Enter to send · Shift+Enter for a new line · Changes show as a preview until you accept.</p>
     </div>
     {% endif %}
   </aside>
@@ -393,5 +423,5 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='coach.js') }}"></script>
-<script>initCoachBoard(); initLiveForms();</script>
+<script>initCoachBoard(); initLiveForms(); scrollThreadToEnd();</script>
 {% endblock %}

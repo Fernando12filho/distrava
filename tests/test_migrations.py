@@ -92,6 +92,7 @@ COACH_TABLES = {
     "coach_profile",
     "coach_llm_calls",
     "coach_proposals",
+    "coach_conversations",
 }
 
 
@@ -322,3 +323,35 @@ def test_existing_coach_weeks_table_gains_the_easing_columns():
     assert {"eased_factor", "eased_snapshot"} <= columns
     with engine.connect() as conn:
         assert conn.execute(text("SELECT week_start FROM coach_weeks")).scalar() == "2026-10-19"
+
+
+def test_existing_coach_proposals_gain_a_conversation_and_are_grouped_into_one():
+    # Before #43 the chat was per week; those messages become one earlier conversation.
+    engine = _engine()
+    create_app({"TESTING": True, "ENGINE": engine})
+    with engine.begin() as conn:
+        conn.execute(text("INSERT INTO coach_weeks (id, week_start) VALUES (1, '2026-10-19'), (2, '2026-10-26')"))
+        for pid, week_id, request in ((1, 1, "first"), (2, 2, "second"), (3, 1, "third")):
+            conn.execute(
+                text(
+                    "INSERT INTO coach_proposals (id, week_id, created_at, request, reply, status, calls, changes) "
+                    "VALUES (:id, :week, '2026-10-27 10:00:00', :request, 'ok', 'answer', '[]', '[]')"
+                ),
+                {"id": pid, "week": week_id, "request": request},
+            )
+
+    create_app({"TESTING": True, "ENGINE": engine})
+    create_app({"TESTING": True, "ENGINE": engine})  # a second restart changes nothing
+
+    with engine.connect() as conn:
+        assert conn.execute(text("SELECT COUNT(*) FROM coach_conversations")).scalar() == 1
+        linked = conn.execute(text("SELECT DISTINCT conversation_id FROM coach_proposals")).scalars().all()
+        assert len(linked) == 1 and linked[0] is not None
+
+
+def test_a_database_without_coach_messages_gets_no_conversation():
+    engine = _engine()
+    create_app({"TESTING": True, "ENGINE": engine})
+
+    with engine.connect() as conn:
+        assert conn.execute(text("SELECT COUNT(*) FROM coach_conversations")).scalar() == 0

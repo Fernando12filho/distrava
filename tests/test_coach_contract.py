@@ -48,7 +48,7 @@ def _week():
     }
 
 
-def _run(fake, request="Move Thursday's run to Friday", rebalancer_sessions=(), week=None, history=()):
+def _run(fake, request="Move Thursday's run to Friday", rebalancer_sessions=(), week=None, history=(), readers=None):
     def complete(system, messages, tools):
         return fake.complete("coach", system=system, messages=messages, tools=tools)
 
@@ -60,6 +60,7 @@ def _run(fake, request="Move Thursday's run to Friday", rebalancer_sessions=(), 
         request=request,
         context={"week_start": WEEK_START, "today": TODAY, "units": "metric", "profile": {}, "week_check": []},
         history=list(history),
+        readers=readers or {},
     )
 
 
@@ -91,6 +92,18 @@ def test_what_the_user_did_with_a_proposal_is_told_to_the_coach():
     assert fake.calls[0]["messages"][2]["content"].startswith("(You proposed that change and the user accepted it.)")
 
 
+def test_a_turn_asked_from_another_week_says_which_week():
+    other = {"request": "Plan next week", "reply": "Two options.", "status": "answer", "week_start": date(2026, 10, 26)}
+    same = {"request": "And this week?", "reply": "Fine.", "status": "answer", "week_start": WEEK_START}
+    fake = FakeProvider([{"text": "OK."}])
+
+    _run(fake, request="Go on", history=[other, same])
+
+    sent = [m["content"] for m in fake.calls[0]["messages"]]
+    assert sent[0] == "(Asked while viewing the week of 2026-10-26.)\n\nPlan next week"
+    assert sent[2] == "And this week?"
+
+
 def test_failed_turns_are_left_out_and_only_the_latest_turns_are_kept():
     failed = {"request": "hello", "reply": "The request was not accepted.", "status": "failed"}
     turns = [{"request": f"Question {i}", "reply": f"Answer {i}", "status": "answer"} for i in range(agent.MAX_HISTORY_TURNS + 3)]
@@ -119,7 +132,7 @@ def _move(day=4, reason="Friday is free."):
 
 
 def test_a_valid_tool_call_becomes_a_pending_proposal():
-    fake = FakeProvider([{"tool_calls": [_move()]}])
+    fake = FakeProvider([{"tool_calls": [_move()]}, {}])
 
     result = _run(fake)
 
@@ -128,7 +141,7 @@ def test_a_valid_tool_call_becomes_a_pending_proposal():
     assert result["changes"] == ["Running day: Thu → Fri"]
     assert result["after"]["sessions"][0]["day_index"] == 4
     assert result["calls"] == [_move()]
-    assert len(fake.calls) == 1
+    assert len(fake.calls) == 2  # the change, then the coach finishing
 
 
 def test_an_answer_without_tools_is_just_an_answer():
@@ -140,7 +153,7 @@ def test_an_answer_without_tools_is_just_an_answer():
 
 
 def test_a_rejected_call_is_retried_once_with_the_reason():
-    fake = FakeProvider([{"tool_calls": [_move(day=1)]}, {"tool_calls": [_move(day=4)]}])
+    fake = FakeProvider([{"tool_calls": [_move(day=1)]}, {"tool_calls": [_move(day=4)]}, {}])
 
     result = _run(fake)
 
@@ -169,7 +182,7 @@ def test_two_bad_answers_give_up_and_change_nothing():
 
 def test_every_tool_call_in_a_reply_gets_a_result_on_retry():
     good = {"name": "set_planned_effort", "input": {"session_id": 2, "effort": "easy", "reason": "Keep it easy."}}
-    fake = FakeProvider([{"tool_calls": [good, _move(day=1)]}, {"tool_calls": [good]}])
+    fake = FakeProvider([{"tool_calls": [good, _move(day=1)]}, {}])
 
     _run(fake)
 
@@ -178,13 +191,14 @@ def test_every_tool_call_in_a_reply_gets_a_result_on_retry():
 
 
 def test_ac_never_computes_a_number_not_given_is_sent_back():
-    fake = FakeProvider([{"tool_calls": [_move(reason="Friday leaves you 36 hours to recover.")]}, {"tool_calls": [_move()]}])
+    fake = FakeProvider([{"tool_calls": [_move(reason="Friday leaves you 36 hours to recover.")]}, {"tool_calls": [_move()]}, {}])
 
     result = _run(fake)
 
     assert result["status"] == "pending"
-    feedback = json.dumps(fake.calls[1]["messages"][2]["content"])
-    assert "36" in feedback
+    feedback = fake.calls[1]["messages"][2]["content"][0]
+    assert feedback["is_error"] is True and "36" in feedback["content"]
+    assert result["calls"] == [_move()]  # the call with the invented number was never applied
 
 
 def test_an_answer_with_an_invented_number_is_retried_too():
@@ -209,7 +223,8 @@ def test_a_change_that_adds_a_spacing_clash_is_refused():
         },
     ]
     hard = {"name": "set_planned_effort", "input": {"session_id": 2, "effort": "hard", "reason": "Make it a tempo."}}
-    fake = FakeProvider([{"tool_calls": [hard]}, {"tool_calls": [hard]}])
+    # The coach makes the change, finishes, is told about the clash, and finishes again unchanged.
+    fake = FakeProvider([{"tool_calls": [hard]}, {}, {}])
 
     week = _week()
     friday = json.loads(json.dumps(week["sessions"][0]))
@@ -221,7 +236,7 @@ def test_a_change_that_adds_a_spacing_clash_is_refused():
     result = _run(fake, rebalancer_sessions=[{**rb[0], "planned_effort": None}, rb[1]], week=week)
 
     assert result["status"] == "failed"
-    assert "RULE-REC-02" in json.dumps(fake.calls[1]["messages"][2]["content"])
+    assert "RULE-REC-02" in json.dumps(fake.calls[2]["messages"][-1]["content"])
 
 
 def test_a_refusal_is_reported_without_a_retry():

@@ -71,7 +71,7 @@ def _by_id(week, session_id):
 
 def test_every_tool_is_strict_with_closed_required_arguments():
     names = {t["name"] for t in tools.TOOLS}
-    assert names == {"move_session", "remove_session", "swap_exercise", "adjust_item", "set_planned_effort"}
+    assert names == {"move_session", "remove_session", "swap_exercise", "adjust_item", "set_planned_effort", "add_session"}
     for tool in tools.TOOLS:
         schema = tool["input_schema"]
         assert tool["strict"] is True

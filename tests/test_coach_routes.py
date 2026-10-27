@@ -300,14 +300,15 @@ def test_ac11_with_no_provider_the_coach_panel_shows_a_setup_hint(client):
     assert 'href="/settings"' in html
 
 
-def test_coach_panel_shows_todays_session(client):
+def test_the_today_card_shows_todays_session(client):
     _add(client, "running_day", day_index=2)
 
     html = client.get("/coach/").get_data(as_text=True)
 
-    panel = html[html.index('class="coach-panel'):]
-    assert "Running day" in panel
-    assert "8.0 km" in panel
+    # #43 (DS-06): the Today card moved from the Coach panel to the strip above the board.
+    today = html.split('<div class="today-card">', 1)[1].split('<div class="hard-sets-card">', 1)[0]
+    assert "Running day" in today
+    assert "8.0 km" in today
 
 
 def test_coach_panel_without_a_session_today_says_so_calmly(client):

@@ -11,8 +11,9 @@ TASKS = {
     # Settings → "Test connection": the cheapest call that proves the key works.
     "connection_test": {"model": "claude-haiku-5-5", "max_tokens": 256, "effort": "low"},
     "default": {"model": "claude-opus-5-5", "max_tokens": 16000, "effort": "medium"},
-    # Step 7: reading a request and proposing changes to the week with tools.
-    "coach": {"model": "claude-opus-5-5", "max_tokens": 16000, "effort": "medium"},
+    # Steps 7-8a: reading a request, working the week in steps, proposing a draft.
+    # The caps bound one request (AC-14); a step is one round trip to the model.
+    "coach": {"model": "claude-opus-5-5", "max_tokens": 16000, "effort": "medium", "max_steps": 8, "max_cost_usd": 0.25},
 }
 
 # A declined request is re-run on another model inside the same call, chosen
