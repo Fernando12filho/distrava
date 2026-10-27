@@ -1,6 +1,6 @@
 # Distrava Coach — Use Cases, Decisions & Test Plan
 
-Oct 18, 2026 · @fer
+Oct 18, 2026 · @fer · updated Oct 27, 2026: step 8 split into 8a (agent loop) and 8b (planning toward a season)
 
 ## Overview and principles
 
@@ -15,7 +15,7 @@ Coach Distrava is a weekly training board — seven day-rows of exercise cards �
 
 ## Use cases
 
-Fifteen use cases cover the feature; UC-15 guarantees the app stays useful with no AI connected.
+Seventeen use cases cover the feature; UC-15 guarantees the app stays useful with no AI connected.
 
 | ID | Use case | Trigger | Result |
 | --- | --- | --- | --- |
@@ -34,6 +34,8 @@ Fifteen use cases cover the feature; UC-15 guarantees the app stays useful with 
 | UC-13 | Trainer notes | User exports notes for a personal trainer | Readable log of check-ins and changes for a date range |
 | UC-14 | Undo coach change | User taps undo | Board returns to previous state exactly |
 | UC-15 | No AI | No key / offline | Board, cards, check-ins all work; coach panel shows setup hint |
+| UC-16 | Plan around a situation | "I'm travelling for 2 weeks with dumbbells" / "only 30 min a day this week" | Coach asks only what's missing, then plans that stretch with what's available, toward the season goal |
+| UC-17 | Season goal | User sets a main goal and this season's goal, or accepts one the coach proposes | Every plan and change works toward it; shown on the Coach page |
 
 ## Open decisions
 
@@ -75,6 +77,40 @@ Simple actions skip the model entirely; anything the model proposes must pass co
 
 **Rebalancer (pure code).** When a day changes, it redistributes the remaining week with fixed rules: no hard sessions on the same muscle group on consecutive days, keep weekly targets where possible, and drop missed work rather than stack it. Rules are configurable and fully unit-tested.
 
+## Agent loop (step 8a)
+
+Added Oct 27, 2026. Step 7 is single-shot: the model sees the week once, proposes, and gets one correction. Planning needs more: the coach works the way a coding agent does — **read what it needs, write down a plan, act, check its own work, ask when stuck** — and code still decides what is allowed.
+
+Each round the model picks the next step; code runs the tool and returns the result; the loop ends when the coach answers, asks the user a question, or presents its draft.
+
+| Tool | Kind | What it does |
+| --- | --- | --- |
+| `get_week(week_start)` | read | Any week, past or planned: sessions, items, status, what can change |
+| `get_history(from, to)` | read | Runs and lifts in a range with load, distance, hard sets per muscle — computed by existing code, rounded to 2 decimals |
+| `get_goals()` | read | Main goal, season goal and training profile (8b adds situation notes) |
+| `search_rules(topic)` | read | Matching rules from `research/training-rules.md`: id, rule, parameters, sources |
+| `search_exercises(muscle, equipment, category)` | read | Catalog entries that fit, e.g. "legs, dumbbells only" |
+| `check_plan()` | read | Runs the Week check on the current draft: clashes, distance jumps, hard-run count |
+| `update_plan(steps)` | progress | The coach's short to-do list, shown live in the Coach panel while it works (the loading state) |
+| `ask_user(question, options)` | pause | Shown as a question with option buttons; the loop stops until the user answers, and the answer continues the same request with its draft |
+| step 7 write tools | write | Change the request's **draft**, never the board; the draft becomes one preview at the end |
+
+- **Limits.** A step cap and a cost cap per request live in `llm_config`. On reaching either, the coach stops and shows what it has; it never continues silently.
+- **Self-check.** A draft is run through `check_plan` before it is shown; a draft that adds a clash is never presented as clean.
+- **Numbers.** Tool results join the numbers the coach may use; the invented-number guard is unchanged.
+- **Knowledge.** Training advice comes only from `search_rules`. A question the research doesn't cover is answered as "not covered" and becomes a research gap — no web search for now.
+- **Writes.** Read tools never write. The board changes only when the user accepts the preview; undo stays exact.
+
+## Planning toward a season (step 8b)
+
+Built on the 8a loop. The coach plans toward a lasting goal and adapts to what life brings.
+
+- **Main goal + season goal.** The main goal is the long-term aim; the season goal has a start and end date. Set by the user, or proposed by the coach and accepted. The free-text profile goal becomes the main goal.
+- **Situation notes.** Travel, equipment on hand, little time: the user says it in a request, or the coach asks with `ask_user`. The coach stores it with `remember(note, from, to)`; a note applies only inside its dates, shows on the board for those days, and the user can delete it. Location and equipment are never fixed settings.
+- **New write tools.** `add_session(day, kind, focus, items)` and `plan_weeks(from_week, weeks)`: a draft can span several weeks and is accepted or undone as one.
+- **Volumes from the user's own weeks.** Planned volumes start from recent weeks, replacing the fixed defaults (the 8 km running day is an [A]).
+- **Rules.** RULE-WEEK-01..04 for the week's shape, RULE-PROG-02 for volume jumps, RULE-PROG-04 after a break; D2 (80/20 by time or by count) is decided before 8b ships.
+
 ## Weekly board and comfort
 
 The main page is seven rows, Monday to Sunday, each holding that day's exercise cards left to right; the coach lives in a side drawer, never a pop-up.
@@ -98,7 +134,7 @@ The cheapest call is the one never made: anything the UI or code can do costs ze
 4. **Right-sized models.** A small model for extraction and intent; a larger one only for planning and fact checks. Configurable per task.
 5. **Diffs, not weeks.** Write tools return changed cards only.
 6. **Local answer cache.** Fact checks and exercise explanations are cached by normalized question.
-7. **Reliability without extra calls.** Structured output against a JSON schema → validator → at most one retry → otherwise ask the user. Never silently accept invalid output.
+7. **Reliability without extra calls.** Structured output against a JSON schema → validator → at most one retry → otherwise ask the user. Never silently accept invalid output. From step 8a, an agent request may take several rounds, bounded by its step and cost caps; a rejected write still gets one correction.
 
 Budgets per call type live in config and are enforced by a test on the prompt builder (see Automated tests).
 
@@ -121,6 +157,13 @@ Each result is written so a test can prove it; the AC id is reused in test names
 | AC-11 | UC-15 | With no provider, every non-coach feature works and no network call is made |
 | AC-12 | all | Every LLM call stays within its configured token budget |
 | AC-13 | all | Existing Distrava metrics and screens behave exactly as before |
+| AC-14 | UC-02, 07, 16 | An agent request stops within its step and cost caps; on a stop it shows what it has and nothing changes unseen |
+| AC-15 | all | Read tools never write; every write lands in the request's draft and reaches the board only through accept |
+| AC-16 | UC-02, 07, 16 | Every draft passes `check_plan` before it is shown; a draft that adds a clash is never presented as clean |
+| AC-17 | UC-16 | `ask_user` pauses the request; the answer resumes it with the same draft |
+| AC-18 | UC-12, 16 | Every rule the coach cites is an id from `research/training-rules.md`; an uncovered question says so |
+| AC-19 | UC-16, 17 | Plans work toward the season goal; a situation note applies only inside its dates |
+| AC-20 | UC-02, 03 | A multi-week draft is accepted or undone as one, byte-for-byte |
 
 ## Automated tests
 
@@ -155,6 +198,10 @@ Two suites: a regression net written before any coach code lands, and new tests 
 | `test_token_budget.py` | unit | AC-12: prompt builder output under each budget |
 | `test_copy_lint.py` | unit | AC-07: UI strings contain no pressure words ("missed", "failed", "streak") |
 | `test_mcp_server.py` | integration | External agent gets the same tools and the same validation |
+| `test_agent_loop.py` | contract | AC-14, AC-16, AC-17: step and cost caps, self-check before showing, ask and resume |
+| `test_read_tools.py` | unit | AC-15: read tools are pure, never write, numbers at most 2 decimals |
+| `test_rule_search.py` | unit | AC-18: results are real rule ids with their sources; nothing found → "not covered" |
+| `test_season_plan.py` | unit + integration | AC-19, AC-20: goal and situation notes shape the draft; multi-week accept and undo |
 
 ## Build order (TDD)
 
@@ -167,7 +214,9 @@ Build the board and all the pure-code logic before any AI, so the coach plugs in
 5. Deterministic rebalancer (UC-08)
 6. Provider interface + bring-your-own key + fake provider for tests (UC-01)
 7. Coach tools, preview and undo (UC-07, UC-14)
-8. Plan from scratch and from presets (UC-02, UC-03)
+8. Plan from scratch and from presets, split on Oct 27, 2026:
+   - 8a. Agent loop: read tools, rule search, live plan, ask the user, self-check (UC-02, UC-07, UC-16)
+   - 8b. Planning toward a season: goals, situation notes, add sessions, multi-week drafts (UC-02, UC-03, UC-16, UC-17)
 9. PDF import with review screen (UC-04)
 10. Post-workout check-in and trainer export (UC-11, UC-13)
 11. Exercise Q&A and fact check (UC-06, UC-12)

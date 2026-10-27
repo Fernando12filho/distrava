@@ -288,8 +288,8 @@
         <span class="mid">M4</span>
         <h2>Coach &amp; trainer</h2>
         <p class="summary">Spec: <code>Distrava Coach — Use Cases, Decisions &amp; Test Plan.md</code>. Resumed 2026-10-21 (paused after step 4 on 2026-10-20): the rest of M3 needs a coach that can plan.</p>
-        <div class="progress"><span style="width:54%"></span></div>
-        <span class="count">7 / 13 done</span>
+        <div class="progress"><span style="width:50%"></span></div>
+        <span class="count">7 / 14 done</span>
       </header>
       <ul>
         <li class="item st-done">
@@ -332,10 +332,15 @@
           <span class="feature">7. Coach tools, preview, undo</span>
           <span class="notes">2026-10-21: ask the coach on the Coach page; it can move or remove a session, swap an exercise (same kind only), change a volume or plan easy/hard. Code checks every call (only planned sessions from today on with nothing logged, same limits as editing by hand, no new spacing clash) and sends rejected ones back once; otherwise it says it couldn&#x27;t. The change shows faded on the board with its reason and the exact before → after lines; Accept or Discard, then Undo restores it exactly. If you edit the week first, accept is refused; once you use a changed session, undo is no longer offered. Any number in the coach&#x27;s words that it wasn&#x27;t given is sent back. 2026-10-27: remembers this week&#x27;s conversation (last 10 turns). Not yet: changing a session&#x27;s kind (run → ride), notes, profile proposals (#26) · #28</span>
         </li>
+        <li class="item st-next">
+          <span class="chip st-next">Next</span>
+          <span class="feature">8a. Agent loop: the coach reads what it needs, writes a plan you see live, asks you when something&#x27;s missing, and checks its own draft before showing it</span>
+          <span class="notes">Like a coding agent, built for training: read tools (any week, history, goals, research rules, exercises by equipment), <code>check_plan</code> = the Week check on its draft, <code>update_plan</code> (the loading state), <code>ask_user</code> with option buttons. Writes still go to one preview you accept or undo. Step and cost caps per request. No web search: advice comes from the research file only. AC-14..18 · #42</span>
+        </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
-          <span class="feature">8. Plan a week from scratch or from past weeks</span>
-          <span class="notes">RULE-WEEK-01..04. 2026-10-27: plans toward your main + season goal and can span more than one week; travel, equipment on hand, little time and skipped days come in your request or the coach asks for them — no fixed location/equipment settings · #29</span>
+          <span class="feature">8b. Plan toward your season goal: main + season goal, situation notes (travel, equipment, little time) with dates, add sessions, drafts over several weeks</span>
+          <span class="notes">Situation is never a fixed setting: you say it or the coach asks. Volumes from your recent weeks replace the 8 km default. RULE-WEEK-01..04, PROG-02, PROG-04; needs D2. AC-19, AC-20 · #29</span>
         </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
