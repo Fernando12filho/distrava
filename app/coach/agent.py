@@ -177,7 +177,8 @@ def _new_volumes(call, allowed):
     if found:
         raise tools.ToolError(
             f"These volumes aren't in anything you were given: {', '.join(dict.fromkeys(found))}. "
-            "Use volumes from the user's weeks (read them with get_week) or from their request."
+            "Use volumes from the user's weeks (read them with get_week) or from their request; "
+            "a distance or time they gave in km, miles, minutes or hours counts in metres or seconds (12 km = 12000)."
         )
 
 
@@ -257,10 +258,10 @@ def _add_target(weeks, call):
     return week_start
 
 
-def _write(weeks, call, catalog, allowed, units):
+def _write(weeks, call, catalog, allowed, units, user_units):
     """Applies one write call to the week it belongs to; a rejected call raises ToolError and changes nothing."""
     week_start = _add_target(weeks, call) if call["name"] == "add_session" else weeks.owner(call)
-    _new_volumes(call, allowed)
+    _new_volumes(call, allowed + "\n" + user_units)
     before = weeks.load(week_start)
     sessions_floor, items_floor = weeks.floors()
     after = tools.apply({**before, "new_id_floor": sessions_floor, "new_item_id_floor": items_floor}, call, catalog)
@@ -342,6 +343,8 @@ def propose(complete, week, catalog, rebalancer_sessions, request, context, hist
     allowed = "\n".join([week_json, request, *(m["content"] for m in earlier)])
     system, defined = system_prompt(catalog), tool_definitions()
     limits, units = llm_config.TASKS["coach"], context["units"]
+    # Only the user's own words: "12 km" in their messages permits 12000 metres.
+    user_units = tools.unit_conversions("\n".join([request, *(m["content"] for m in earlier if m["role"] == "user")]))
 
     weeks = _Weeks(week, rebalancer_sessions, context, (readers or {}).get("load_week"))
     applied, bad_rounds, spent = [], 0, 0.0
@@ -361,7 +364,7 @@ def propose(complete, week, catalog, rebalancer_sessions, request, context, hist
                         content = read_tools.run(call, weeks.view, lambda: weeks.check(catalog))
                         allowed += "\n" + content
                     else:
-                        _write(weeks, call, catalog, allowed, units)
+                        _write(weeks, call, catalog, allowed, units, user_units)
                         applied.append(call)
                         content = "OK"
                     feedback.append({"type": "tool_result", "tool_use_id": call["id"], "content": content})

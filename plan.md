@@ -250,6 +250,7 @@ From the research file's open questions. Each is asked when its milestone starts
 | 2026-10-27 | "Prepare my next 2 weeks" works: the coach drafts up to 4 weeks ahead in one request, you see it on each week's board and accept or undo it as one. Not checked yet: clashes across the Sunday → Monday boundary between two drafted weeks (each week is checked against the board's previous week) |
 | 2026-10-27 | Your calls on the chat (#43): one conversation on every week's page plus "New chat"; Today / Hard sets / Week check move to a strip above the board, so the panel is only chat; panel styled after VS Code's chat; streaming sentence by sentence so the number check still runs before you see anything. Done first: the chat opens at the last message after a reload |
 | 2026-10-27 | One coach chat across weeks (#43, DS-05): the same conversation on every week's page; a message asked from another week is labelled with its week, and the coach is told which week each turn came from. "+" in the panel header starts a new chat. Your earlier messages became one earlier conversation on first start |
+| 2026-10-27 | Fixed from your test chat: you said "12 kilometers" and the coach gave up, because sessions store metres and 12000 wasn't in your words. Now the code converts numbers you give with a unit (km, k, miles, min, hours) to metres or seconds, so they count as yours; a bare "12" still doesn't become 12 km |
 
 ## 8. Waiting on
 

@@ -88,7 +88,8 @@ TOOLS = [
         "add_session",
         "Add a planned session on a day from today on. Each exercise takes one volume shape, the rest null: "
         "sets+reps, sets+duration_seconds, distance_meters, or duration_seconds. "
-        "Volumes must be numbers from the user's weeks (read them with get_week) or from their request. "
+        "Volumes must be numbers from the user's weeks (read them with get_week) or from their request; "
+        "distances are metres and times seconds, so the user's 12 km is 12000 and 45 min is 2700. "
         "A rest session has no exercises.",
         {
             "week_start": {"type": "string", "description": "The Monday of the week, YYYY-MM-DD"},
@@ -447,6 +448,21 @@ def new_conflicts(rebalancer_sessions, after, catalog):
 
 
 _NUMBER = re.compile(r"\d+(?:\.\d+)?")
+
+# The user says "12 km" or "45 min"; sessions store metres and seconds. Code
+# converts, so the coach can use the user's number without computing it.
+METERS_PER_MILE = 1609.344
+_UNITS = [
+    (re.compile(r"(\d+(?:\.\d+)?)\s*(?:km|k|kilomet(?:er|re)s?)\b", re.IGNORECASE), 1000),
+    (re.compile(r"(\d+(?:\.\d+)?)\s*(?:mi|miles?)\b", re.IGNORECASE), METERS_PER_MILE),
+    (re.compile(r"(\d+(?:\.\d+)?)\s*(?:h|hrs?|hours?)\b", re.IGNORECASE), 3600),
+    (re.compile(r"(\d+(?:\.\d+)?)\s*(?:min|mins|minutes?)\b", re.IGNORECASE), 60),
+]
+
+
+def unit_conversions(text):
+    """Every number the text gives with a unit, in the unit sessions store it in."""
+    return " ".join(str(round(float(n) * factor, 2)) for pattern, factor in _UNITS for n in pattern.findall(text))
 
 
 def _numbers(text):

@@ -147,3 +147,50 @@ def test_a_volume_the_user_gave_is_accepted():
     result = _run(fake, request="Add a 12000 m easy run on Friday")
 
     assert result["status"] == "pending"
+
+
+# --- your numbers in your units: the code converts, the coach doesn't ---------------------
+
+
+@pytest.mark.parametrize(
+    "words, volume",
+    [
+        ("I would like it to be 12 kilometers", {"distance_meters": 12000.0}),
+        ("a 12 km long run", {"distance_meters": 12000.0}),
+        ("12k on Sunday", {"distance_meters": 12000.0}),
+        ("an 8 mile run", {"distance_meters": 12874.75}),
+        ("a 45 min easy ride", {"duration_seconds": 2700}),
+        ("ride for 1.5 hours", {"duration_seconds": 5400}),
+    ],
+)
+def test_a_volume_you_gave_in_your_units_is_accepted(words, volume):
+    exercise = "easy_ride" if "duration_seconds" in volume else "long_run"
+    kind = "ride" if exercise == "easy_ride" else "run"
+    fake = FakeProvider([{"tool_calls": [_add(day=6, kind=kind, focus="Long one", items=[_item(exercise, **volume)])]}, {}])
+
+    result = _run(fake, request=words)
+
+    assert result["status"] == "pending", fake.calls[-1]["messages"][-1]
+
+
+def test_a_bare_number_is_not_taken_as_kilometres():
+    fake = FakeProvider([{"tool_calls": [_add(day=6, items=[_item("long_run", distance_meters=12000.0)])]}, {"text": "OK."}])
+
+    _run(fake, request="Make Sunday 12")
+
+    assert fake.calls[1]["messages"][-1]["content"][0]["is_error"] is True
+
+
+def test_units_said_earlier_in_the_chat_count_too():
+    def complete(system, messages, tools_):
+        return fake.complete("coach", system=system, messages=messages, tools=tools_)
+
+    earlier = {"request": "Sunday's long run should be 12 kilometers", "reply": "Which week?", "status": "answer"}
+    fake = FakeProvider([{"tool_calls": [_add(day=6, items=[_item("long_run", distance_meters=12000.0)])]}, {}])
+
+    result = agent.propose(
+        complete, week=_week(), catalog=CAT, rebalancer_sessions=[], request="This week", history=[earlier],
+        context={"week_start": WEEK_START, "today": TODAY, "units": "metric", "profile": {}, "week_check": []}, readers={},
+    )
+
+    assert result["status"] == "pending"
