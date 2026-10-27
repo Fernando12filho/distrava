@@ -48,7 +48,7 @@ def _week():
     }
 
 
-def _run(fake, request="Move Thursday's run to Friday", rebalancer_sessions=(), week=None):
+def _run(fake, request="Move Thursday's run to Friday", rebalancer_sessions=(), week=None, history=()):
     def complete(system, messages, tools):
         return fake.complete("coach", system=system, messages=messages, tools=tools)
 
@@ -59,7 +59,59 @@ def _run(fake, request="Move Thursday's run to Friday", rebalancer_sessions=(), 
         rebalancer_sessions=list(rebalancer_sessions),
         request=request,
         context={"week_start": WEEK_START, "today": TODAY, "units": "metric", "profile": {}, "week_check": []},
+        history=list(history),
     )
+
+
+# --- conversation memory ---------------------------------------------------------
+
+_REVIEW = {"request": "Review my week", "reply": "Two options: move the run to Friday, or plan it easy.", "status": "answer"}
+
+
+def test_earlier_turns_come_before_the_request_and_the_week_only_once():
+    fake = FakeProvider([{"text": "Done."}])
+
+    _run(fake, request="Do the first option", history=[_REVIEW])
+
+    messages = fake.calls[0]["messages"]
+    assert [m["role"] for m in messages] == ["user", "assistant", "user"]
+    assert messages[0]["content"] == "Review my week"
+    assert messages[1]["content"] == "Two options: move the run to Friday, or plan it easy."
+    # Old turns carry no week: only the current one is true now.
+    assert "<week>" not in messages[0]["content"]
+    assert messages[2]["content"].startswith("<week>") and messages[2]["content"].endswith("Do the first option")
+
+
+def test_what_the_user_did_with_a_proposal_is_told_to_the_coach():
+    move = {"request": "Move the run", "reply": "Friday is free.", "status": "accepted"}
+    fake = FakeProvider([{"text": "Done."}])
+
+    _run(fake, request="Now plan it easy", history=[move])
+
+    assert fake.calls[0]["messages"][2]["content"].startswith("(You proposed that change and the user accepted it.)")
+
+
+def test_failed_turns_are_left_out_and_only_the_latest_turns_are_kept():
+    failed = {"request": "hello", "reply": "The request was not accepted.", "status": "failed"}
+    turns = [{"request": f"Question {i}", "reply": f"Answer {i}", "status": "answer"} for i in range(agent.MAX_HISTORY_TURNS + 3)]
+    fake = FakeProvider([{"text": "Done."}])
+
+    _run(fake, request="Next", history=[failed, *turns])
+
+    sent = [m["content"] for m in fake.calls[0]["messages"][:-1]]
+    assert "hello" not in sent
+    assert len(sent) == 2 * agent.MAX_HISTORY_TURNS
+    assert sent[-1] == f"Answer {agent.MAX_HISTORY_TURNS + 2}"
+
+
+def test_a_number_from_an_earlier_turn_is_not_an_invented_number():
+    earlier = {"request": "How far should Friday be?", "reply": "Keep it at 6 km, as you said.", "status": "answer"}
+    fake = FakeProvider([{"text": "Friday stays at 6 km."}])
+
+    result = _run(fake, request="Remind me about Friday", history=[earlier])
+
+    assert result["status"] == "answer"
+    assert len(fake.calls) == 1
 
 
 def _move(day=4, reason="Friday is free."):

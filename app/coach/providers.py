@@ -67,6 +67,14 @@ def _retry_wait(headers, attempt):
     return min(wait, llm_config.MAX_RETRY_WAIT_SECONDS)
 
 
+def _rejection(raw):
+    try:
+        reason = json.loads(raw)["error"]["message"]
+    except (ValueError, KeyError, TypeError):
+        return None
+    return f"{_MESSAGES['bad_request'].rstrip('.')}: {reason}"
+
+
 def _tool_calls(content):
     return [{"id": b["id"], "name": b["name"], "input": b.get("input") or {}} for b in content if b.get("type") == "tool_use"]
 
@@ -121,7 +129,10 @@ class AnthropicProvider:
             if status in _RETRYABLE and not last:
                 self._sleep(_retry_wait(response_headers, attempt))
                 continue
-            raise ProviderError(_RETRYABLE.get(status) or _FINAL.get(status, "server"))
+            kind = _RETRYABLE.get(status) or _FINAL.get(status, "server")
+            # A 400 is our own request's fault, so the API's reason is the only
+            # way to fix it; it never echoes the key header.
+            raise ProviderError(kind, _rejection(raw) if kind == "bad_request" else None)
         raise ProviderError("server")  # unreachable: the last attempt returns or raises
 
     @staticmethod

@@ -76,7 +76,8 @@ TOOLS = [
     _tool(
         "set_planned_effort",
         "Plan a session as easy or hard, or clear it with null. Only used until the session is done.",
-        {"session_id": {"type": "integer"}, "effort": {"type": ["string", "null"], "enum": ["easy", "hard", None]}},
+        # anyOf, not a type list: the strict-schema check rejects an enum beside ["string", "null"].
+        {"session_id": {"type": "integer"}, "effort": {"anyOf": [{"type": "string", "enum": list(PLANNED_EFFORTS)}, {"type": "null"}]}},
     ),
 ]
 
