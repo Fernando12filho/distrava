@@ -80,6 +80,19 @@ def test_every_tool_is_strict_with_closed_required_arguments():
         assert tool["description"]
 
 
+def test_no_enum_sits_beside_a_list_of_types():
+    # Anthropic's strict-schema check rejects {"type": [...], "enum": [...]}:
+    # "Enum value 'easy' does not match declared type ['string', 'null']".
+    for tool in tools.TOOLS:
+        for name, prop in tool["input_schema"]["properties"].items():
+            assert not ("enum" in prop and isinstance(prop.get("type"), list)), f"{tool['name']}.{name}"
+
+
+def test_planned_effort_accepts_easy_hard_or_null():
+    effort = next(t for t in tools.TOOLS if t["name"] == "set_planned_effort")["input_schema"]["properties"]["effort"]
+    assert effort == {"anyOf": [{"type": "string", "enum": ["easy", "hard"]}, {"type": "null"}]}
+
+
 # --- move_session ---------------------------------------------------------------
 
 

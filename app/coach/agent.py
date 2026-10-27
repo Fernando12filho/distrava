@@ -11,6 +11,15 @@ from datetime import timedelta
 from app.coach import board, tools
 
 MAX_ATTEMPTS = 2
+# Enough to follow up on a review and its options without resending a long week of chat.
+MAX_HISTORY_TURNS = 10
+
+_OUTCOMES = {
+    "accepted": "(You proposed that change and the user accepted it.)",
+    "discarded": "(You proposed that change and the user discarded it.)",
+    "undone": "(You proposed that change; the user accepted it, then undid it.)",
+    "stale": "(You proposed that change, but the user edited the week first, so it wasn't applied.)",
+}
 
 GAVE_UP = (
     "The coach couldn't turn that into a change that fits your week. "
@@ -21,6 +30,7 @@ TOO_LONG = "The coach's answer was cut off. The board is unchanged; try a shorte
 
 _INSTRUCTIONS = """You are the coach inside Distrava, a private training app for a runner who also lifts.
 The user's week arrives as JSON in <week> tags, followed by their request.
+Earlier messages are this week's conversation so far; when the user refers to something you offered, follow it, but the <week> in the latest message is the current state.
 
 How you work:
 - To change the week, call the tools. Each call is checked by the app and shown to the user as a preview they accept or undo; nothing changes without them.
@@ -145,11 +155,27 @@ def _reply(result):
     return " ".join(dict.fromkeys(r for r in reasons if r)) or result["text"].strip()
 
 
-def propose(complete, week, catalog, rebalancer_sessions, request, context):
+def _conversation(history):
+    """Earlier turns as plain text, oldest first, so the coach can refer back
+    to what it offered. Failed turns were app errors, not the coach speaking."""
+    turns = [t for t in history if t["status"] != "failed"][-MAX_HISTORY_TURNS:]
+    messages, outcome = [], None
+    for turn in turns:
+        messages.append({"role": "user", "content": (f"{outcome}\n\n" if outcome else "") + turn["request"]})
+        messages.append({"role": "assistant", "content": turn["reply"] or ""})
+        outcome = _OUTCOMES.get(turn["status"])
+    return messages, outcome
+
+
+def propose(complete, week, catalog, rebalancer_sessions, request, context, history=()):
     data = payload(week, context)
     week_json = json.dumps(data, ensure_ascii=False, sort_keys=True)
-    messages = [{"role": "user", "content": f"<week>{week_json}</week>\n\n{request}"}]
-    allowed = week_json + "\n" + request
+    earlier, outcome = _conversation(history)
+    # Only the latest message carries the week: earlier weeks are out of date.
+    latest = f"<week>{week_json}</week>\n\n{request}"
+    messages = earlier + [{"role": "user", "content": f"{outcome}\n\n{latest}" if outcome else latest}]
+    # Numbers already said in this conversation were checked when they were said.
+    allowed = "\n".join([week_json, request, *(m["content"] for m in earlier)])
     system, defined = system_prompt(catalog), tool_definitions()
 
     for attempt in range(MAX_ATTEMPTS):

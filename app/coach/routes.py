@@ -834,8 +834,9 @@ def ask_coach(week):
     def complete(system, messages, tools):
         return assistant.run_task(db, chosen, "coach", system, messages, tools=tools)
 
+    history = [{"request": p.request, "reply": p.reply, "status": p.status} for p in coach_week.proposals]
     try:
-        result = agent.propose(complete, state, catalog, check["sessions"], message, context)
+        result = agent.propose(complete, state, catalog, check["sessions"], message, context, history)
     except ProviderError as err:
         result = {"status": "failed", "reply": str(err), "calls": [], "after": None, "changes": []}
 

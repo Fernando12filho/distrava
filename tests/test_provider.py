@@ -153,6 +153,16 @@ def test_client_errors_are_not_retried_and_are_named(status, kind, expected):
     assert len(transport.requests) == 1
 
 
+def test_a_rejected_request_says_what_the_api_rejected():
+    provider, _ = _provider(_error(400, "invalid_request_error"))
+
+    with pytest.raises(ProviderError) as err:
+        provider.complete("coach", system=None, messages=[{"role": "user", "content": "Hi"}])
+
+    assert err.value.kind == "bad_request"
+    assert str(err.value) == "The request was not accepted: nope"
+
+
 def test_ac_01_errors_never_carry_the_key():
     provider, _ = _provider(_error(401, "authentication_error"))
 

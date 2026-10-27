@@ -158,6 +158,17 @@ def test_a_provider_error_is_shown_and_nothing_changes(client, db_session, fake,
     assert "Too many requests" in html
 
 
+def test_the_coach_hears_this_weeks_earlier_turns(client, db_session, fake, week):
+    fake.replies.extend([{"text": "Two options: move the run, or plan it easy."}, {"text": "Done."}])
+
+    _ask(client, "Review my week")
+    _ask(client, "Do the first option")
+
+    messages = fake.calls[1]["messages"]
+    assert [m["content"] for m in messages[:2]] == ["Review my week", "Two options: move the run, or plan it easy."]
+    assert messages[-1]["content"].endswith("Do the first option")
+
+
 def test_a_new_request_replaces_the_pending_preview(client, db_session, fake, week):
     fake.replies.append({"tool_calls": [_call("move_session", session_id=week["run"], day=5)]})
     _ask(client)
