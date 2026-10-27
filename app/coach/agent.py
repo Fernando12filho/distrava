@@ -1,6 +1,9 @@
-"""One coach request: the model reads the week and proposes changes with tools;
-code validates them, at most one retry, otherwise it says so (spec "Token
-budget" §7). Pure: the provider call comes in as a function, and nothing here
+"""One coach request, worked in steps (spec "Agent loop", step 8a): each round
+the model reads with read tools or changes a draft with write tools; code runs
+and checks every call, and the request ends when the model replies without a
+tool, gives up after two bad rounds, or reaches its step or cost cap.
+
+Pure: the provider call and the readers come in as functions, and nothing here
 touches the database — a result is only a proposal for the user to accept.
 """
 
@@ -8,9 +11,12 @@ import copy
 import json
 from datetime import timedelta
 
-from app.coach import board, tools
+from app.coach import board, llm_config, read_tools, tools
+from app.coach.usage import call_cost
 
-MAX_ATTEMPTS = 2
+# A bad round is a rejected write or a finish that fails the final check: the
+# old "at most one retry" (spec "Token budget" §7), now counted per request.
+MAX_BAD_ROUNDS = 2
 # Enough to follow up on a review and its options without resending a long week of chat.
 MAX_HISTORY_TURNS = 10
 
@@ -27,19 +33,22 @@ GAVE_UP = (
 )
 DECLINED = "The coach couldn't answer that one. The board is unchanged."
 TOO_LONG = "The coach's answer was cut off. The board is unchanged; try a shorter request."
+STOPPED = "The coach reached its limit for one request before finishing. The board is unchanged; try a smaller request."
+STOPPED_WITH_DRAFT = "(The coach reached its limit for one request; this is what it had.)"
 
 _INSTRUCTIONS = """You are the coach inside Distrava, a private training app for a runner who also lifts.
 The user's week arrives as JSON in <week> tags, followed by their request.
 Earlier messages are this week's conversation so far; when the user refers to something you offered, follow it, but the <week> in the latest message is the current state.
 
 How you work:
-- To change the week, call the tools. Each call is checked by the app and shown to the user as a preview they accept or undo; nothing changes without them.
+- Work in steps. Read tools (like get_week) answer from the app; write tools change a draft of this week. Each write is checked by the app, and your draft builds up across steps.
+- When you're done, reply without calling a tool: one or two plain sentences for the user. The user then sees the whole draft as one preview they accept or undo; nothing changes without them.
 - Only sessions with "can_change": true can change. Days are 0 = Monday … 6 = Sunday.
 - Make the smallest change that does what the user asked. Don't redesign the week.
 - Every tool takes a "reason": one short sentence for the user, in plain words.
 - If the request needs something the tools can't do, or it's a question, answer in two or three sentences without tools.
 
-Numbers: never calculate. Use only numbers that appear in the week JSON or in the user's request. The app shows the exact before → after values itself.
+Numbers: never calculate. Use only numbers that appear in the week JSON, in tool results or in the user's request. The app shows the exact before → after values itself.
 
 Tone: calm and neutral. A skipped session is not a failure: no streaks, no guilt, no "missed".
 
@@ -63,7 +72,7 @@ def system_prompt(catalog):
 
 
 def tool_definitions():
-    defined = copy.deepcopy(tools.TOOLS)
+    defined = copy.deepcopy(read_tools.READ_TOOLS + tools.TOOLS)
     defined[-1]["cache_control"] = {"type": "ephemeral"}
     return defined
 
@@ -113,46 +122,59 @@ def _clash_text(clash):
     return f"{clash['rule']}: sessions {', '.join(str(i) for i in clash['session_ids'])}{groups}"
 
 
-def _check(result, week, catalog, rebalancer_sessions, allowed, units):
-    """(after, changes, problems by tool-call index, other problems)."""
-    calls = result["tool_calls"]
-    after, errors = tools.apply_all(week, calls, catalog)
-    problems = {i: e for i, e in enumerate(errors) if e}
-    other = []
-    if calls and not problems:
-        clashes = tools.new_conflicts(rebalancer_sessions, after, catalog)
-        if clashes:
-            other.append(
-                "These changes break the week's spacing rules, so they can't be offered: "
-                + "; ".join(_clash_text(c) for c in clashes)
-                + ". Choose different days or efforts, or explain why it can't be done."
-            )
-    changes = tools.change_lines(week, after, catalog, units) if not problems else []
-    words = result["text"] + " " + " ".join(c["input"].get("reason") or "" for c in calls)
-    strays = tools.stray_numbers(words, allowed + "\n" + "\n".join(changes))
-    if strays:
-        other.append(
-            f"Your words used numbers that aren't in the week or the request: {', '.join(dict.fromkeys(strays))}. "
-            "Don't calculate; use only numbers you were given. The app shows exact values itself."
+STRAYS = "Your words used numbers that aren't in the week, a tool result or the request: {}. Don't calculate; use only numbers you were given. The app shows exact values itself."
+
+
+def _strays(text, allowed):
+    found = tools.stray_numbers(text, allowed)
+    return STRAYS.format(", ".join(dict.fromkeys(found))) if found else None
+
+
+def _write(draft, call, catalog, allowed, units):
+    """The draft after one write call; a rejected call raises ToolError and leaves it."""
+    after = tools.apply(draft, call, catalog)
+    # A reason is shown to the user beside the change, so it's held to the same number rule.
+    stray = _strays(call["input"].get("reason") or "", allowed + "\n" + "\n".join(tools.change_lines(draft, after, catalog, units)))
+    if stray:
+        raise tools.ToolError(stray)
+    return after
+
+
+def _finish_problems(text, week, draft, catalog, rebalancer_sessions, allowed, units):
+    problems = []
+    clashes = tools.new_conflicts(rebalancer_sessions, draft, catalog) if draft != week else []
+    if clashes:
+        problems.append(
+            "These changes break the week's spacing rules, so they can't be offered: "
+            + "; ".join(_clash_text(c) for c in clashes)
+            + ". Change the draft with more tool calls, or explain why it can't be done."
         )
-    return after, changes, problems, other
+    stray = _strays(text, allowed + "\n" + "\n".join(tools.change_lines(week, draft, catalog, units)))
+    if stray:
+        problems.append(stray)
+    return problems
 
 
-def _feedback(result, problems, other):
-    blocks = [
-        {"type": "tool_result", "tool_use_id": call["id"], "content": problems[i], "is_error": True}
-        if i in problems
-        else {"type": "tool_result", "tool_use_id": call["id"], "content": "OK"}
-        for i, call in enumerate(result["tool_calls"])
-    ]
-    if other:
-        blocks.append({"type": "text", "text": " ".join(other)})
-    return blocks
+def _proposal(text, week, draft, catalog, units, applied):
+    if draft == week:
+        return {"status": "answer", "reply": text, "calls": [], "after": None, "changes": []}
+    reasons = " ".join(dict.fromkeys(r for r in (c["input"].get("reason", "").strip() for c in applied) if r))
+    return {
+        "status": "pending",
+        "reply": text or reasons,
+        "calls": [{"name": c["name"], "input": c["input"]} for c in applied],
+        "after": draft,
+        "changes": tools.change_lines(week, draft, catalog, units),
+    }
 
 
-def _reply(result):
-    reasons = [c["input"].get("reason", "").strip() for c in result["tool_calls"]]
-    return " ".join(dict.fromkeys(r for r in reasons if r)) or result["text"].strip()
+def _stopped(week, draft, catalog, rebalancer_sessions, units, applied):
+    # AC-14: show what it has only if that draft would pass the final check.
+    if draft == week or tools.new_conflicts(rebalancer_sessions, draft, catalog):
+        return _failed(STOPPED)
+    result = _proposal("", week, draft, catalog, units, applied)
+    result["reply"] = f"{result['reply']} {STOPPED_WITH_DRAFT}".strip()
+    return result
 
 
 def _conversation(history):
@@ -167,7 +189,7 @@ def _conversation(history):
     return messages, outcome
 
 
-def propose(complete, week, catalog, rebalancer_sessions, request, context, history=()):
+def propose(complete, week, catalog, rebalancer_sessions, request, context, history=(), readers=None):
     data = payload(week, context)
     week_json = json.dumps(data, ensure_ascii=False, sort_keys=True)
     earlier, outcome = _conversation(history)
@@ -177,24 +199,47 @@ def propose(complete, week, catalog, rebalancer_sessions, request, context, hist
     # Numbers already said in this conversation were checked when they were said.
     allowed = "\n".join([week_json, request, *(m["content"] for m in earlier)])
     system, defined = system_prompt(catalog), tool_definitions()
+    limits, units = llm_config.TASKS["coach"], context["units"]
 
-    for attempt in range(MAX_ATTEMPTS):
+    draft, applied, bad_rounds, spent = copy.deepcopy(week), [], 0, 0.0
+    for _step in range(limits["max_steps"]):
         result = complete(system, messages, defined)
+        spent += call_cost(result["model"], result["usage"]) or 0.0
         if result["stop_reason"] == "refusal":
             return _failed(DECLINED)
         if result["stop_reason"] == "max_tokens":
             return _failed(TOO_LONG)
-        after, changes, problems, other = _check(result, week, catalog, rebalancer_sessions, allowed, context["units"])
-        if not problems and not other:
-            if result["tool_calls"] and changes:
-                calls = [{"name": c["name"], "input": c["input"]} for c in result["tool_calls"]]
-                return {"status": "pending", "reply": _reply(result), "calls": calls, "after": after, "changes": changes}
-            return {"status": "answer", "reply": result["text"].strip(), "calls": [], "after": None, "changes": []}
-        messages = messages + [
-            {"role": "assistant", "content": result["content"]},
-            {"role": "user", "content": _feedback(result, problems, other)},
-        ]
-    return _failed(GAVE_UP)
+
+        feedback, bad = [], False
+        if result["tool_calls"]:
+            for call in result["tool_calls"]:
+                try:
+                    if call["name"] in read_tools.NAMES:
+                        content = read_tools.run(call, readers or {}, context["week_start"], lambda: payload(draft, context))
+                        allowed += "\n" + content
+                    else:
+                        draft = _write(draft, call, catalog, allowed, units)
+                        applied.append(call)
+                        content = "OK"
+                    feedback.append({"type": "tool_result", "tool_use_id": call["id"], "content": content})
+                except tools.ToolError as err:
+                    bad = bad or call["name"] not in read_tools.NAMES
+                    feedback.append({"type": "tool_result", "tool_use_id": call["id"], "content": str(err), "is_error": True})
+        else:
+            text = result["text"].strip()
+            problems = _finish_problems(text, week, draft, catalog, rebalancer_sessions, allowed, units)
+            if not problems:
+                return _proposal(text, week, draft, catalog, units, applied)
+            bad = True
+            feedback.append({"type": "text", "text": " ".join(problems)})
+
+        bad_rounds += bad
+        if bad_rounds >= MAX_BAD_ROUNDS:
+            return _failed(GAVE_UP)
+        if spent >= limits["max_cost_usd"]:
+            return _stopped(week, draft, catalog, rebalancer_sessions, units, applied)
+        messages = messages + [{"role": "assistant", "content": result["content"]}, {"role": "user", "content": feedback}]
+    return _stopped(week, draft, catalog, rebalancer_sessions, units, applied)
 
 
 def _failed(message):

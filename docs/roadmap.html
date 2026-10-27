@@ -332,10 +332,10 @@
           <span class="feature">7. Coach tools, preview, undo</span>
           <span class="notes">2026-10-21: ask the coach on the Coach page; it can move or remove a session, swap an exercise (same kind only), change a volume or plan easy/hard. Code checks every call (only planned sessions from today on with nothing logged, same limits as editing by hand, no new spacing clash) and sends rejected ones back once; otherwise it says it couldn&#x27;t. The change shows faded on the board with its reason and the exact before → after lines; Accept or Discard, then Undo restores it exactly. If you edit the week first, accept is refused; once you use a changed session, undo is no longer offered. Any number in the coach&#x27;s words that it wasn&#x27;t given is sent back. 2026-10-27: remembers this week&#x27;s conversation (last 10 turns). Not yet: changing a session&#x27;s kind (run → ride), notes, profile proposals (#26) · #28</span>
         </li>
-        <li class="item st-next">
-          <span class="chip st-next">Next</span>
+        <li class="item st-in_progress">
+          <span class="chip st-in_progress">In progress</span>
           <span class="feature">8a. Agent loop: the coach reads what it needs, writes a plan you see live, asks you when something&#x27;s missing, and checks its own draft before showing it</span>
-          <span class="notes">Like a coding agent, built for training: read tools (any week, history, goals, research rules, exercises by equipment), <code>check_plan</code> = the Week check on its draft, <code>update_plan</code> (the loading state), <code>ask_user</code> with option buttons. Writes still go to one preview you accept or undo. Step and cost caps per request. No web search: advice comes from the research file only. AC-14..18 · #42</span>
+          <span class="notes">Like a coding agent, built for training: read tools (any week, history, goals, research rules, exercises by equipment), <code>check_plan</code> = the Week check on its draft, <code>update_plan</code> (the loading state), <code>ask_user</code> with option buttons. Writes still go to one preview you accept or undo. Step and cost caps per request. No web search: advice comes from the research file only. 2026-10-27, slice 1 of 5 done: the coach works in steps — changes build up in one draft, it can read any other week (<code>get_week</code>, read-only, never creates a week), and a request stops at 8 steps or $0.25, showing its draft only if it passes the Week check. Next: self-check (<code>check_plan</code>) · AC-14..18 · #42</span>
         </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>

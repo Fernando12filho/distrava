@@ -799,6 +799,17 @@ def _proposal_context(db, week, today, units):
     }
 
 
+def _week_reader(db, today, context):
+    """get_week for the coach: any other week, read-only — reading never creates a week."""
+
+    def get_week(week_start):
+        found = db.query(CoachWeek).filter_by(week_start=week_start).first()
+        state = _week_state(found, today) if found else {"today_index": _first_changeable_day(week_start, today), "sessions": []}
+        return agent.payload(state, {**context, "week_start": week_start, "week_check": []})
+
+    return get_week
+
+
 @bp.route("/weeks/<week>/ask", methods=["POST"])
 def ask_coach(week):
     db = get_db()
@@ -836,7 +847,8 @@ def ask_coach(week):
 
     history = [{"request": p.request, "reply": p.reply, "status": p.status} for p in coach_week.proposals]
     try:
-        result = agent.propose(complete, state, catalog, check["sessions"], message, context, history)
+        readers = {"get_week": _week_reader(db, today, context)}
+        result = agent.propose(complete, state, catalog, check["sessions"], message, context, history, readers)
     except ProviderError as err:
         result = {"status": "failed", "reply": str(err), "calls": [], "after": None, "changes": []}
 

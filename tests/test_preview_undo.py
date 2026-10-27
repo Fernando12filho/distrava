@@ -2,7 +2,9 @@
 edit is never overwritten by it, and undo puts the board back exactly.
 """
 
+import json
 import re
+from datetime import date
 
 import pytest
 from sqlalchemy import text
@@ -11,7 +13,7 @@ from app import create_app
 from app.coach import routes as coach_routes
 from app.coach.keystore import MemoryKeystore
 from app.coach.providers import FakeProvider, ProviderError
-from app.models import CoachLlmCall, CoachProposal, CoachSession, CoachSessionItem
+from app.models import CoachLlmCall, CoachProposal, CoachSession, CoachSessionItem, CoachWeek
 
 KEY = "sk-ant-api03-Abc_def-123456789"
 WEEK = "2026-10-19"
@@ -88,6 +90,7 @@ def week(client, db_session):
 def test_ac_04_a_proposal_writes_nothing_to_the_board(client, db_session, fake, week):
     before = _board_rows(db_session)
     fake.replies.append({"tool_calls": [_call("move_session", session_id=week["run"], day=5)]})
+    fake.replies.append({})
 
     response = _ask(client)
 
@@ -97,11 +100,13 @@ def test_ac_04_a_proposal_writes_nothing_to_the_board(client, db_session, fake, 
     assert proposal.status == "pending"
     assert proposal.request == "Move Thursday's run to Saturday"
     assert proposal.changes == ["Running day: Thu → Sat"]
-    assert db_session.query(CoachLlmCall).filter_by(task="coach").count() == 1
+    # Every round is recorded: the change, then the coach finishing.
+    assert db_session.query(CoachLlmCall).filter_by(task="coach").count() == 2
 
 
 def test_the_board_shows_the_preview_faded_with_why_accept_and_discard(client, db_session, fake, week):
     fake.replies.append({"tool_calls": [_call("move_session", session_id=week["run"], day=5)]})
+    fake.replies.append({})
     _ask(client)
     proposal = _latest(db_session)
 
@@ -169,11 +174,37 @@ def test_the_coach_hears_this_weeks_earlier_turns(client, db_session, fake, week
     assert messages[-1]["content"].endswith("Do the first option")
 
 
+def test_the_coach_can_read_another_week_from_the_board(client, db_session, fake, week):
+    client.post("/coach/sessions", data={"template": "easy_ride", "day_index": "1", "week_start": "2026-10-12"})
+    fake.replies.extend([{"tool_calls": [{"name": "get_week", "input": {"week_start": "2026-10-12"}}]}, {"text": "Last week had a ride."}])
+
+    _ask(client, "What did I do last week?")
+
+    seen = json.loads(fake.calls[1]["messages"][-1]["content"][0]["content"])
+    assert seen["week_start"] == "2026-10-12"
+    assert [s["day"] for s in seen["sessions"]] == ["Tue 2026-10-13"]
+    assert all(s["can_change"] is False for s in seen["sessions"])  # a past week is history
+    assert _latest(db_session).status == "answer"
+
+
+def test_reading_a_week_with_no_plan_says_it_is_empty(client, db_session, fake, week):
+    fake.replies.extend([{"tool_calls": [{"name": "get_week", "input": {"week_start": "2026-11-02"}}]}, {"text": "Nothing planned yet."}])
+
+    _ask(client, "What's planned in two weeks?")
+
+    seen = json.loads(fake.calls[1]["messages"][-1]["content"][0]["content"])
+    assert seen["sessions"] == [] and seen["week_start"] == "2026-11-02"
+    db_session.expire_all()
+    assert db_session.query(CoachWeek).filter_by(week_start=date(2026, 11, 2)).count() == 0  # reading never creates
+
+
 def test_a_new_request_replaces_the_pending_preview(client, db_session, fake, week):
     fake.replies.append({"tool_calls": [_call("move_session", session_id=week["run"], day=5)]})
+    fake.replies.append({})
     _ask(client)
     first = _latest(db_session).id
     fake.replies.append({"tool_calls": [_call("remove_session", session_id=week["ride"], reason="Rest on Sunday.")]})
+    fake.replies.append({})
 
     _ask(client, "Drop Sunday")
 
@@ -187,6 +218,7 @@ def test_a_new_request_replaces_the_pending_preview(client, db_session, fake, we
 
 def test_accept_applies_the_change(client, db_session, fake, week):
     fake.replies.append({"tool_calls": [_call("move_session", session_id=week["run"], day=5)]})
+    fake.replies.append({})
     _ask(client)
     proposal = _latest(db_session)
 
@@ -203,6 +235,7 @@ def test_accept_applies_the_change(client, db_session, fake, week):
 def test_discard_leaves_the_board_alone(client, db_session, fake, week):
     before = _board_rows(db_session)
     fake.replies.append({"tool_calls": [_call("move_session", session_id=week["run"], day=5)]})
+    fake.replies.append({})
     _ask(client)
     proposal = _latest(db_session)
 
@@ -231,6 +264,7 @@ def test_ac_10_undo_restores_the_board_byte_for_byte(client, db_session, fake, w
             ]
         }
     )
+    fake.replies.append({})
     _ask(client)
     proposal = _latest(db_session)
     client.post(f"/coach/proposals/{proposal.id}/accept")
@@ -246,6 +280,7 @@ def test_ac_10_undo_restores_the_board_byte_for_byte(client, db_session, fake, w
 
 def test_ac_04_a_manual_edit_after_the_preview_blocks_accept(client, db_session, fake, week):
     fake.replies.append({"tool_calls": [_call("move_session", session_id=week["run"], day=5)]})
+    fake.replies.append({})
     _ask(client)
     proposal = _latest(db_session)
     client.post(f"/coach/sessions/{week['run']}/move", data={"day_index": "4"})
@@ -261,6 +296,7 @@ def test_ac_04_a_manual_edit_after_the_preview_blocks_accept(client, db_session,
 
 def test_undo_is_refused_once_the_session_was_used(client, db_session, fake, week):
     fake.replies.append({"tool_calls": [_call("move_session", session_id=week["run"], day=2)]})
+    fake.replies.append({})
     _ask(client)
     proposal = _latest(db_session)
     client.post(f"/coach/proposals/{proposal.id}/accept")
@@ -287,5 +323,6 @@ def test_only_a_pending_proposal_can_be_accepted_or_discarded(client, db_session
 
 def test_only_an_accepted_proposal_can_be_undone(client, db_session, fake, week):
     fake.replies.append({"tool_calls": [_call("move_session", session_id=week["run"], day=5)]})
+    fake.replies.append({})
     _ask(client)
     assert client.post(f"/coach/proposals/{_latest(db_session).id}/undo").status_code == 400
