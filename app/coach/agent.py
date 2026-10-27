@@ -45,7 +45,8 @@ How you work:
 - Before you finish a change, call check_plan and fix every clash marked "new"; clashes already on the board are the user's to decide.
 - When you're done, reply without calling a tool: one or two plain sentences for the user. The user then sees the whole draft as one preview they accept or undo; nothing changes without them.
 - Only sessions with "can_change": true can change. Days are 0 = Monday … 6 = Sunday.
-- Make the smallest change that does what the user asked. Don't redesign the week.
+- Make the smallest change that does what the user asked. Don't redesign the week unless they ask you to plan it.
+- To plan or fill a week, add sessions with add_session. Take volumes from the user's past weeks (read them with get_week) or from their request; if neither has them, ask the user instead of choosing numbers.
 - Every tool takes a "reason": one short sentence for the user, in plain words.
 - If the request needs something the tools can't do, or it's a question, answer in two or three sentences without tools.
 
@@ -163,8 +164,25 @@ def _strays(text, allowed):
     return STRAYS.format(", ".join(dict.fromkeys(found))) if found else None
 
 
-def _write(draft, call, catalog, allowed, units):
+def _new_volumes(call, allowed):
+    """add_session's volumes, held to "never computes": a plan's numbers come from the
+    user's own weeks or words, never from the model (default volumes are [A])."""
+    if call["name"] != "add_session":
+        return
+    numbers = " ".join(str(item[f]) for item in call["input"]["items"] for f in tools.VOLUME_FIELDS if item[f] is not None)
+    found = tools.stray_numbers(numbers, allowed)
+    if found:
+        raise tools.ToolError(
+            f"These volumes aren't in anything you were given: {', '.join(dict.fromkeys(found))}. "
+            "Use volumes from the user's weeks (read them with get_week) or from their request."
+        )
+
+
+def _write(draft, call, catalog, allowed, units, week_start):
     """The draft after one write call; a rejected call raises ToolError and leaves it."""
+    if call["name"] == "add_session" and call["input"]["week_start"] != week_start.isoformat():
+        raise tools.ToolError("Only this week can be planned for now.")
+    _new_volumes(call, allowed)
     after = tools.apply(draft, call, catalog)
     # A reason is shown to the user beside the change, so it's held to the same number rule.
     stray = _strays(call["input"].get("reason") or "", allowed + "\n" + "\n".join(tools.change_lines(draft, after, catalog, units)))
@@ -257,7 +275,7 @@ def propose(complete, week, catalog, rebalancer_sessions, request, context, hist
                         )
                         allowed += "\n" + content
                     else:
-                        draft = _write(draft, call, catalog, allowed, units)
+                        draft = _write(draft, call, catalog, allowed, units, context["week_start"])
                         applied.append(call)
                         content = "OK"
                     feedback.append({"type": "tool_result", "tool_use_id": call["id"], "content": content})

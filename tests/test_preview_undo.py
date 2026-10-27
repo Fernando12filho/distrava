@@ -226,6 +226,66 @@ def test_check_plan_compares_the_draft_with_the_last_two_weeks_of_runs(client, d
     assert checked["distance"] == {"this_week_meters": 10000.0, "baseline_meters": 5000.0, "pct": 100.0, "level": "big"}
 
 
+def _add_call(**overrides):
+    args = {
+        "week_start": WEEK, "day": 4, "kind": "run", "focus": "Easy run", "planned_effort": None,
+        "items": [{"exercise": "easy_run", "sets": None, "reps": None, "duration_seconds": None, "distance_meters": 8000.0}],
+        "reason": "A second easy run.",
+    }
+    return {"name": "add_session", "input": {**args, **overrides}}
+
+
+def test_an_added_session_is_only_a_preview_until_accepted(client, db_session, fake, week):
+    before = _board_rows(db_session)
+    fake.replies.extend([{"tool_calls": [_add_call()]}, {}])
+
+    _ask(client, "Add an easy run on Friday")
+
+    assert _board_rows(db_session) == before
+    assert _latest(db_session).changes == ["Easy run on Fri: added (8.0 km)"]
+    html = client.get(f"/coach/?week={WEEK}").get_data(as_text=True)
+    assert "ghost-add" in html and "Easy run" in html
+
+
+def test_accepting_creates_the_session_and_undo_removes_it_exactly(client, db_session, fake, week):
+    before = _board_rows(db_session)
+    fake.replies.extend([{"tool_calls": [_add_call()]}, {}])
+    _ask(client, "Add an easy run on Friday")
+    proposal_id = _latest(db_session).id
+
+    client.post(f"/coach/proposals/{proposal_id}/accept")
+
+    db_session.expire_all()
+    added = db_session.query(CoachSession).filter_by(focus="Easy run").one()
+    assert (added.day_index, added.kind, added.status) == (4, "run", "planned")
+    assert added.id > 0 and [i.distance_meters for i in added.items] == [8000.0]
+    assert all(i.id > 0 for i in added.items)
+    proposal = _latest(db_session)
+    assert proposal.status == "accepted"
+    assert set(proposal.after) == {str(added.id)} and proposal.before == {str(added.id): None}
+
+    client.post(f"/coach/proposals/{proposal_id}/undo")
+
+    assert _board_rows(db_session) == before
+    assert _latest(db_session).status == "undone"
+
+
+def test_an_added_session_you_edit_after_accepting_cannot_be_undone(client, db_session, fake, week):
+    fake.replies.extend([{"tool_calls": [_add_call()]}, {}])
+    _ask(client, "Add an easy run on Friday")
+    proposal_id = _latest(db_session).id
+    client.post(f"/coach/proposals/{proposal_id}/accept")
+    db_session.expire_all()
+    added = db_session.query(CoachSession).filter_by(focus="Easy run").one()
+    client.post(f"/coach/sessions/{added.id}/status", data={"status": "done"})
+
+    client.post(f"/coach/proposals/{proposal_id}/undo")
+
+    db_session.expire_all()
+    assert db_session.query(CoachSession).filter_by(focus="Easy run").count() == 1
+    assert _latest(db_session).status == "accepted"
+
+
 def test_a_new_request_replaces_the_pending_preview(client, db_session, fake, week):
     fake.replies.append({"tool_calls": [_call("move_session", session_id=week["run"], day=5)]})
     fake.replies.append({})

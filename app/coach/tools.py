@@ -16,11 +16,16 @@ import re
 
 from app.coach import board, rebalancer, volume
 
-# Mirrors app.models.PLANNED_EFFORTS; kept here so this module stays free of SQLAlchemy.
+# Mirror app.models; kept here so this module stays free of SQLAlchemy.
 PLANNED_EFFORTS = ("easy", "hard")
+SESSION_KINDS = ("run", "ride", "gym", "mobility", "rest")
+
+MAX_FOCUS_LENGTH = 40
+MAX_ITEMS_PER_SESSION = 12
 
 _DAY = {"type": "integer", "description": "0 = Monday … 6 = Sunday"}
 _NULLABLE_INT = {"type": ["integer", "null"]}
+_NULLABLE_EFFORT = {"anyOf": [{"type": "string", "enum": list(PLANNED_EFFORTS)}, {"type": "null"}]}
 
 
 # Every call carries its own one-line reason for the user, so the explanation
@@ -77,7 +82,36 @@ TOOLS = [
         "set_planned_effort",
         "Plan a session as easy or hard, or clear it with null. Only used until the session is done.",
         # anyOf, not a type list: the strict-schema check rejects an enum beside ["string", "null"].
-        {"session_id": {"type": "integer"}, "effort": {"anyOf": [{"type": "string", "enum": list(PLANNED_EFFORTS)}, {"type": "null"}]}},
+        {"session_id": {"type": "integer"}, "effort": _NULLABLE_EFFORT},
+    ),
+    _tool(
+        "add_session",
+        "Add a planned session on a day from today on. Each exercise takes one volume shape, the rest null: "
+        "sets+reps, sets+duration_seconds, distance_meters, or duration_seconds. "
+        "Volumes must be numbers from the user's weeks (read them with get_week) or from their request. "
+        "A rest session has no exercises.",
+        {
+            "week_start": {"type": "string", "description": "The Monday of the week, YYYY-MM-DD"},
+            "day": _DAY,
+            "kind": {"type": "string", "enum": list(SESSION_KINDS)},
+            "focus": {"type": "string", "description": "Short name shown on the board, e.g. Easy run or Legs & Glutes"},
+            "planned_effort": _NULLABLE_EFFORT,
+            "items": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "exercise": {"type": "string", "description": "catalog slug"},
+                        "sets": _NULLABLE_INT,
+                        "reps": _NULLABLE_INT,
+                        "duration_seconds": _NULLABLE_INT,
+                        "distance_meters": {"type": ["number", "null"]},
+                    },
+                    "required": ["exercise", "sets", "reps", "duration_seconds", "distance_meters"],
+                    "additionalProperties": False,
+                },
+            },
+        },
     ),
 ]
 
@@ -162,7 +196,7 @@ _SHAPE_FIELDS = {
     "duration": ("duration_seconds",),
 }
 _FIELD_WORDS = {"sets": "sets", "reps": "reps", "duration_seconds": "duration", "distance_meters": "distance"}
-_VOLUME_FIELDS = ("sets", "reps", "duration_seconds", "distance_meters")
+VOLUME_FIELDS = ("sets", "reps", "duration_seconds", "distance_meters")
 
 
 def _limits(shape):
@@ -189,7 +223,7 @@ def _adjust(week, args, _catalog):
     words = " and ".join(_FIELD_WORDS[f] for f in fields)
     if any(args[f] is None for f in fields):
         raise ToolError(f"Exercise {item['id']} needs {words}.")
-    if any(args[f] is not None for f in _VOLUME_FIELDS if f not in fields):
+    if any(args[f] is not None for f in VOLUME_FIELDS if f not in fields):
         raise ToolError(f"Exercise {item['id']} only takes {words}.")
     limits = _limits(shape)
     for field in fields:
@@ -200,6 +234,81 @@ def _adjust(week, args, _catalog):
         raise ToolError(f"Exercise {item['id']} already has that volume.")
     for field in fields:
         item[field] = args[field]
+
+
+# Which catalog exercises a session of each kind may hold; the import matcher
+# pairs run and ride sessions with workouts by type.
+_FITS_KIND = {
+    "run": lambda e: e["category"] == "endurance" and e["activity_type"] == "Run",
+    "ride": lambda e: e["category"] == "endurance" and e["activity_type"] == "Cycle",
+    "gym": lambda e: e["category"] == "strength",
+    "mobility": lambda e: e["category"] in ("mobility", "stretching", "meditation"),
+}
+
+
+def _new_id(ids):
+    # Negative until accepted: the database gives the real id then.
+    return min([0, *ids]) - 1
+
+
+def _new_item(raw, kind, catalog, item_id, position):
+    entry = catalog.get(raw["exercise"])
+    if entry is None:
+        raise ToolError(f"{raw['exercise']} is not in the catalog.")
+    if not _FITS_KIND[kind](entry):
+        raise ToolError(f"{entry['name']} doesn't fit a {kind} session.")
+    item = {"id": item_id, "position": position, "exercise": raw["exercise"], **{f: raw[f] for f in VOLUME_FIELDS}}
+    shape = volume.item_shape(item)
+    fields = _SHAPE_FIELDS.get(shape)
+    if fields is None:
+        raise ToolError(f"{entry['name']} needs a volume.")
+    if any(item[f] is not None for f in VOLUME_FIELDS if f not in fields):
+        raise ToolError(f"{entry['name']} takes only one volume: " + " and ".join(_FIELD_WORDS[f] for f in fields) + ".")
+    limits = _limits(shape)
+    for field in fields:
+        low, high, what, unit = limits[field]
+        if not low <= item[field] <= high:
+            raise ToolError(f"{what} must be {low:g}–{high:g}{unit}.")
+    return item
+
+
+def _add(week, args, catalog):
+    day = args["day"]
+    if not isinstance(day, int) or not 0 <= day <= 6:
+        raise ToolError("day must be 0–6 (Monday–Sunday).")
+    if day < week["today_index"]:
+        raise ToolError(f"{_day_name(day)} is already past.")
+    kind = args["kind"]
+    if kind not in SESSION_KINDS:
+        raise ToolError(f"kind must be one of {', '.join(SESSION_KINDS)}.")
+    focus = (args["focus"] or "").strip()
+    if not 1 <= len(focus) <= MAX_FOCUS_LENGTH:
+        raise ToolError(f"focus must be 1–{MAX_FOCUS_LENGTH} characters.")
+    if args["planned_effort"] is not None and args["planned_effort"] not in PLANNED_EFFORTS:
+        raise ToolError("planned_effort must be easy, hard or null.")
+    raw_items = args["items"]
+    if kind == "rest":
+        if raw_items:
+            raise ToolError("A rest session has no exercises.")
+    elif not 1 <= len(raw_items) <= MAX_ITEMS_PER_SESSION:
+        raise ToolError(f"A {kind} session needs at least one exercise and at most {MAX_ITEMS_PER_SESSION}.")
+    item_ids = [i["id"] for s in week["sessions"] for i in s["items"]]
+    items = []
+    for position, raw in enumerate(raw_items):
+        items.append(_new_item(raw, kind, catalog, _new_id(item_ids + [i["id"] for i in items]), position))
+    week["sessions"].append(
+        {
+            "id": _new_id([s["id"] for s in week["sessions"]]),
+            "day_index": day,
+            "position": max((s["position"] for s in week["sessions"] if s["day_index"] == day), default=-1) + 1,
+            "kind": kind,
+            "focus": focus,
+            "status": "planned",
+            "planned_effort": args["planned_effort"],
+            "locked": False,
+            "items": items,
+        }
+    )
 
 
 def _effort(week, args, _catalog):
@@ -216,6 +325,7 @@ _APPLY = {
     "swap_exercise": _swap,
     "adjust_item": _adjust,
     "set_planned_effort": _effort,
+    "add_session": _add,
 }
 
 
@@ -261,7 +371,9 @@ def change_lines(before, after, catalog, units):
     for session_id, old in old_sessions.items():
         new = new_sessions[session_id]
         if old is None:
-            continue  # tools never add sessions
+            summary = board.session_summary(new["kind"], new["items"], units)
+            lines.append(f"{new['focus']} on {_day_name(new['day_index'])}: added" + (f" ({summary})" if summary else ""))
+            continue
         if new is None:
             lines.append(f"{old['focus']} on {_day_name(old['day_index'])}: removed")
             continue
@@ -270,7 +382,7 @@ def change_lines(before, after, catalog, units):
         for was, now in zip(old["items"], new["items"]):
             if now["exercise"] != was["exercise"]:
                 lines.append(f"{old['focus']} · {_exercise_name(catalog, was['exercise'])} → {_exercise_name(catalog, now['exercise'])}")
-            if any(now[f] != was[f] for f in _VOLUME_FIELDS):
+            if any(now[f] != was[f] for f in VOLUME_FIELDS):
                 name = _exercise_name(catalog, now["exercise"])
                 lines.append(f"{old['focus']} · {name}: {board.item_volume(was, units)} → {board.item_volume(now, units)}")
         if new["planned_effort"] != old["planned_effort"]:
@@ -304,6 +416,20 @@ def rebuild(rebalancer_sessions, after, catalog):
                 "muscle_groups": groups or session["muscle_groups"],
             }
         )
+    # Sessions the draft adds: nothing done yet, so only the plan counts.
+    for new in after["sessions"]:
+        if new["id"] < 0:
+            groups = {catalog[i["exercise"]]["muscle_group"] for i in new["items"] if i["exercise"] in catalog} - {None, "none"}
+            rebuilt.append(
+                {
+                    **{f: new[f] for f in ("id", "day_index", "position", "kind", "status", "focus", "planned_effort")},
+                    "srpe": None,
+                    "z3_minutes": None,
+                    "muscle_groups": groups,
+                    "hard_set_groups": set(),
+                    "rated_set_groups": set(),
+                }
+            )
     return rebuilt
 
 

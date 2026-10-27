@@ -794,6 +794,31 @@ def _write_state(db, week, session_id, state):
         session.items.remove(leftover)
 
 
+def _create_new_sessions(db, week, proposal):
+    """Sessions the coach added carry negative ids until accepted. They're created
+    here with real ids, and the proposal is rewritten with them so undo removes
+    exactly these rows."""
+    before, after = dict(proposal.before), dict(proposal.after)
+    with db.no_autoflush:
+        for key in [k for k in after if int(k) < 0]:
+            state = after.pop(key)
+            before.pop(key)
+            session = CoachSession(week=week, **{f: state[f] for f in ("day_index", "position", "kind", "focus", "status", "planned_effort")})
+            for item in state["items"]:
+                session.items.append(
+                    CoachSessionItem(
+                        position=item["position"],
+                        exercise=_exercise_for(db, item["exercise"]),
+                        **{f: item[f] for f in ("sets", "reps", "duration_seconds", "distance_meters")},
+                    )
+                )
+            db.add(session)
+            db.flush()
+            after[str(session.id)] = _session_state(session)
+            before[str(session.id)] = None
+    proposal.before, proposal.after = before, after
+
+
 def _proposal_context(db, week, today, units):
     check = _week_check(db, week.week_start, today)
     profile = db.query(TrainingProfile).first()
@@ -898,6 +923,7 @@ def accept_proposal(proposal_id):
     if _current(db, proposal.week, proposal.before) != proposal.before:
         proposal.status = "stale"
     else:
+        _create_new_sessions(db, proposal.week, proposal)
         _write_states(db, proposal.week, proposal.after)
         proposal.status = "accepted"
     db.commit()
