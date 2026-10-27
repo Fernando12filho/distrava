@@ -2711,6 +2711,22 @@ a.recent-row:hover {
   gap: 14px;
 }
 
+/* DS-06: Today, Hard sets and Week check sit above the week grid in one strip,
+   side by side, wrapping when the board is narrow. Each card keeps its own
+   height so a long Week check doesn't stretch the others. */
+.week-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 20px;
+}
+
+.week-strip > .hard-sets-card,
+.week-strip > .week-check-card {
+  margin-top: 0;
+}
+
 .today-card {
   display: flex;
   flex-direction: column;

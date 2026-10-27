@@ -85,3 +85,14 @@ def test_the_first_message_starts_a_conversation(client, db_session, fake, week)
 
 def test_new_chat_needs_a_valid_week_to_return_to(client):
     assert client.post("/coach/conversations", data={"week": "2026-10-21"}).status_code == 400
+
+
+def test_the_panel_is_only_chat_and_the_week_info_sits_above_the_board(client, week):
+    # #43, option B: Today, Hard sets and Week check describe the board, so they sit on it.
+    html = client.get(f"/coach/?week={WEEK}").get_data(as_text=True)
+    board, panel = html.split('<aside class="coach-panel"', 1)
+    strip = board.split('<div class="week-strip">', 1)[1].split('<div class="week-grid"', 1)[0]
+
+    for card in ("today-card", "hard-sets-card", "week-check-card"):
+        assert f'class="{card}"' in strip
+        assert card not in panel
