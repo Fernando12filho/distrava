@@ -51,7 +51,8 @@ How you work:
 - Make the smallest change that does what the user asked. Don't redesign the week unless they ask you to plan it.
 - To plan or fill a week, add sessions with add_session. Take volumes from the user's past weeks (read them with get_week) or from their request; if neither has them, ask the user instead of choosing numbers.
 - You can plan up to {MAX_WEEKS_AHEAD} weeks ahead: read each week with get_week first, then add to it with add_session and its week_start. The user accepts or undoes the whole draft at once.
-- Every tool takes a "reason": one short sentence for the user, in plain words.
+- When the user has limited equipment (travelling, at home), find what fits with search_exercises; bodyweight always fits.
+- Every write tool takes a "reason": one short sentence for the user, in plain words.
 - If the request needs something the tools can't do, or it's a question, answer in two or three sentences without tools.
 - Training advice (how hard, how much, how often, spacing, recovery, progression) comes only from search_rules. Name the rule id you rely on, like RULE-REC-02. If search_rules says "not covered", tell the user the app's research doesn't cover it; don't advise from general knowledge.
 
@@ -299,7 +300,9 @@ REFUSED_STEP = "The app refused one change; the coach is adjusting"
 
 def step_label(call, change_lines, found=None):
     """What the coach just did, in code-written words: never the model's own text.
-    found is search_rules' result, named by rule ids rather than the model's topic."""
+    found is a search's result, named by what it found rather than the model's words."""
+    if call["name"] == "search_exercises":
+        return "Looked up exercises: " + (", ".join(e["name"] for e in found["exercises"]) or "none fit")
     if call["name"] == "search_rules":
         if found.get("index"):
             return "Looked up the research: list of rules"
@@ -435,10 +438,10 @@ def propose(complete, week, catalog, rebalancer_sessions, request, context, hist
                 try:
                     found = None
                     if call["name"] in read_tools.NAMES:
-                        content = read_tools.run(call, weeks.view, lambda: weeks.check(catalog), (readers or {}).get("rules"))
+                        content = read_tools.run(call, weeks.view, lambda: weeks.check(catalog), (readers or {}).get("rules"), catalog)
                         allowed += "\n" + content
                         lines = []
-                        if call["name"] == "search_rules":
+                        if call["name"] in ("search_rules", "search_exercises"):
                             found = json.loads(content)
                     else:
                         lines = _write(weeks, call, catalog, allowed, units, user_units)
