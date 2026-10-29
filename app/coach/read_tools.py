@@ -6,9 +6,12 @@ in, and results go back as compact JSON.
 import json
 from datetime import date
 
-from app.coach import rules
+from app.coach import history, rules
 from app.coach.catalog import CATEGORIES, EQUIPMENT, MUSCLE_GROUPS
 from app.coach.tools import ToolError
+
+# A bound on how much one read sends the model, not training advice.
+MAX_HISTORY_WEEKS = 12
 
 NO_EXERCISE = "No catalog exercise fits. Say so, or ask the user what else they have; don't name exercises outside the catalog."
 
@@ -67,6 +70,23 @@ READ_TOOLS = [
             "additionalProperties": False,
         },
     },
+    {
+        "name": "get_history",
+        "description": "What the user actually did between two dates, up to today: each week's runs, running "
+        "distance and time, other workouts, load (effort × minutes, rated workouts only), hard sets per muscle and "
+        f"coach sessions by status, then each workout. At most {MAX_HISTORY_WEEKS} weeks. Use it to take volumes "
+        "from the user's own weeks.",
+        "strict": True,
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "from_date": {"type": "string", "description": "First day, YYYY-MM-DD"},
+                "to_date": {"type": "string", "description": "Last day, YYYY-MM-DD, today at the latest"},
+            },
+            "required": ["from_date", "to_date"],
+            "additionalProperties": False,
+        },
+    },
 ]
 
 NAMES = {tool["name"] for tool in READ_TOOLS}
@@ -116,17 +136,46 @@ def exercises(args, catalog):
     return {"exercises": found} if found else {"exercises": [], "note": NO_EXERCISE}
 
 
-def run(call, view_week, check, research=None, catalog=None):
+def _day(value, field):
+    try:
+        return date.fromisoformat(value)
+    except (TypeError, ValueError):
+        raise ToolError(f"{field} must be a date, YYYY-MM-DD.") from None
+
+
+def past(args, sources):
+    """get_history: the range checked, then summarised from sources["history"](start, end)."""
+    start, end = _day(args.get("from_date"), "from_date"), _day(args.get("to_date"), "to_date")
+    if end < start:
+        raise ToolError("from_date must be on or before to_date.")
+    if end > sources["today"]:
+        raise ToolError(f"History ends today, {sources['today'].isoformat()}; use get_week for planned weeks.")
+    if (end - start).days >= 7 * MAX_HISTORY_WEEKS:
+        raise ToolError(f"Ask for at most {MAX_HISTORY_WEEKS} weeks at a time.")
+    rows = sources["history"](start, end)
+    return history.summary(rows["activities"], rows["sessions"], rows["logged_sets"], start, end, sources["units"])
+
+
+def _json(value):
+    return json.dumps(value, ensure_ascii=False, sort_keys=True)
+
+
+def run(call, sources):
     """The result text for one read call; a bad argument raises ToolError.
-    view_week(week_start) and check() answer from the request's drafts;
-    research is rules.parse() of the research file (None: not available)."""
-    if call["name"] == "search_exercises":
-        return json.dumps(exercises(call["input"], catalog or {}), ensure_ascii=False, sort_keys=True)
-    if call["name"] == "search_rules":
-        found = rules.search(research or rules.parse(""), call["input"].get("topic") or "")
-        return json.dumps(found, ensure_ascii=False, sort_keys=True)
-    if call["name"] == "check_plan":
-        return json.dumps(check(), ensure_ascii=False, sort_keys=True)
-    if call["name"] == "get_week":
-        return json.dumps(view_week(monday(call["input"].get("week_start"))), ensure_ascii=False, sort_keys=True)
-    raise ToolError(f"Unknown tool {call['name']}.")
+    sources: view_week(week_start) and check() answer from the request's drafts;
+    research is rules.parse() of the research file (None: not available); catalog;
+    history(start, end) gives plain rows; today and units."""
+    name, args = call["name"], call["input"]
+    if name == "get_history":
+        if sources.get("history") is None:
+            raise ToolError("History can't be read here.")
+        return _json(past(args, sources))
+    if name == "search_exercises":
+        return _json(exercises(args, sources.get("catalog") or {}))
+    if name == "search_rules":
+        return _json(rules.search(sources.get("research") or rules.parse(""), args.get("topic") or ""))
+    if name == "check_plan":
+        return _json(sources["check"]())
+    if name == "get_week":
+        return _json(sources["view_week"](monday(args.get("week_start"))))
+    raise ToolError(f"Unknown tool {name}.")

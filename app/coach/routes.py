@@ -875,6 +875,39 @@ def _week_loader(db, today):
     return load_week
 
 
+def _history_loader(db):
+    """get_history's rows for a range of local dates (end included), as plain dicts."""
+
+    def load_history(start, end):
+        # start_time is UTC; a day of margin each side, then filter on local dates.
+        window = (datetime.combine(start - timedelta(days=1), datetime.min.time()), datetime.combine(end + timedelta(days=2), datetime.min.time()))
+        found = db.query(Activity).filter(Activity.start_time >= window[0], Activity.start_time < window[1])
+        activities = [
+            {
+                "date": a.local_start_time.date(),
+                "type": a.activity_type,
+                "distance_meters": a.distance_meters,
+                "duration_seconds": a.duration_seconds,
+                "session_rpe": a.session_rpe,
+            }
+            for a in found
+        ]
+        weeks = db.query(CoachWeek).filter(CoachWeek.week_start >= week_start_for(start), CoachWeek.week_start <= end)
+        sessions, logged_sets = [], []
+        for week in weeks:
+            for s in week.sessions:
+                day = week.week_start + timedelta(days=s.day_index)
+                sessions.append({"date": day, "kind": s.kind, "focus": s.focus, "status": s.status})
+                logged_sets += [
+                    {"date": day, "muscle_group": item.exercise.muscle_group, "rir": logged.rir, "session_id": s.id}
+                    for item in s.items
+                    for logged in item.logged_sets
+                ]
+        return {"activities": activities, "sessions": sessions, "logged_sets": logged_sets}
+
+    return load_history
+
+
 RESEARCH_RULES = Path(__file__).resolve().parents[2] / "research" / "training-rules.md"
 
 
@@ -938,7 +971,7 @@ def ask_coach(week):
             on_event(event)
 
         try:
-            readers = {"load_week": _week_loader(db, today), "rules": research}
+            readers = {"load_week": _week_loader(db, today), "rules": research, "history": _history_loader(db)}
             result = agent.propose(
                 complete, state, catalog, check["sessions"], message, context, history, readers, on_event=record if on_event else None
             )

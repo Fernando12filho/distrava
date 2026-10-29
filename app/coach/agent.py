@@ -49,7 +49,7 @@ How you work:
 - When you're done, reply without calling a tool: one or two plain sentences for the user. The user then sees the whole draft as one preview they accept or undo; nothing changes without them.
 - Only sessions with "can_change": true can change. Days are 0 = Monday … 6 = Sunday.
 - Make the smallest change that does what the user asked. Don't redesign the week unless they ask you to plan it.
-- To plan or fill a week, add sessions with add_session. Take volumes from the user's past weeks (read them with get_week) or from their request; if neither has them, ask the user instead of choosing numbers.
+- To plan or fill a week, add sessions with add_session. Take volumes from the user's past weeks (get_history for what they did, get_week for what was planned) or from their request; if neither has them, ask the user instead of choosing numbers.
 - You can plan up to {MAX_WEEKS_AHEAD} weeks ahead: read each week with get_week first, then add to it with add_session and its week_start. The user accepts or undoes the whole draft at once.
 - When the user has limited equipment (travelling, at home), find what fits with search_exercises; bodyweight always fits.
 - Every write tool takes a "reason": one short sentence for the user, in plain words.
@@ -309,6 +309,9 @@ def step_label(call, change_lines, found=None):
         return "Looked up the research: " + (", ".join(m["id"] for m in found["matches"]) or "not covered")
     if call["name"] == "get_week":
         return f"Read the week of {date.fromisoformat(call['input']['week_start']):%b %d}"
+    if call["name"] == "get_history":
+        start, end = (date.fromisoformat(call["input"][k]) for k in ("from_date", "to_date"))
+        return f"Read your history, {start:%b %d} – {end:%b %d}"
     if call["name"] == "check_plan":
         return "Checked the draft against the Week check"
     return "; ".join(change_lines) or "Changed the draft"
@@ -416,7 +419,17 @@ def propose(complete, week, catalog, rebalancer_sessions, request, context, hist
     # Only the user's own words: "12 km" in their messages permits 12000 metres.
     user_units = tools.unit_conversions("\n".join([request, *(m["content"] for m in earlier if m["role"] == "user")]))
 
-    weeks = _Weeks(week, rebalancer_sessions, context, (readers or {}).get("load_week"))
+    readers = readers or {}
+    weeks = _Weeks(week, rebalancer_sessions, context, readers.get("load_week"))
+    sources = {
+        "view_week": weeks.view,
+        "check": lambda: weeks.check(catalog),
+        "research": readers.get("rules"),
+        "catalog": catalog,
+        "history": readers.get("history"),
+        "today": context["today"],
+        "units": units,
+    }
     applied, bad_rounds, spent = [], 0, 0.0
     for _step in range(limits["max_steps"]):
         if on_event is None:
@@ -438,7 +451,7 @@ def propose(complete, week, catalog, rebalancer_sessions, request, context, hist
                 try:
                     found = None
                     if call["name"] in read_tools.NAMES:
-                        content = read_tools.run(call, weeks.view, lambda: weeks.check(catalog), (readers or {}).get("rules"), catalog)
+                        content = read_tools.run(call, sources)
                         allowed += "\n" + content
                         lines = []
                         if call["name"] in ("search_rules", "search_exercises"):
