@@ -2667,6 +2667,7 @@ a.recent-row:hover {
 
 .coach-panel-collapsed .coach-panel-name,
 .coach-panel-collapsed .coach-provider,
+.coach-panel-collapsed .new-chat,
 .coach-panel-collapsed .coach-panel-body,
 .coach-panel-collapsed .coach-panel-foot {
   display: none;
@@ -2708,6 +2709,22 @@ a.recent-row:hover {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+/* DS-06: Today, Hard sets and Week check sit above the week grid in one strip,
+   side by side, wrapping when the board is narrow. Each card keeps its own
+   height so a long Week check doesn't stretch the others. */
+.week-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 20px;
+}
+
+.week-strip > .hard-sets-card,
+.week-strip > .week-check-card {
+  margin-top: 0;
 }
 
 .today-card {
@@ -2957,8 +2974,52 @@ a.recent-row:hover {
   padding: 10px 13px;
 }
 
+/* DS-07: as in VS Code's chat, the coach's replies run the panel's full width;
+   only your messages sit in a bubble. */
 .msg.coach {
-  align-self: flex-start;
+  align-self: stretch;
+  max-width: none;
+}
+
+/* DS-08: the coach's steps, written by the app. Live in the reply while it
+   works; afterwards folded into "N steps" above the answer. */
+.msg-live-steps,
+.msg-steps ul {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  white-space: normal;
+}
+
+.msg-live-steps li::before,
+.msg-steps li::before {
+  content: "✓ ";
+  color: var(--accent);
+}
+
+.msg-steps {
+  margin-bottom: 6px;
+  white-space: normal;
+}
+
+.msg-steps summary {
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.msg-steps ul {
+  margin-top: 6px;
 }
 
 .msg .who {
@@ -2977,6 +3038,13 @@ a.recent-row:hover {
   color: var(--text-muted);
 }
 
+/* DS-05: the chat is the same on every week, so a message asked from another
+   week names it above the bubble. */
+.msg-week {
+  align-self: flex-end;
+  text-transform: uppercase;
+}
+
 .coach-panel-foot {
   flex: none;
   display: flex;
@@ -2986,27 +3054,61 @@ a.recent-row:hover {
   border-top: 1px solid var(--divider);
 }
 
+/* DS-07: one box holds the text and the send arrow. The text area has no
+   resize handle; it grows with what you type up to about 8 lines (coach.js),
+   then scrolls inside. */
 .composer {
   display: flex;
   gap: 8px;
   align-items: flex-end;
+  padding: 8px 8px 8px 12px;
+  background: var(--surface-input);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+}
+
+.composer:focus-within {
+  border-color: var(--accent);
 }
 
 .composer textarea {
   flex: 1;
-  resize: vertical;
-  background: var(--surface-input);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-control);
-  padding: 9px 12px;
+  resize: none;
+  max-height: 160px;
+  overflow-y: auto;
+  padding: 5px 0;
+  background: transparent;
+  border: 0;
   color: var(--text-primary);
   font: inherit;
   font-size: 13px;
+  line-height: 20px;
 }
 
 .composer textarea:focus {
   outline: none;
-  border-color: var(--accent);
+}
+
+.composer-send {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--bg-base);
+  cursor: pointer;
+}
+
+.composer-send:hover {
+  background: var(--accent-hover);
+}
+
+.composer-send:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .composer-note {

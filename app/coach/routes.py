@@ -1,11 +1,15 @@
+import json
+import queue
+import threading
 from collections import defaultdict
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
-from flask import Blueprint, abort, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, Response, abort, current_app, jsonify, redirect, render_template, request, stream_with_context, url_for
 from sqlalchemy import func
 
 from app import analytics
-from app.coach import agent, assistant, board, hard_sets, progression, rebalancer, set_log, volume
+from app.coach import agent, assistant, board, hard_sets, progression, rebalancer, rules, set_log, volume
 from app.coach import profile as coach_profile
 from app.coach import tools as coach_tools
 from app.coach.keystore import KeystoreUnavailable
@@ -18,6 +22,7 @@ from app.models import (
     PLANNED_EFFORTS,
     Activity,
     ActivityStream,
+    CoachConversation,
     CoachExercise,
     CoachProposal,
     CoachSession,
@@ -274,10 +279,21 @@ def _distance_label(meters, units):
     return f"{_trim2(value)} {unit}"
 
 
+def _distance_inputs(db, week_start, today):
+    """RULE-PROG-02 inputs: imported running so far this week, and each of the weeks before."""
+    week_end = week_start + timedelta(days=DAYS_PER_WEEK)
+    return {
+        "so_far_meters": _run_meters(db, week_start, min(week_end, today + timedelta(days=1))),
+        "previous_weeks_meters": [
+            _run_meters(db, week_start - timedelta(days=DAYS_PER_WEEK * k), week_start - timedelta(days=DAYS_PER_WEEK * (k - 1)))
+            for k in range(1, DISTANCE_BASELINE_WEEKS + 1)
+        ],
+    }
+
+
 def _progression_view(db, week_start, today, today_index, rebalancer_sessions):
     week = db.query(CoachWeek).filter_by(week_start=week_start).first()
     units = _get_units(db.query(UserSettings).first())
-    week_end = week_start + timedelta(days=DAYS_PER_WEEK)
 
     # RULE-PROG-02: imported runs so far plus planned runs still to come.
     planned_ahead = sum(
@@ -286,12 +302,8 @@ def _progression_view(db, week_start, today, today_index, rebalancer_sessions):
         if s.kind == "run" and s.status == "planned" and s.day_index >= today_index
         for item in s.items
     )
-    this_week = _run_meters(db, week_start, min(week_end, today + timedelta(days=1))) + planned_ahead
-    previous = [
-        _run_meters(db, week_start - timedelta(days=DAYS_PER_WEEK * k), week_start - timedelta(days=DAYS_PER_WEEK * (k - 1)))
-        for k in range(1, DISTANCE_BASELINE_WEEKS + 1)
-    ]
-    change = progression.distance_change(this_week, previous)
+    inputs = _distance_inputs(db, week_start, today)
+    change = progression.distance_change(inputs["so_far_meters"] + planned_ahead, inputs["previous_weeks_meters"])
     distance = (
         {
             "level": change["level"],
@@ -456,25 +468,43 @@ def _ghost_view(state, units):
 # become dashed beside it — with the reason and the exact changes above.
 def _coach_view(db, week_start, sessions, days, units):
     week = db.query(CoachWeek).filter_by(week_start=week_start).first()
+    conversation = _active_conversation(db)
     proposals = list(week.proposals) if week else []
     latest = proposals[-1] if proposals else None
     pending = next((p for p in proposals if p.status == "pending"), None)
+    before, after = (pending.before, pending.after) if pending else ({}, {})
+    if pending is None:
+        # AC-20: a draft asked from another week shows here too, with its Accept.
+        for waiting in db.query(CoachProposal).filter_by(status="pending"):
+            part = (waiting.other_weeks or {}).get(week_start.isoformat())
+            if part:
+                pending, before, after = waiting, part["before"], part["after"]
     if pending:
-        changed = {int(k) for k in pending.before}
+        changed = {int(k) for k in before}
         for session in sessions:
             if session["id"] in changed:
                 session["ghost"] = "remove"
         for day in days:
             day["ghosts"] = [
                 _ghost_view(state, units)
-                for state in sorted((s for s in pending.after.values() if s), key=lambda s: s["position"])
+                for state in sorted((s for s in after.values() if s), key=lambda s: s["position"])
                 if state["day_index"] == day["index"]
             ]
     return {
         "pending": pending,
         "applied": latest if latest is not None and _undoable(db, latest) else None,
         "stale": latest if latest is not None and latest.status == "stale" else None,
-        "thread": [{"request": p.request, "reply": p.reply, "note": _THREAD_NOTES.get(p.status)} for p in proposals],
+        "thread": [
+            {
+                "request": p.request,
+                "reply": p.reply,
+                "note": _THREAD_NOTES.get(p.status),
+                "steps": p.steps or [],
+                # #43: the chat is the same on every week, so a message from another week says which.
+                "week_label": None if p.week.week_start == week_start else f"Week of {p.week.week_start:%b %d}",
+            }
+            for p in (conversation.proposals if conversation else [])
+        ],
     }
 
 
@@ -742,7 +772,7 @@ def _catalog(db):
 
 def _current(db, week, ids):
     """The board now, for the sessions a proposal touches (JSON keys are strings)."""
-    sessions = {s.id: s for s in week.sessions}
+    sessions = {s.id: s for s in week.sessions} if week is not None else {}
     return {str(i): (_session_state(sessions[int(i)]) if int(i) in sessions else None) for i in ids}
 
 
@@ -787,6 +817,40 @@ def _write_state(db, week, session_id, state):
         session.items.remove(leftover)
 
 
+def _create_new_sessions(db, week, before, after):
+    """Sessions the coach added carry negative ids until accepted. They're created
+    here with real ids, and the maps come back rewritten with them so undo removes
+    exactly these rows."""
+    before, after = dict(before), dict(after)
+    with db.no_autoflush:
+        for key in [k for k in after if int(k) < 0]:
+            state = after.pop(key)
+            before.pop(key)
+            session = CoachSession(week=week, **{f: state[f] for f in ("day_index", "position", "kind", "focus", "status", "planned_effort")})
+            for item in state["items"]:
+                session.items.append(
+                    CoachSessionItem(
+                        position=item["position"],
+                        exercise=_exercise_for(db, item["exercise"]),
+                        **{f: item[f] for f in ("sets", "reps", "duration_seconds", "distance_meters")},
+                    )
+                )
+            db.add(session)
+            db.flush()
+            after[str(session.id)] = _session_state(session)
+            before[str(session.id)] = None
+    return before, after
+
+
+def _week_parts(db, proposal):
+    """(week or None, week_start, before, after) for every week a proposal changes."""
+    parts = [(proposal.week, proposal.week.week_start, proposal.before, proposal.after)]
+    for iso, part in (proposal.other_weeks or {}).items():
+        start = date.fromisoformat(iso)
+        parts.append((db.query(CoachWeek).filter_by(week_start=start).first(), start, part["before"], part["after"]))
+    return parts
+
+
 def _proposal_context(db, week, today, units):
     check = _week_check(db, week.week_start, today)
     profile = db.query(TrainingProfile).first()
@@ -796,7 +860,64 @@ def _proposal_context(db, week, today, units):
         "units": units,
         "profile": {f: getattr(profile, f) for f in coach_profile.FIELDS if getattr(profile, f) is not None} if profile else {},
         "week_check": [f"{c['text']} ({', '.join(c['sessions'])}; {c['rule']})" for c in check["conflicts"]],
+        "distance": _distance_inputs(db, week.week_start, today),
     }
+
+
+def _week_loader(db, today):
+    """Another week for the coach's draft — reading never creates a week."""
+
+    def load_week(week_start):
+        found = db.query(CoachWeek).filter_by(week_start=week_start).first()
+        state = _week_state(found, today) if found else {"today_index": _first_changeable_day(week_start, today), "sessions": []}
+        return {"state": state, "rebalancer": _rebalancer_week(db, week_start)}
+
+    return load_week
+
+
+def _history_loader(db):
+    """get_history's rows for a range of local dates (end included), as plain dicts."""
+
+    def load_history(start, end):
+        # start_time is UTC; a day of margin each side, then filter on local dates.
+        window = (datetime.combine(start - timedelta(days=1), datetime.min.time()), datetime.combine(end + timedelta(days=2), datetime.min.time()))
+        found = db.query(Activity).filter(Activity.start_time >= window[0], Activity.start_time < window[1])
+        activities = [
+            {
+                "date": a.local_start_time.date(),
+                "type": a.activity_type,
+                "distance_meters": a.distance_meters,
+                "duration_seconds": a.duration_seconds,
+                "session_rpe": a.session_rpe,
+            }
+            for a in found
+        ]
+        weeks = db.query(CoachWeek).filter(CoachWeek.week_start >= week_start_for(start), CoachWeek.week_start <= end)
+        sessions, logged_sets = [], []
+        for week in weeks:
+            for s in week.sessions:
+                day = week.week_start + timedelta(days=s.day_index)
+                sessions.append({"date": day, "kind": s.kind, "focus": s.focus, "status": s.status})
+                logged_sets += [
+                    {"date": day, "muscle_group": item.exercise.muscle_group, "rir": logged.rir, "session_id": s.id}
+                    for item in s.items
+                    for logged in item.logged_sets
+                ]
+        return {"activities": activities, "sessions": sessions, "logged_sets": logged_sets}
+
+    return load_history
+
+
+RESEARCH_RULES = Path(__file__).resolve().parents[2] / "research" / "training-rules.md"
+
+
+def _research():
+    """The research file, read per request so an updated file counts at once.
+    Missing or unreadable: no rules, so every search answers "not covered"."""
+    try:
+        return rules.parse(Path(current_app.config.get("RESEARCH_RULES") or RESEARCH_RULES).read_text(encoding="utf-8"))
+    except OSError:
+        return None
 
 
 @bp.route("/weeks/<week>/ask", methods=["POST"])
@@ -820,8 +941,8 @@ def ask_coach(week):
         coach_week = CoachWeek(week_start=week_start)
         db.add(coach_week)
         db.flush()
-    # One preview at a time: a new request replaces the one still waiting.
-    for waiting in db.query(CoachProposal).filter_by(week_id=coach_week.id, status="pending"):
+    # One preview at a time: a new request replaces the one still waiting, in any week.
+    for waiting in db.query(CoachProposal).filter_by(status="pending"):
         waiting.status = "discarded"
     db.commit()
 
@@ -829,25 +950,76 @@ def ask_coach(week):
     units = _get_units(db.query(UserSettings).first())
     state = _week_state(coach_week, today)
     catalog = _catalog(db)
+    # Read here: a streamed request runs on its own thread, outside the app context.
+    research = _research()
     check, context = _proposal_context(db, coach_week, today, units)
 
-    def complete(system, messages, tools):
-        return assistant.run_task(db, chosen, "coach", system, messages, tools=tools)
+    def complete(system, messages, tools, on_text=None):
+        return assistant.run_task(db, chosen, "coach", system, messages, tools=tools, on_text=on_text)
 
-    history = [{"request": p.request, "reply": p.reply, "status": p.status} for p in coach_week.proposals]
-    try:
-        result = agent.propose(complete, state, catalog, check["sessions"], message, context, history)
-    except ProviderError as err:
-        result = {"status": "failed", "reply": str(err), "calls": [], "after": None, "changes": []}
+    conversation = _active_conversation(db) or CoachConversation()
+    history = [
+        {"request": p.request, "reply": p.reply, "status": p.status, "week_start": p.week.week_start} for p in conversation.proposals
+    ]
 
-    before = after = None
+    def run(on_event=None):
+        steps = []
+
+        def record(event):
+            if event["type"] == "step":
+                steps.append(event["text"])
+            on_event(event)
+
+        try:
+            readers = {"load_week": _week_loader(db, today), "rules": research, "history": _history_loader(db)}
+            result = agent.propose(
+                complete, state, catalog, check["sessions"], message, context, history, readers, on_event=record if on_event else None
+            )
+        except ProviderError as err:
+            result = {"status": "failed", "reply": str(err), "calls": [], "after": None, "changes": []}
+        _save_proposal(db, coach_week, conversation, message, result, steps or None)
+
+    if "text/event-stream" in request.headers.get("Accept", ""):
+        return _event_stream(run, _board_url(week_start))
+    run()
+    return redirect(_board_url(week_start), code=303)
+
+
+def _event_stream(run, done_url):
+    """Streams one coach request as server-sent events (#43). The request runs in a
+    worker thread and hands its events over a queue; this thread only waits on that
+    queue, so the database session is never used by both at once. The last event,
+    "done", tells the page to fetch the saved board."""
+    events = queue.Queue()
+
+    def work():
+        try:
+            run(events.put)
+        finally:
+            events.put(None)
+
+    def frames():
+        threading.Thread(target=work, daemon=True).start()
+        while (event := events.get()) is not None:
+            yield f"data: {json.dumps(event)}\n\n"
+        yield f"data: {json.dumps({'type': 'done', 'url': done_url})}\n\n"
+
+    return Response(stream_with_context(frames()), mimetype="text/event-stream", headers={"Cache-Control": "no-cache"})
+
+
+def _save_proposal(db, coach_week, conversation, message, result, steps):
+    """Stores one coach request and what came of it, in the conversation it belongs to."""
+    before = after = other_weeks = None
+    week_start = coach_week.week_start
     if result["status"] == "pending":
-        old, new = coach_tools.touched(state, result["after"])
-        before = {str(k): v for k, v in old.items()}
-        after = {str(k): v for k, v in new.items()}
+        parts = dict(result["weeks"])
+        here = parts.pop(week_start.isoformat(), {"before": {}, "after": {}})
+        before, after = here["before"], here["after"]
+        other_weeks = {iso: {**part, "created_week": False} for iso, part in parts.items()} or None
     db.add(
         CoachProposal(
             week=coach_week,
+            conversation=conversation,
             request=message,
             reply=result["reply"],
             status=result["status"],
@@ -855,8 +1027,31 @@ def ask_coach(week):
             changes=result["changes"],
             before=before,
             after=after,
+            other_weeks=other_weeks,
+            steps=steps,
         )
     )
+    db.commit()
+
+
+def _active_conversation(db):
+    return db.query(CoachConversation).order_by(CoachConversation.id.desc()).first()
+
+
+@bp.route("/conversations", methods=["POST"])
+def new_conversation():
+    """New chat (#43): the coach starts without the earlier turns, and a preview
+    still waiting belonged to that chat, so it goes too."""
+    db = get_db()
+    try:
+        week_start = date.fromisoformat(request.form.get("week", ""))
+    except ValueError:
+        abort(400)
+    if week_start.weekday() != 0:
+        abort(400)
+    for waiting in db.query(CoachProposal).filter_by(status="pending"):
+        waiting.status = "discarded"
+    db.add(CoachConversation())
     db.commit()
     return redirect(_board_url(week_start), code=303)
 
@@ -874,11 +1069,26 @@ def accept_proposal(proposal_id):
     proposal = _proposal_or_404(db, proposal_id)
     if proposal.status != "pending":
         abort(400)
-    # AC-04: a manual edit since the preview wins; the proposal is not applied.
-    if _current(db, proposal.week, proposal.before) != proposal.before:
+    parts = _week_parts(db, proposal)
+    # AC-04: a manual edit since the preview, in any of its weeks, wins; nothing is applied.
+    if any(_current(db, week, before) != before for week, _start, before, _after in parts):
         proposal.status = "stale"
     else:
-        _write_states(db, proposal.week, proposal.after)
+        # AC-20: every week of the draft, or none.
+        other_weeks = {}
+        for week, start, before, after in parts:
+            created = week is None
+            if created:
+                week = CoachWeek(week_start=start)
+                db.add(week)
+                db.flush()
+            before, after = _create_new_sessions(db, week, before, after)
+            _write_states(db, week, after)
+            if week is proposal.week:
+                proposal.before, proposal.after = before, after
+            else:
+                other_weeks[start.isoformat()] = {"before": before, "after": after, "created_week": created}
+        proposal.other_weeks = other_weeks or None
         proposal.status = "accepted"
     db.commit()
     return redirect(_board_url(proposal.week.week_start), code=303)
@@ -896,7 +1106,7 @@ def discard_proposal(proposal_id):
 
 
 def _undoable(db, proposal):
-    return proposal.status == "accepted" and _current(db, proposal.week, proposal.after) == proposal.after
+    return proposal.status == "accepted" and all(_current(db, week, after) == after for week, _start, _before, after in _week_parts(db, proposal))
 
 
 @bp.route("/proposals/<int:proposal_id>/undo", methods=["POST"])
@@ -908,7 +1118,15 @@ def undo_proposal(proposal_id):
     # Once a changed session is used or edited, undo would overwrite your
     # record, so it is no longer offered.
     if _undoable(db, proposal):
-        _write_states(db, proposal.week, proposal.before)
+        for week, start, before, _after in _week_parts(db, proposal):
+            _write_states(db, week, before)
+            part = (proposal.other_weeks or {}).get(start.isoformat())
+            # A week the accept created goes again, so undo is byte-for-byte (AC-10).
+            if part and part["created_week"]:
+                db.flush()
+                db.refresh(week)
+                if not week.sessions and not week.proposals:
+                    db.delete(week)
         proposal.status = "undone"
         db.commit()
     return redirect(_board_url(proposal.week.week_start), code=303)

@@ -16,6 +16,7 @@ _SCHEMA_UPGRADES = {
     "user_settings": ["weight_kg", "units", "observed_max_hr", "observed_resting_hr", "observed_resting_hr_on", "sex"],
     "coach_sessions": ["matched_activity_id", "planned_effort"],
     "coach_weeks": ["eased_factor", "eased_snapshot"],
+    "coach_proposals": ["other_weeks", "conversation_id", "steps"],
 }
 
 
@@ -45,6 +46,19 @@ _RETIRED_COLUMNS = {
     # RULE-LOAD-04: hardness comes from what was done, not a label per exercise.
     "coach_exercises": ["intensity"],
 }
+
+
+def _group_earlier_coach_messages(engine):
+    """Before #43 each week had its own chat; those messages become one earlier
+    conversation, in the order they were sent. Runs once: afterwards every
+    message already belongs to a conversation."""
+    with engine.begin() as conn:
+        loose = conn.execute(text("SELECT COUNT(*) FROM coach_proposals WHERE conversation_id IS NULL")).scalar()
+        if not loose:
+            return
+        started = conn.execute(text("SELECT MIN(created_at) FROM coach_proposals WHERE conversation_id IS NULL")).scalar()
+        conversation_id = conn.execute(text("INSERT INTO coach_conversations (started_at) VALUES (:t)"), {"t": started}).lastrowid
+        conn.execute(text("UPDATE coach_proposals SET conversation_id = :c WHERE conversation_id IS NULL"), {"c": conversation_id})
 
 
 def _drop_retired_columns(engine):
@@ -160,6 +174,7 @@ def create_app(config=None):
     Base.metadata.create_all(engine)
     added_columns = _apply_schema_upgrades(engine)
     _drop_retired_columns(engine)
+    _group_earlier_coach_messages(engine)
     if ("activities", "utc_offset_minutes") in added_columns:
         _backfill_activity_offsets(engine, app.config.get("LOCAL_TIMEZONE"))
     app.engine = engine

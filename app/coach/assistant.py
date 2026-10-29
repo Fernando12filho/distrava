@@ -57,9 +57,9 @@ def _record(db, task, provider_name, result=None, error=None):
     db.commit()
 
 
-def run_task(db, chosen_provider, task, system, messages, tools=None):
+def run_task(db, chosen_provider, task, system, messages, tools=None, on_text=None):
     try:
-        result = chosen_provider.complete(task, system=system, messages=messages, tools=tools)
+        result = chosen_provider.complete(task, system=system, messages=messages, tools=tools, on_text=on_text)
     except ProviderError as err:
         _record(db, task, chosen_provider.name, error=err)
         raise
