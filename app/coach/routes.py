@@ -3,12 +3,13 @@ import queue
 import threading
 from collections import defaultdict
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
-from flask import Blueprint, Response, abort, jsonify, redirect, render_template, request, stream_with_context, url_for
+from flask import Blueprint, Response, abort, current_app, jsonify, redirect, render_template, request, stream_with_context, url_for
 from sqlalchemy import func
 
 from app import analytics
-from app.coach import agent, assistant, board, hard_sets, progression, rebalancer, set_log, volume
+from app.coach import agent, assistant, board, hard_sets, progression, rebalancer, rules, set_log, volume
 from app.coach import profile as coach_profile
 from app.coach import tools as coach_tools
 from app.coach.keystore import KeystoreUnavailable
@@ -874,6 +875,18 @@ def _week_loader(db, today):
     return load_week
 
 
+RESEARCH_RULES = Path(__file__).resolve().parents[2] / "research" / "training-rules.md"
+
+
+def _research():
+    """The research file, read per request so an updated file counts at once.
+    Missing or unreadable: no rules, so every search answers "not covered"."""
+    try:
+        return rules.parse(Path(current_app.config.get("RESEARCH_RULES") or RESEARCH_RULES).read_text(encoding="utf-8"))
+    except OSError:
+        return None
+
+
 @bp.route("/weeks/<week>/ask", methods=["POST"])
 def ask_coach(week):
     db = get_db()
@@ -904,6 +917,8 @@ def ask_coach(week):
     units = _get_units(db.query(UserSettings).first())
     state = _week_state(coach_week, today)
     catalog = _catalog(db)
+    # Read here: a streamed request runs on its own thread, outside the app context.
+    research = _research()
     check, context = _proposal_context(db, coach_week, today, units)
 
     def complete(system, messages, tools, on_text=None):
@@ -923,7 +938,7 @@ def ask_coach(week):
             on_event(event)
 
         try:
-            readers = {"load_week": _week_loader(db, today)}
+            readers = {"load_week": _week_loader(db, today), "rules": research}
             result = agent.propose(
                 complete, state, catalog, check["sessions"], message, context, history, readers, on_event=record if on_event else None
             )

@@ -6,6 +6,7 @@ in, and results go back as compact JSON.
 import json
 from datetime import date
 
+from app.coach import rules
 from app.coach.tools import ToolError
 
 READ_TOOLS = [
@@ -28,6 +29,19 @@ READ_TOOLS = [
         "strict": True,
         "input_schema": {"type": "object", "properties": {}, "required": [], "additionalProperties": False},
     },
+    {
+        "name": "search_rules",
+        "description": "Search the app's research file for training rules on a topic, e.g. \"spacing hard runs\", "
+        "\"weekly distance increase\", \"sets per muscle\". Returns up to 3 rules with their id, parameters, sources "
+        "and caveats, popular rules the research rejects, or \"not covered\". An empty topic lists every rule's id and title.",
+        "strict": True,
+        "input_schema": {
+            "type": "object",
+            "properties": {"topic": {"type": "string", "description": "A few words, or a rule id like RULE-REC-01"}},
+            "required": ["topic"],
+            "additionalProperties": False,
+        },
+    },
 ]
 
 NAMES = {tool["name"] for tool in READ_TOOLS}
@@ -43,9 +57,13 @@ def monday(value):
     return day
 
 
-def run(call, view_week, check):
+def run(call, view_week, check, research=None):
     """The result text for one read call; a bad argument raises ToolError.
-    view_week(week_start) and check() answer from the request's drafts."""
+    view_week(week_start) and check() answer from the request's drafts;
+    research is rules.parse() of the research file (None: not available)."""
+    if call["name"] == "search_rules":
+        found = rules.search(research or rules.parse(""), call["input"].get("topic") or "")
+        return json.dumps(found, ensure_ascii=False, sort_keys=True)
     if call["name"] == "check_plan":
         return json.dumps(check(), ensure_ascii=False, sort_keys=True)
     if call["name"] == "get_week":

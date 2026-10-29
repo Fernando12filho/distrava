@@ -12,7 +12,7 @@ import json
 import re
 from datetime import date, timedelta
 
-from app.coach import board, llm_config, progression, read_tools, rebalancer, tools
+from app.coach import board, llm_config, progression, read_tools, rebalancer, rules, tools
 from app.coach.usage import call_cost
 
 # A bad round is a rejected write or a finish that fails the final check: the
@@ -53,6 +53,7 @@ How you work:
 - You can plan up to {MAX_WEEKS_AHEAD} weeks ahead: read each week with get_week first, then add to it with add_session and its week_start. The user accepts or undoes the whole draft at once.
 - Every tool takes a "reason": one short sentence for the user, in plain words.
 - If the request needs something the tools can't do, or it's a question, answer in two or three sentences without tools.
+- Training advice (how hard, how much, how often, spacing, recovery, progression) comes only from search_rules. Name the rule id you rely on, like RULE-REC-02. If search_rules says "not covered", tell the user the app's research doesn't cover it; don't advise from general knowledge.
 
 Numbers: never calculate. Use only numbers that appear in the week JSON, in tool results or in the user's request. The app shows the exact before → after values itself.
 
@@ -163,9 +164,18 @@ def plan_check(draft, catalog, rebalancer_sessions, context):
 STRAYS = "Your words used numbers that aren't in the week, a tool result or the request: {}. Don't calculate; use only numbers you were given. The app shows exact values itself."
 
 
+UNSEEN_RULES = "Your words cite rules you didn't look up: {}. Find rules with search_rules and cite only ids it returned."
+
+
 def _strays(text, allowed):
     found = tools.stray_numbers(text, allowed)
-    return STRAYS.format(", ".join(dict.fromkeys(found))) if found else None
+    problems = [STRAYS.format(", ".join(dict.fromkeys(found)))] if found else []
+    # AC-18: a cited rule must have come from search_rules (or earlier in the chat), never from memory.
+    seen = {i.upper() for i in rules.RULE_ID.findall(allowed)}
+    unseen = [i.upper() for i in rules.RULE_ID.findall(text) if i.upper() not in seen]
+    if unseen:
+        problems.append(UNSEEN_RULES.format(", ".join(dict.fromkeys(unseen))))
+    return " ".join(problems) or None
 
 
 def _new_volumes(call, allowed):
@@ -287,8 +297,13 @@ class _Sentences:
 REFUSED_STEP = "The app refused one change; the coach is adjusting"
 
 
-def step_label(call, change_lines):
-    """What the coach just did, in code-written words: never the model's own text."""
+def step_label(call, change_lines, found=None):
+    """What the coach just did, in code-written words: never the model's own text.
+    found is search_rules' result, named by rule ids rather than the model's topic."""
+    if call["name"] == "search_rules":
+        if found.get("index"):
+            return "Looked up the research: list of rules"
+        return "Looked up the research: " + (", ".join(m["id"] for m in found["matches"]) or "not covered")
     if call["name"] == "get_week":
         return f"Read the week of {date.fromisoformat(call['input']['week_start']):%b %d}"
     if call["name"] == "check_plan":
@@ -418,17 +433,20 @@ def propose(complete, week, catalog, rebalancer_sessions, request, context, hist
         if result["tool_calls"]:
             for call in result["tool_calls"]:
                 try:
+                    found = None
                     if call["name"] in read_tools.NAMES:
-                        content = read_tools.run(call, weeks.view, lambda: weeks.check(catalog))
+                        content = read_tools.run(call, weeks.view, lambda: weeks.check(catalog), (readers or {}).get("rules"))
                         allowed += "\n" + content
                         lines = []
+                        if call["name"] == "search_rules":
+                            found = json.loads(content)
                     else:
                         lines = _write(weeks, call, catalog, allowed, units, user_units)
                         applied.append(call)
                         content = "OK"
                     feedback.append({"type": "tool_result", "tool_use_id": call["id"], "content": content})
                     if on_event:
-                        on_event({"type": "step", "text": step_label(call, lines)})
+                        on_event({"type": "step", "text": step_label(call, lines, found)})
                 except tools.ToolError as err:
                     refused_write = call["name"] not in read_tools.NAMES
                     bad = bad or refused_write
