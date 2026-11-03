@@ -115,9 +115,14 @@ function showPendingMessage(form) {
   const steps = document.createElement("ul");
   steps.className = "msg-live-steps";
   steps.hidden = true;
+  // DS-09: the coach's own to-do list (update_plan), redrawn whole each time it
+  // changes; gone once the answer is saved, since it is only the loading state.
+  const plan = document.createElement("ol");
+  plan.className = "msg-live-plan";
+  plan.hidden = true;
   const live = document.createElement("span");
   live.textContent = "Coach is thinking…";
-  thinking.append(who, steps, live);
+  thinking.append(who, plan, steps, live);
   thread.append(question, thinking);
   textarea.value = "";
   growComposer(textarea);
@@ -132,6 +137,16 @@ function showPendingMessage(form) {
         item.textContent = event.text;
         steps.append(item);
         steps.hidden = false;
+      } else if (event.type === "plan") {
+        plan.replaceChildren(
+          ...event.steps.map((step) => {
+            const item = document.createElement("li");
+            item.textContent = step.text;
+            item.classList.toggle("done", step.done);
+            return item;
+          }),
+        );
+        plan.hidden = false;
       } else if (event.type === "text") {
         if (!answering) {
           answering = true;

@@ -45,6 +45,7 @@ Earlier messages are this week's conversation so far; when the user refers to so
 
 How you work:
 - Work in steps. Read tools (like get_week) answer from the app; write tools change a draft of this week. Each write is checked by the app, and your draft builds up across steps.
+- For a request that takes several steps, show your to-do list with update_plan in your first round, beside your first reads, and update it as items get done.
 - Before you finish a change, call check_plan and fix every clash marked "new"; clashes already on the board are the user's to decide.
 - When you're done, reply without calling a tool: one or two plain sentences for the user. The user then sees the whole draft as one preview they accept or undo; nothing changes without them.
 - Only sessions with "can_change": true can change. Days are 0 = Monday … 6 = Sunday.
@@ -79,8 +80,52 @@ def system_prompt(catalog):
     return [{"type": "text", "text": _INSTRUCTIONS + _catalog_lines(catalog), "cache_control": {"type": "ephemeral"}}]
 
 
+# The coach's to-do list is a loading state, so it stays glanceable: a bound on
+# what the panel shows, not training advice.
+MAX_PLAN_STEPS = 6
+MAX_PLAN_TEXT = 80
+
+PLAN_TOOL = {
+    "name": "update_plan",
+    "description": "Show the user your short to-do list for this request while you work. Send the whole list each time, "
+    "marking items done as you finish them. Call it beside other tools rather than on its own: each round counts toward "
+    "the request's step limit. It changes nothing in the week.",
+    "strict": True,
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "steps": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {"text": {"type": "string"}, "done": {"type": "boolean"}},
+                    "required": ["text", "done"],
+                    "additionalProperties": False,
+                },
+            }
+        },
+        "required": ["steps"],
+        "additionalProperties": False,
+    },
+}
+
+
+def plan_steps(call, allowed):
+    """update_plan's list, checked before the user sees it: short, and held to the
+    number rule like every word the coach shows. A bad list raises ToolError."""
+    steps = [{"text": s["text"].strip(), "done": bool(s["done"])} for s in call["input"]["steps"]]
+    if not 1 <= len(steps) <= MAX_PLAN_STEPS:
+        raise tools.ToolError(f"A plan has 1 to {MAX_PLAN_STEPS} steps.")
+    if any(not s["text"] or len(s["text"]) > MAX_PLAN_TEXT for s in steps):
+        raise tools.ToolError(f"Each step is a few words, at most {MAX_PLAN_TEXT} characters.")
+    stray = _strays("\n".join(s["text"] for s in steps), allowed)
+    if stray:
+        raise tools.ToolError(stray)
+    return steps
+
+
 def tool_definitions():
-    defined = copy.deepcopy(read_tools.READ_TOOLS + tools.TOOLS)
+    defined = copy.deepcopy(read_tools.READ_TOOLS + [PLAN_TOOL] + tools.TOOLS)
     defined[-1]["cache_control"] = {"type": "ephemeral"}
     return defined
 
@@ -450,6 +495,12 @@ def propose(complete, week, catalog, rebalancer_sessions, request, context, hist
             for call in result["tool_calls"]:
                 try:
                     found = None
+                    if call["name"] == PLAN_TOOL["name"]:
+                        steps = plan_steps(call, allowed + "\n" + "\n".join(weeks.change_lines(catalog, units)))
+                        feedback.append({"type": "tool_result", "tool_use_id": call["id"], "content": "OK"})
+                        if on_event:
+                            on_event({"type": "plan", "steps": steps})
+                        continue
                     if call["name"] in read_tools.NAMES:
                         content = read_tools.run(call, sources)
                         allowed += "\n" + content
@@ -464,7 +515,7 @@ def propose(complete, week, catalog, rebalancer_sessions, request, context, hist
                     if on_event:
                         on_event({"type": "step", "text": step_label(call, lines, found)})
                 except tools.ToolError as err:
-                    refused_write = call["name"] not in read_tools.NAMES
+                    refused_write = call["name"] not in read_tools.NAMES | {PLAN_TOOL["name"]}
                     bad = bad or refused_write
                     feedback.append({"type": "tool_result", "tool_use_id": call["id"], "content": str(err), "is_error": True})
                     if on_event and refused_write:

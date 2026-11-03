@@ -3004,6 +3004,23 @@ a.recent-row:hover {
   color: var(--accent);
 }
 
+/* DS-09: the coach's to-do list while it works. Its own words, so it reads as
+   a plain list, apart from the app-written ✓ steps below it. */
+.msg-live-plan {
+  margin: 0 0 8px;
+  padding: 6px 10px 6px 26px;
+  border-left: 2px solid var(--accent);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+  white-space: normal;
+}
+
+.msg-live-plan li.done {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
 .msg-steps {
   margin-bottom: 6px;
   white-space: normal;
