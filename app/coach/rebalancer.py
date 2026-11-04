@@ -22,6 +22,9 @@ from app.training_rules import (
 )
 
 DAYS_PER_WEEK = 7
+# Last week's final days still count for spacing: enough to cover the longest
+# spacing window, and shared by the board and the coach's multi-week drafts.
+LOOKBACK_DAYS = 2
 # full_body trains every group, so it overlaps all of them, legs included.
 FULL_BODY = "full_body"
 LEG_GROUPS = {"legs", "glutes", FULL_BODY}

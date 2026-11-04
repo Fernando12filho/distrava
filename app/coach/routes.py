@@ -193,18 +193,15 @@ def _rebalancer_session(session, day_offset, activity, stream, hr_profile):
     }
 
 
-# The week plus last week's final days, which still count for spacing.
-_LOOKBACK_DAYS = 2
-
-
 def _rebalancer_week(db, week_start):
+    """The week plus last week's final days, which still count for spacing."""
     weeks = [(week_start, 0), (week_start - timedelta(days=DAYS_PER_WEEK), -DAYS_PER_WEEK)]
     sessions = []
     for start, offset in weeks:
         week = db.query(CoachWeek).filter_by(week_start=start).first()
         if week is None:
             continue
-        sessions += [s for s in week.sessions if offset == 0 or s.day_index >= DAYS_PER_WEEK - _LOOKBACK_DAYS]
+        sessions += [s for s in week.sessions if offset == 0 or s.day_index >= DAYS_PER_WEEK - rebalancer.LOOKBACK_DAYS]
     activity_ids = [s.matched_activity_id for s in sessions if s.matched_activity_id]
     activities = {a.id: a for a in db.query(Activity).filter(Activity.id.in_(activity_ids))} if activity_ids else {}
     streams = (

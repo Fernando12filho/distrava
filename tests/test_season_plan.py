@@ -134,3 +134,40 @@ def test_a_new_clash_in_another_week_blocks_the_finish():
 
     assert result["status"] == "failed"
     assert "RULE-REC-04" in json.dumps(fake.calls[2]["messages"][-1]["content"])
+
+
+# The Sunday → Monday gap (#29): next week is checked against this week's draft,
+# not only against what the board already has.
+def test_a_clash_across_the_weekend_between_two_drafted_weeks_is_found():
+    legs = _add(day=6, kind="gym", focus="Legs", effort="hard", items=[_item("back_squat", sets=4, reps=6)])
+    tempo = _add(day=0, week_start="2026-10-26", effort="hard")
+    fake = FakeProvider([{"tool_calls": [legs, tempo, {"name": "check_plan", "input": {}}]}, {"text": "OK."}, {"text": "OK."}])
+
+    _run(fake, request="Squats 4 x 6 on Sunday, a tempo next Monday")
+
+    checked = json.loads(fake.calls[1]["messages"][-1]["content"][-1]["content"])
+    clashes = checked["other_weeks"]["2026-10-26"]["clashes"]
+    # RULE-REC-04 + D4: hard legs on Sunday, then a hard run on Monday.
+    assert [(c["rule"], c["new"]) for c in clashes] == [("RULE-REC-04", True)]
+    assert clashes[0]["sessions"][0].startswith("Last week Legs")
+
+
+def test_a_clash_across_the_weekend_blocks_the_finish():
+    legs = _add(day=6, kind="gym", focus="Legs", effort="hard", items=[_item("back_squat", sets=4, reps=6)])
+    tempo = _add(day=0, week_start="2026-10-26", effort="hard")
+    fake = FakeProvider([{"tool_calls": [legs, tempo]}, {}, {}])
+
+    result, _ = _run(fake, request="Squats 4 x 6 on Sunday, a tempo next Monday")
+
+    assert result["status"] == "failed"
+    assert "RULE-REC-04" in json.dumps(fake.calls[2]["messages"][-1]["content"])
+
+
+def test_sessions_early_in_the_drafted_week_are_too_far_back_to_clash():
+    legs = _add(day=2, kind="gym", focus="Legs", effort="hard", items=[_item("back_squat", sets=4, reps=6)])
+    tempo = _add(day=0, week_start="2026-10-26", effort="hard")
+    fake = FakeProvider([{"tool_calls": [legs, tempo]}, {"text": "Added both."}])
+
+    result, _ = _run(fake, request="Squats 4 x 6 on Wednesday, a tempo next Monday")
+
+    assert result["status"] == "pending"

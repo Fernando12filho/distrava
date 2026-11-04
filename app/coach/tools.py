@@ -442,9 +442,28 @@ def is_new_conflict(rebalancer_sessions):
 
 # AC-05: a proposal may not add a spacing clash. Clashes already in the week are
 # the user's to see on the Week check, not a reason to block every change.
-def new_conflicts(rebalancer_sessions, after, catalog):
+def new_conflicts(rebalancer_sessions, after, catalog, tail=None):
+    """tail, when given, replaces last week's final days: that week's draft, so
+    a clash across Sunday → Monday between two drafted weeks is found (#29).
+    What counts as new is still judged against the board."""
     is_new = is_new_conflict(rebalancer_sessions)
-    return [c for c in rebalancer.check_week(rebuild(rebalancer_sessions, after, catalog)) if is_new(c)]
+    return [c for c in rebalancer.check_week(rebuild(with_tail(rebalancer_sessions, tail), after, catalog)) if is_new(c)]
+
+
+def with_tail(rebalancer_sessions, tail):
+    if tail is None:
+        return rebalancer_sessions
+    return [s for s in rebalancer_sessions if s["day_index"] >= 0] + tail
+
+
+def tail_of(rebalancer_sessions, draft, catalog):
+    """A drafted week's final days, as the following week sees them: days shifted negative."""
+    first = rebalancer.DAYS_PER_WEEK - rebalancer.LOOKBACK_DAYS
+    return [
+        {**s, "day_index": s["day_index"] - rebalancer.DAYS_PER_WEEK}
+        for s in rebuild(rebalancer_sessions, draft, catalog)
+        if s["day_index"] >= first
+    ]
 
 
 _NUMBER = re.compile(r"\d+(?:\.\d+)?")

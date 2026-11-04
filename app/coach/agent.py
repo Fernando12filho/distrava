@@ -180,9 +180,10 @@ def _label(session):
     return f"{day} {session['focus']} (session {session['id']})"
 
 
-def plan_check(draft, catalog, rebalancer_sessions, context):
-    """check_plan (AC-16): the Week check's three parts, computed on the draft."""
-    rebuilt = tools.rebuild(rebalancer_sessions, draft, catalog)
+def plan_check(draft, catalog, rebalancer_sessions, context, tail=None):
+    """check_plan (AC-16): the Week check's three parts, computed on the draft.
+    tail is last week's drafted final days, when the request changed that week too."""
+    rebuilt = tools.rebuild(tools.with_tail(rebalancer_sessions, tail), draft, catalog)
     by_id, is_new = {s["id"]: s for s in rebuilt}, tools.is_new_conflict(rebalancer_sessions)
     clashes = [
         {"rule": c["rule"], "reason": c["reason"], "sessions": [_label(by_id[i]) for i in c["session_ids"]], "groups": c["groups"], "new": is_new(c)}
@@ -282,17 +283,25 @@ class _Weeks:
     def changed(self):
         return [w for w in sorted(self.draft) if self.draft[w] != self.original[w]]
 
+    def tail(self, week_start, catalog):
+        """Last week's final days from this request's draft, if it changed that week;
+        otherwise None, and the board's own tail stands."""
+        before = week_start - timedelta(days=rebalancer.DAYS_PER_WEEK)
+        if before not in self.changed():
+            return None
+        return tools.tail_of(self.rebalancer[before], self.draft[before], catalog)
+
     def new_conflicts(self, catalog):
-        return {w: tools.new_conflicts(self.rebalancer[w], self.draft[w], catalog) for w in self.changed()}
+        return {w: tools.new_conflicts(self.rebalancer[w], self.draft[w], catalog, self.tail(w, catalog)) for w in self.changed()}
+
+    def _check(self, week_start, catalog):
+        return plan_check(self.draft[week_start], catalog, self.rebalancer[week_start], self.context[week_start], self.tail(week_start, catalog))
 
     def check(self, catalog):
-        result = plan_check(self.draft[self.current], catalog, self.rebalancer[self.current], self.context[self.current])
+        result = self._check(self.current, catalog)
         others = [w for w in self.changed() if w != self.current]
         if others:
-            result["other_weeks"] = {
-                w.isoformat(): {k: v for k, v in plan_check(self.draft[w], catalog, self.rebalancer[w], self.context[w]).items() if k != "distance"}
-                for w in others
-            }
+            result["other_weeks"] = {w.isoformat(): {k: v for k, v in self._check(w, catalog).items() if k != "distance"} for w in others}
         return result
 
     def change_lines(self, catalog, units):
