@@ -73,15 +73,14 @@ def test_editing_an_unknown_exercise_is_404(client):
     assert client.post("/coach/items/999/volume", data={"sets": "3", "reps": "8"}).status_code == 404
 
 
-def test_detail_prefills_each_exercise_in_its_own_shape(client, db_session):
+def test_detail_shows_each_gym_exercise_in_its_own_shape(client, db_session):
     _add(client, "shoulders_abs")
     session = db_session.query(CoachSession).one()
 
     html = client.get(f"/coach/?session={session.id}").get_data(as_text=True)
 
-    assert re.search(r'name="sets"[^>]*value="4"', html)
-    assert re.search(r'name="reps"[^>]*value="6"', html)
-    assert re.search(r'name="seconds"[^>]*value="45"', html)
+    assert "4 × 6" in html
+    assert "3 × 45 s" in html
 
 
 def test_detail_prefills_distance_in_the_users_units(client, db_session):
@@ -92,7 +91,7 @@ def test_detail_prefills_distance_in_the_users_units(client, db_session):
 
     html = client.get(f"/coach/?session={session.id}").get_data(as_text=True)
 
-    assert re.search(r'name="distance"[^>]*value="5.0"', html)
+    assert re.search(r'name="distance"[^>]*value="4.97"', html)
     assert ">mi<" in html
 
 

@@ -15,8 +15,8 @@ from app.coach import tools as coach_tools
 from app.coach.keystore import KeystoreUnavailable
 from app.coach.providers import ProviderError
 from app.coach.usage import call_cost, format_cost
-from app.coach.catalog import SESSION_TEMPLATES
-from app.coach.matcher import SESSION_ACTIVITY_TYPES, match_sessions
+from app.coach.catalog import ADDABLE_CATEGORIES, SESSION_TEMPLATES
+from app.coach.matcher import SESSION_ACTIVITY_TYPES, TICKED_STATUSES, match_sessions
 from app.coach.week import DAYS_PER_WEEK, week_start_for
 from app.models import (
     PLANNED_EFFORTS,
@@ -99,11 +99,25 @@ def _logged_view(item, units):
     ]
 
 
+def _locked_by_log(item):
+    """Logged sets protect an exercise, unless it's back to planned holding only untouched plan copies."""
+    if not item.logged_sets:
+        return False
+    untouched = all(
+        s.weight_kg is None and s.rir is None and s.reps == item.reps and s.duration_seconds == item.duration_seconds
+        for s in item.logged_sets
+    )
+    return not (item.session.status == "planned" and untouched)
+
+
 def _session_view(session, units):
     items = [
         {
             "id": item.id,
             "name": item.exercise.name,
+            "slug": item.exercise.slug,
+            "category": item.exercise.category,
+            "activity_type": item.exercise.activity_type,
             "muscle": item.exercise.muscle_group,
             "sets": item.sets,
             "reps": item.reps,
@@ -111,6 +125,7 @@ def _session_view(session, units):
             "distance_meters": item.distance_meters,
             "log_kind": _log_kind(item),
             "logged": _logged_view(item, units),
+            "locked": _locked_by_log(item),
         }
         for item in session.items
     ]
@@ -156,6 +171,7 @@ def _week_logged_sets(db, week_start):
     return [
         {"muscle_group": item.exercise.muscle_group, "rir": logged.rir, "session_id": session.id}
         for session in week.sessions
+        if session.status in TICKED_STATUSES
         for item in session.items
         for logged in item.logged_sets
     ]
@@ -175,7 +191,12 @@ def _z3_minutes(activity, stream, resting_hr, max_hr):
 
 def _rebalancer_session(session, day_offset, activity, stream, hr_profile):
     """Plain dict for the pure rebalancer; day_offset shifts last week's days negative."""
-    logged = [(item.exercise.muscle_group, s.rir) for item in session.items for s in item.logged_sets]
+    # Sets count only while the session stands as done; they're kept in case it's ticked again.
+    logged = (
+        [(item.exercise.muscle_group, s.rir) for item in session.items for s in item.logged_sets]
+        if session.status in TICKED_STATUSES
+        else []
+    )
     groups = {item.exercise.muscle_group for item in session.items} - {None, "none"}
     return {
         "id": session.id,
@@ -381,7 +402,10 @@ def _week_matches(db, week_start):
     week = db.query(CoachWeek).filter_by(week_start=week_start).first()
     if week is None:
         return {}, {}
-    sessions = [_session_view(s, "metric") for s in week.sessions]
+    # The weeks either side are included so a Sunday workout can stay with Sunday's session.
+    span = timedelta(days=DAYS_PER_WEEK)
+    around = db.query(CoachWeek).filter(CoachWeek.week_start.in_([week_start - span, week_start, week_start + span]))
+    sessions = [_session_view(s, "metric") for w in around for s in w.sessions]
     # A run logged a day off may belong to this week, and start_time is UTC
     # while matching uses local days, so look two days past each edge.
     window_start = datetime.combine(week_start - timedelta(days=2), datetime.min.time())
@@ -402,20 +426,55 @@ def _week_matches(db, week_start):
     return match_sessions(sessions, activities), {a["id"]: a for a in activities}
 
 
+def _suggestion_prompt(kind, candidates, session_date):
+    if kind == "match":
+        return "Import matches"
+    if kind == "link":
+        return "Link this workout?"
+    if len(candidates) > 1:
+        return "Which workout was this?"
+    workout_day = candidates[0]["start_time"].date()
+    if workout_day < session_date:
+        return "Done a day early?"
+    if workout_day > session_date:
+        return "Done a day late?"
+    return "Was this workout this session?"
+
+
+# DS-12: a workout the plan didn't include still shows on its day, so two on one day stay two.
+def _attach_day_workouts(db, days, sessions, week_start, units):
+    offered = {c["id"] for s in sessions if s["suggestion"] for c in s["suggestion"]["candidates"]}
+    linked = {
+        activity_id
+        for (activity_id,) in db.query(CoachSession.matched_activity_id).filter(CoachSession.matched_activity_id.isnot(None))
+    }
+    for day in days:
+        day["workouts"] = []
+    # start_time is UTC while days are local, hence a day of margin each side.
+    window_start = datetime.combine(week_start - timedelta(days=1), datetime.min.time())
+    window_end = window_start + timedelta(days=DAYS_PER_WEEK + 2)
+    rows = db.query(Activity).filter(Activity.start_time >= window_start, Activity.start_time < window_end)
+    for activity in sorted(rows, key=lambda a: a.start_time):
+        local_day = activity.local_start_time.date()
+        index = (local_day - week_start).days
+        if 0 <= index < DAYS_PER_WEEK and activity.id not in linked and activity.id not in offered:
+            days[index]["workouts"].append(
+                {
+                    "label": board.activity_label(_activity_view(activity), units, local_day),
+                    "url": url_for("main.activity_detail", activity_id=activity.id),
+                }
+            )
+
+
 def _attach_matches(db, sessions, week_start, units):
     results, activities = _week_matches(db, week_start)
     for session in sessions:
         result = results.get(session["id"])
         if result:
             candidates = [activities[i] for i in result["activity_ids"]]
-            if result["kind"] == "match":
-                prompt = "Import matches"
-            elif len(candidates) > 1:
-                prompt = "Which import was this?"
-            else:
-                prompt = "Was this import this session?"
             session["suggestion"] = {
-                "prompt": prompt,
+                "prompt": _suggestion_prompt(result["kind"], candidates, session["date"]),
+                "action": "Link" if result["kind"] == "link" else "Confirm",
                 "candidates": [
                     {"id": a["id"], "label": board.activity_label(a, units, session["date"])} for a in candidates
                 ],
@@ -487,22 +546,51 @@ def _coach_view(db, week_start, sessions, days, units):
                 for state in sorted((s for s in after.values() if s), key=lambda s: s["position"])
                 if state["day_index"] == day["index"]
             ]
+    applied = latest if latest is not None and _undoable(db, latest) else None
     return {
         "pending": pending,
-        "applied": latest if latest is not None and _undoable(db, latest) else None,
-        "stale": latest if latest is not None and latest.status == "stale" else None,
         "thread": [
             {
+                "id": p.id,
                 "request": p.request,
                 "reply": p.reply,
                 "note": _THREAD_NOTES.get(p.status),
                 "steps": p.steps or [],
+                # DS-10: Undo lives beside the answer it undoes, so no card has to stay on the board.
+                "undo_id": p.id if applied is not None and p.id == applied.id else None,
                 # #43: the chat is the same on every week, so a message from another week says which.
                 "week_label": None if p.week.week_start == week_start else f"Week of {p.week.week_start:%b %d}",
             }
             for p in (conversation.proposals if conversation else [])
         ],
     }
+
+
+def _catalog_entries(db):
+    return [
+        {
+            "slug": e.slug,
+            "name": e.name,
+            "category": e.category,
+            "muscle_group": e.muscle_group,
+            "equipment": e.equipment,
+            "activity_type": e.activity_type,
+        }
+        for e in db.query(CoachExercise).filter(CoachExercise.slug.isnot(None))
+    ]
+
+
+# DS-11: the plan is which exercises; these are the only choices a slot can take.
+def _attach_exercise_choices(db, session):
+    catalog = _catalog_entries(db)
+    in_session = [e["slug"] for e in session["exercises"]]
+    for item in session["exercises"]:
+        item["swap_groups"] = board.exercise_choices(catalog, (item["category"],), item["activity_type"], exclude=in_session)
+    categories = ADDABLE_CATEGORIES.get(session["kind"], ())
+    session["add_groups"] = board.exercise_choices(catalog, categories, None, exclude=in_session) if categories else []
+    session["log_open"] = request.args.get("log") == "1" or any(
+        s["weight"] != "" or s["rir"] != "" for e in session["exercises"] for s in e["logged"]
+    )
 
 
 @bp.route("/")
@@ -524,7 +612,10 @@ def board_page():
     today_sessions = today_plan(db, today, units)
     week_end = week_start + timedelta(days=DAYS_PER_WEEK - 1)
     days = board.build_week_view(week_start, today, sessions)
+    _attach_day_workouts(db, days, sessions, week_start, units)
     coach = _coach_view(db, week_start, sessions, days, units)
+    if selected:
+        _attach_exercise_choices(db, selected)
 
     return render_template(
         "coach.html",
@@ -600,9 +691,9 @@ def add_session():
     return redirect(_board_url(week_start, session.id), code=303)
 
 
-# A finished gym session starts out as its plan, set by set, for the user to
-# correct. Once anything is logged it's never refilled, so going back to
-# "planned" and done again keeps what was entered (and any set removed).
+# DS-11: tracking sets is optional, so nothing is created until asked. It then
+# starts as the plan, set by set, for the user to correct; once anything is
+# logged it's never refilled, so what was entered (or removed) stays.
 def _fill_logged_sets(session):
     if session.kind != "gym" or any(item.logged_sets for item in session.items):
         return
@@ -713,9 +804,13 @@ def undo_ease(week):
         abort(400)
     for item_id, values in (coach_week.eased_snapshot or {}).items():
         item = db.get(CoachSessionItem, int(item_id))
-        if item is not None:
-            for field, value in values.items():
-                setattr(item, field, value)
+        if item is None:
+            continue
+        eased = progression.scale_item({**_plan_of(item), **values}, coach_week.eased_factor)
+        for field, original in values.items():
+            # A value that no longer equals the eased one was changed since: it's the user's now.
+            if getattr(item, field) == eased.get(field):
+                setattr(item, field, original)
     coach_week.eased_factor = None
     coach_week.eased_snapshot = None
     db.commit()
@@ -899,6 +994,7 @@ def _history_loader(db):
                     {"date": day, "muscle_group": item.exercise.muscle_group, "rir": logged.rir, "session_id": s.id}
                     for item in s.items
                     for logged in item.logged_sets
+                    if s.status in TICKED_STATUSES
                 ]
         return {"activities": activities, "sessions": sessions, "logged_sets": logged_sets}
 
@@ -1178,10 +1274,8 @@ def set_status(session_id):
     if status not in USER_STATUSES:
         abort(400)
     session.status = status
-    if status in ("done", "partial"):
-        _fill_logged_sets(session)
-    if status == "planned":
-        # Back to planned frees the activity so the matcher can offer it again.
+    if status in ("planned", "skipped"):
+        # A session that didn't happen can't hold a workout; the matcher can offer it again.
         session.matched_activity_id = None
     db.commit()
     return redirect(_board_url(session.week.week_start, session.id), code=303)
@@ -1197,9 +1291,9 @@ def confirm_match(session_id):
     results, _activities = _week_matches(db, session.week.week_start)
     if activity_id is None or activity_id not in results.get(session.id, {}).get("activity_ids", []):
         abort(400)
-    session.status = "done"
+    if session.status not in TICKED_STATUSES:
+        session.status = "done"
     session.matched_activity_id = activity_id
-    _fill_logged_sets(session)
     db.commit()
     return redirect(_board_url(session.week.week_start, session.id), code=303)
 
@@ -1238,10 +1332,66 @@ def delete_item(item_id):
     item = db.get(CoachSessionItem, item_id)
     if item is None:
         abort(404)
+    # Editing the plan never changes what was logged (plan.md §4).
+    if _locked_by_log(item):
+        abort(400)
     session = item.session
     db.delete(item)
     db.commit()
     return redirect(_board_url(session.week.week_start, session.id), code=303)
+
+
+@bp.route("/items/<int:item_id>/swap", methods=["POST"])
+def swap_item(item_id):
+    db = get_db()
+    item = db.get(CoachSessionItem, item_id)
+    if item is None:
+        abort(404)
+    new = db.query(CoachExercise).filter_by(slug=request.form.get("exercise", "")).first()
+    # The same limits the coach's swap_exercise has: the matcher pairs by activity type.
+    if (
+        item.session.status != "planned"
+        or _locked_by_log(item)
+        or new is None
+        or new.id == item.exercise_id
+        or new.category != item.exercise.category
+        or new.activity_type != item.exercise.activity_type
+    ):
+        abort(400)
+    # Copies of the old exercise's plan would otherwise be logged under the new one.
+    item.logged_sets.clear()
+    item.exercise = new
+    db.commit()
+    return redirect(_board_url(item.session.week.week_start, item.session_id), code=303)
+
+
+@bp.route("/sessions/<int:session_id>/items", methods=["POST"])
+def add_item(session_id):
+    db = get_db()
+    session = _get_session(db, session_id)
+    new = db.query(CoachExercise).filter_by(slug=request.form.get("exercise", "")).first()
+    if (
+        session.status != "planned"
+        or new is None
+        or new.activity_type is not None
+        or new.category not in ADDABLE_CATEGORIES.get(session.kind, ())
+    ):
+        abort(400)
+    # No sets or reps: a volume has to come from the user or a rule, never a default here.
+    session.items.append(CoachSessionItem(exercise=new, position=len(session.items)))
+    db.commit()
+    return redirect(_board_url(session.week.week_start, session.id), code=303)
+
+
+@bp.route("/sessions/<int:session_id>/log", methods=["POST"])
+def start_set_log(session_id):
+    db = get_db()
+    session = _get_session(db, session_id)
+    if session.kind != "gym" or session.status not in TICKED_STATUSES:
+        abort(400)
+    _fill_logged_sets(session)
+    db.commit()
+    return redirect(_board_url(session.week.week_start, session.id) + "&log=1", code=303)
 
 
 def _get_set(db, set_id):

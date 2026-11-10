@@ -83,7 +83,8 @@ def form_values(item, units):
         return {"sets": str(item["sets"]), "seconds": str(item["duration_seconds"])}
     if shape == "distance":
         value, _unit = analytics.convert_distance(item["distance_meters"], units)
-        return {"distance": f"{value:.1f}"}
+        # The form reposts what it shows, so a coarser display would rewrite the plan on Save.
+        return {"distance": _trim(value)}
     if shape == "duration":
         return {"minutes": _trim(item["duration_seconds"] / 60)}
     return {}

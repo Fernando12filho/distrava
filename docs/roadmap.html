@@ -73,7 +73,7 @@
       <h1>Roadmap · M1 → M2 → M3 → M4</h1>
     </div>
     <div class="meta">
-      Updated 2026-11-03 · from plan.md
+      Updated 2026-11-10 · from plan.md
       <div class="legend"><span class="chip st-done">Done</span> <span class="chip st-in_progress">In progress</span> <span class="chip st-next">Next</span> <span class="chip st-todo">Not started</span> <span class="chip st-research">Needs research</span></div>
       <div class="legend"><span class="badge src-R">Research</span> <span class="badge src-Y">Your decision</span> <span class="badge src-S">Coach spec</span> <span class="badge src-A">Assumption</span></div>
     </div>
@@ -237,8 +237,8 @@
         <span class="mid">M3</span>
         <h2>Gym &amp; foundations</h2>
         <p class="summary">The gym side gets the same depth as running.</p>
-        <div class="progress"><span style="width:50%"></span></div>
-        <span class="count">4 / 8 done</span>
+        <div class="progress"><span style="width:56%"></span></div>
+        <span class="count">5 / 9 done</span>
       </header>
       <ul>
         <li class="item st-done">
@@ -249,7 +249,7 @@
         <li class="item st-done">
           <span class="chip st-done">Done</span>
           <span class="feature">Log a gym session: sets, reps, weight, reps in reserve</span>
-          <span class="notes">2026-10-20: a gym session on the board now matches the day&#x27;s strength import; once done, each exercise starts as its planned sets × reps and you change anything (reps, weight, reps in reserve, add/remove sets). &quot;Hard set&quot; only when you enter ≤ 3 in reserve (RULE-LOAD-03) · #18</span>
+          <span class="notes">2026-11-10 (your call): optional, folded on a finished session and created only when you start it (DS-11). 2026-10-20: a gym session on the board now matches the day&#x27;s strength import; each exercise starts as its planned sets × reps and you change anything (reps, weight, reps in reserve, add/remove sets). &quot;Hard set&quot; only when you enter ≤ 3 in reserve (RULE-LOAD-03) · #18</span>
         </li>
         <li class="item st-in_progress">
           <span class="chip st-in_progress">In progress</span>
@@ -265,6 +265,11 @@
           <span class="chip st-done">Done</span>
           <span class="feature">Weekly hard sets per muscle group</span>
           <span class="notes">2026-10-21: Coach page, beside the week — hard sets per muscle group, in how many sessions, and &quot;growth&quot; (10+) or &quot;maintenance&quot; (3+) range; sets without reps in reserve are listed as not counted, never guessed. The 10 / 3 bands still need the ACSM 2026 check (#24). RULE-WEEK-02/03 · #21</span>
+        </li>
+        <li class="item st-done">
+          <span class="chip st-done">Done</span>
+          <span class="feature">Swap or add an exercise by hand</span>
+          <span class="notes">2026-11-10: on a planned session, a list of catalog exercises of the same kind, grouped by muscle (DS-11). Reps stay as a suggestion to read; a swap keeps them, an added exercise starts with none. Not yet: creating your own exercise (spec D6) · #45</span>
         </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
@@ -288,8 +293,8 @@
         <span class="mid">M4</span>
         <h2>Coach &amp; trainer</h2>
         <p class="summary">Spec: <code>Distrava Coach — Use Cases, Decisions &amp; Test Plan.md</code>. Resumed 2026-10-21 (paused after step 4 on 2026-10-20): the rest of M3 needs a coach that can plan.</p>
-        <div class="progress"><span style="width:50%"></span></div>
-        <span class="count">7 / 14 done</span>
+        <div class="progress"><span style="width:47%"></span></div>
+        <span class="count">7 / 15 done</span>
       </header>
       <ul>
         <li class="item st-done">
@@ -332,6 +337,11 @@
           <span class="feature">7. Coach tools, preview, undo</span>
           <span class="notes">2026-10-21: ask the coach on the Coach page; it can move or remove a session, swap an exercise (same kind only), change a volume or plan easy/hard. Code checks every call (only planned sessions from today on with nothing logged, same limits as editing by hand, no new spacing clash) and sends rejected ones back once; otherwise it says it couldn&#x27;t. The change shows faded on the board with its reason and the exact before → after lines; Accept or Discard, then Undo restores it exactly. If you edit the week first, accept is refused; once you use a changed session, undo is no longer offered. Any number in the coach&#x27;s words that it wasn&#x27;t given is sent back. 2026-10-27: remembers this week&#x27;s conversation (last 10 turns). Not yet: changing a session&#x27;s kind (run → ride), notes, profile proposals (#26) · #28</span>
         </li>
+        <li class="item st-next">
+          <span class="chip st-next">Next</span>
+          <span class="feature">User path for goals and planning: a goal strip above the board (&quot;Set your goal&quot; as a coach conversation with buttons, or a plain form without AI), &quot;Plan this week&quot; on an empty week, dated situation notes, a prompt when a season ends</span>
+          <span class="notes">Your call 2026-11-10: 8a and 8b have tools but no way in; goals can&#x27;t live in Settings. Settings keeps only personal facts, units and the API key. Needs <code>get_goals</code> and <code>ask_user</code> · #29, #42</span>
+        </li>
         <li class="item st-in_progress">
           <span class="chip st-in_progress">In progress</span>
           <span class="feature">8a. Agent loop: the coach reads what it needs, writes a plan you see live, asks you when something&#x27;s missing, and checks its own draft before showing it</span>
@@ -340,7 +350,7 @@
         <li class="item st-in_progress">
           <span class="chip st-in_progress">In progress</span>
           <span class="feature">8b. Plan toward your season goal: main + season goal, situation notes (travel, equipment, little time) with dates, add sessions, drafts over several weeks</span>
-          <span class="notes">2026-10-27, moved up (your call): the coach can add sessions to this week (<code>add_session</code>, checked like a manual add; volumes only from your past weeks or your words, never chosen by the AI; new sessions count in the spacing check; accept creates them, undo removes them exactly). Drafts over several weeks done: one request plans this week and up to 4 ahead; each change names its week; the preview shows on every week it touches; accept writes all or none (an edit in any of its weeks blocks it) and undo restores them all, byte-for-byte (AC-20). Next: main + season goal, situation notes. Situation is never a fixed setting: you say it or the coach asks. Volumes from your recent weeks replace the 8 km default. RULE-WEEK-01..04, PROG-02, PROG-04; D2 decided 2026-10-29: by time. Goals are edited in Settings, shown above the board. AC-19, AC-20 · #29</span>
+          <span class="notes">2026-10-27, moved up (your call): the coach can add sessions to this week (<code>add_session</code>, checked like a manual add; volumes only from your past weeks or your words, never chosen by the AI; new sessions count in the spacing check; accept creates them, undo removes them exactly). Drafts over several weeks done: one request plans this week and up to 4 ahead; each change names its week; the preview shows on every week it touches; accept writes all or none (an edit in any of its weeks blocks it) and undo restores them all, byte-for-byte (AC-20). Next: main + season goal, situation notes. Situation is never a fixed setting: you say it or the coach asks. Volumes from your recent weeks replace the 8 km default. RULE-WEEK-01..04, PROG-02, PROG-04; D2 decided 2026-10-29: by time. Goals on the Coach page, not Settings (your call 2026-11-10, replaces 2026-10-29). AC-19, AC-20 · #29</span>
         </li>
         <li class="item st-todo">
           <span class="chip st-todo">Not started</span>
@@ -416,7 +426,7 @@
         <tr><td><span class="chip st-done">Done</span></td><td>F. Mobility, stretching, meditation — RULE-MOB-01..03</td><td class="muted">M3</td></tr>
         <tr><td><span class="chip st-done">Done</span></td><td>G. Post-workout check-in — RULE-CHECK-01..02</td><td class="muted">M4 step 10</td></tr>
         <tr><td><span class="chip st-todo">Not started</span></td><td>ACSM 2026 resistance-training update (replaces the 2009 stand)</td><td class="muted">check before the weekly hard-sets view · #24</td></tr>
-        <tr><td><span class="chip st-next">Next</span></td><td>H. Goals the research doesn&#x27;t cover yet: gaining weight (surplus, rate), marathon training + muscle gain together, a no-deadline marathon build, height/weight as inputs, weigh-in trends; also covers the ACSM 2026 check (#24)</td><td class="muted">prompt written 2026-10-20, waiting for you to run it; needed before the coach can plan your example goal (M4)</td></tr>
+        <tr><td><span class="chip st-next">Next</span></td><td>H. Goals the research doesn&#x27;t cover yet: monthly half marathons building to monthly marathons or 30 km, rep ranges per exercise, gaining weight (surplus, rate), running + muscle gain together, height/weight as inputs, weigh-in trends; also covers the ACSM 2026 check (#24)</td><td class="muted">prompt written 2026-10-20, rewritten around your goal 2026-11-10, waiting for you to run it; needed before the coach can plan your example goal (M4)</td></tr>
     </table>
   </section>
 
@@ -436,12 +446,14 @@
         <tr><td>Best-effort distances mirror Strava</td><td class="muted">records</td><td><span class="badge src-Y">Your decision</span> </td></tr>
         <tr><td>A best effort can&#x27;t include a gap over 15 s that covers more than 2× the run&#x27;s typical speed</td><td class="muted">records, PRs</td><td><span class="badge src-A">Assumption</span> from your data, pending your OK</td></tr>
         <tr><td>Match an import to a session: same type, same day, ±25 %</td><td class="muted">coach</td><td><span class="badge src-Y">Your decision</span> proposed by me, you approved</td></tr>
-        <tr><td>A run one day off asks instead of matching</td><td class="muted">coach</td><td><span class="badge src-Y">Your decision</span> proposed by me, you approved</td></tr>
+        <tr><td>A workout one day off asks instead of matching, unless a session of that type was already ticked off on the workout&#x27;s own day, or the workout fits its own day&#x27;s session in another week</td><td class="muted">coach</td><td><span class="badge src-Y">Your decision</span> proposed by me, you approved; refined 2026-11-10</td></tr>
+        <tr><td>A session ticked off by hand can link to a matching workout from the same day, with one tap</td><td class="muted">coach</td><td><span class="badge src-Y">Your decision</span> 2026-11-10</td></tr>
+        <tr><td>Sets count toward the week only while their session stands as done or partial</td><td class="muted">coach, history</td><td><span class="badge src-Y">Your decision</span> 2026-11-10</td></tr>
         <tr><td>No fixed easy / moderate / hard per exercise: &quot;hard&quot; comes only from your session rating or reps in reserve</td><td class="muted">catalog, coach</td><td><span class="badge src-R">Research</span> RULE-LOAD-04 (retired 2026-10-21)</td></tr>
         <tr><td>Session effort: your 0–10 rating; load = rating × minutes; ≤ 2 easy, 3–4 moderate, ≥ 5 hard (cut-offs are the scale&#x27;s labels, a convention)</td><td class="muted">activity page, coach</td><td><span class="badge src-R">Research</span> RULE-LOAD-01</td></tr>
         <tr><td>A logged set is &quot;hard&quot; only when you enter ≤ 3 reps in reserve; without an entry it is neither</td><td class="muted">gym log</td><td><span class="badge src-R">Research</span> RULE-LOAD-03, RULE-LOAD-04</td></tr>
         <tr><td>A gym session matches a strength workout (traditional or functional) on the same day, whatever its length</td><td class="muted">coach</td><td><span class="badge src-Y">Your decision</span> 2026-10-20: the plan, not the import, says what was done</td></tr>
-        <tr><td>A finished gym session starts as a copy of its plan, set by set; editing the plan later never changes it</td><td class="muted">gym log</td><td><span class="badge src-Y">Your decision</span> 2026-10-20</td></tr>
+        <tr><td>Tracking sets is optional; when started it copies the plan, set by set; editing the plan later never changes it, and an exercise with logged sets can&#x27;t be removed</td><td class="muted">gym log</td><td><span class="badge src-Y">Your decision</span> 2026-11-10 (was automatic, 2026-10-20)</td></tr>
         <tr><td>Hard sets per muscle per week: 10+ is the growth range, about 3 maintains</td><td class="muted">coach</td><td><span class="badge src-R">Research</span> RULE-WEEK-02 (Schoenfeld 2017; pending the ACSM 2026 check, #24)</td></tr>
         <tr><td>Any number of sessions per muscle is fine; only the weekly total is compared</td><td class="muted">coach</td><td><span class="badge src-R">Research</span> RULE-WEEK-03 (Schoenfeld 2019)</td></tr>
         <tr><td>Each exercise counts toward its one catalog muscle group (no partial credit for helper muscles)</td><td class="muted">coach</td><td><span class="badge src-A">Assumption</span> simplest count; the research gives no rule for it</td></tr>
@@ -457,6 +469,7 @@
         <tr><td>The coach&#x27;s training advice comes only from <code>search_rules</code> over the research file; it names the rule id, can&#x27;t cite one it didn&#x27;t look up, and says &quot;not covered&quot; when the file has nothing</td><td class="muted">coach agent</td><td><span class="badge src-R">Research</span> the research file itself (AC-18) — no web search, no general knowledge</td></tr>
         <tr><td>Session templates (one leg day in the gym split)</td><td class="muted">coach</td><td><span class="badge src-R">Research</span> RULE-WEEK-04 — runners need 2 strength days with heavy legs — review (M3)</td></tr>
         <tr><td>A coach change touches only planned sessions from today on with nothing logged; it may not add a spacing clash (clashes already there are left to the Week check)</td><td class="muted">coach proposals</td><td><span class="badge src-A">Assumption</span> my design choice for &quot;you own the plan&quot; — confirm; the spacing check reuses RULE-REC-01/02/04</td></tr>
+        <tr><td>Suggested reps per exercise come from the session templates (e.g. pull-up 4 × 5)</td><td class="muted">coach</td><td><span class="badge src-A">Assumption</span> no source yet — topic H question 8 asks for rep ranges; until then the coach may only reuse them, never choose new ones</td></tr>
         <tr><td>Default volumes (e.g. running day = 8 km)</td><td class="muted">coach</td><td><span class="badge src-A">Assumption</span> no source — derive from your recent weeks (M4). On your data it makes this week&#x27;s plan 65 % above your last 2 weeks</td></tr>
     </table>
   </section>

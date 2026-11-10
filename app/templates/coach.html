@@ -134,11 +134,14 @@
     </div>
 
 
+    {# DS-10: the chat holds the coach's words; this card is only the decision. #}
     {% if coach.pending %}
     <div class="proposal-bar">
       <div class="proposal-why">
-        {% if coach.pending.reply %}<p><b>WHY</b>{{ coach.pending.reply }}</p>{% endif %}
-        <ul class="proposal-changes">{% for line in coach.pending.changes %}<li>{{ line }}</li>{% endfor %}</ul>
+        <details class="proposal-fold"{% if coach.pending.changes|length <= 3 %} open{% endif %}>
+          <summary><b>PREVIEW</b>{{ coach.pending.changes|length }} change{{ 's' if coach.pending.changes|length != 1 }}</summary>
+          <ul class="proposal-changes">{% for line in coach.pending.changes %}<li>{{ line }}</li>{% endfor %}</ul>
+        </details>
       </div>
       <div class="proposal-actions">
         <form method="post" action="{{ url_for('coach.discard_proposal', proposal_id=coach.pending.id) }}" data-live-form>
@@ -148,21 +151,6 @@
           <button type="submit" class="btn btn-primary">Accept</button>
         </form>
       </div>
-    </div>
-    {% elif coach.applied %}
-    <div class="proposal-bar applied">
-      <div class="proposal-why">
-        <p><b>APPLIED</b>{{ coach.applied.changes|join(' · ') }}</p>
-      </div>
-      <div class="proposal-actions">
-        <form method="post" action="{{ url_for('coach.undo_proposal', proposal_id=coach.applied.id) }}" data-live-form>
-          <button type="submit" class="btn btn-secondary">Undo</button>
-        </form>
-      </div>
-    </div>
-    {% elif coach.stale %}
-    <div class="proposal-bar applied">
-      <div class="proposal-why"><p>The week changed since this proposal, so it wasn't applied. Ask again if you still want it.</p></div>
     </div>
     {% endif %}
 
@@ -202,12 +190,15 @@
               <form method="post" action="{{ url_for('coach.confirm_match', session_id=s.id) }}" class="match-option">
                 <input type="hidden" name="activity_id" value="{{ c.id }}" />
                 <span class="match-line">{{ c.label }}</span>
-                <button type="submit" class="match-confirm">Confirm</button>
+                <button type="submit" class="match-confirm">{{ s.suggestion.action }}</button>
               </form>
               {% endfor %}
             </div>
             {% endif %}
           </div>
+          {% endfor %}
+          {% for w in day.workouts %}
+          <a class="matched-link day-workout" draggable="false" href="{{ w.url }}">+ {{ w.label }}</a>
           {% endfor %}
           {% for g in day.ghosts %}
           <div class="session-card ghost-add" aria-label="Proposed by the coach">
@@ -271,41 +262,57 @@
       <div class="session-effort">{{ effort_panel(selected.matched.effort, next=url_for('coach.board_page', week=week_start.isoformat(), session=selected.id)) }}</div>
       {% endif %}
       {% if selected.exercises %}
-      <div class="exercise-header-row"><span>Exercise</span><span>Volume</span><span>Muscle</span><span></span></div>
+      {# DS-11: the plan is which exercises. Reps are a suggestion to read, not a form to fill. #}
+      <div class="exercise-header-row"><span>Exercise</span><span>Suggested</span><span>Muscle</span><span></span></div>
       {% for item in selected.exercises %}
       <div class="exercise-row">
         <span>{{ item.name }}</span>
-        {% if item.shape == 'none' %}
-        <span class="exercise-volume">{{ item.volume }}</span>
-        {% else %}
+        {% if item.shape == 'distance' %}
         <form method="post" action="{{ url_for('coach.edit_volume', item_id=item.id) }}" class="volume-form">
-          {% if item.shape == 'sets_reps' %}
-          <input class="volume-input" type="number" name="sets" min="1" max="20" value="{{ item.form.sets }}" aria-label="Sets" />
-          <span class="volume-sep">×</span>
-          <input class="volume-input" type="number" name="reps" min="1" max="100" value="{{ item.form.reps }}" aria-label="Reps" />
-          {% elif item.shape == 'sets_seconds' %}
-          <input class="volume-input" type="number" name="sets" min="1" max="20" value="{{ item.form.sets }}" aria-label="Sets" />
-          <span class="volume-sep">×</span>
-          <input class="volume-input" type="number" name="seconds" min="1" max="3600" value="{{ item.form.seconds }}" aria-label="Seconds per set" />
-          <span class="volume-unit">s</span>
-          {% elif item.shape == 'distance' %}
           <input class="volume-input wide" type="text" inputmode="decimal" name="distance" value="{{ item.form.distance }}" aria-label="Distance" />
           <span class="volume-unit">{{ distance_unit }}</span>
-          {% elif item.shape == 'duration' %}
-          <input class="volume-input wide" type="text" inputmode="decimal" name="minutes" value="{{ item.form.minutes }}" aria-label="Minutes" />
-          <span class="volume-unit">min</span>
-          {% endif %}
           <button type="submit" class="quiet-btn volume-save">Save</button>
         </form>
+        {% elif item.shape == 'duration' %}
+        <form method="post" action="{{ url_for('coach.edit_volume', item_id=item.id) }}" class="volume-form">
+          <input class="volume-input wide" type="text" inputmode="decimal" name="minutes" value="{{ item.form.minutes }}" aria-label="Minutes" />
+          <span class="volume-unit">min</span>
+          <button type="submit" class="quiet-btn volume-save">Save</button>
+        </form>
+        {% else %}
+        <span class="exercise-volume">{{ item.volume }}</span>
         {% endif %}
         <span class="exercise-muscle">{{ item.muscle|replace('_', ' ') }}</span>
-        <form method="post" action="{{ url_for('coach.delete_item', item_id=item.id) }}" class="exercise-actions">
-          <button type="submit" class="quiet-btn">Remove</button>
-        </form>
+        <div class="exercise-actions">
+          {% if selected.status == 'planned' and not item.locked and item.swap_groups %}
+          <form method="post" action="{{ url_for('coach.swap_item', item_id=item.id) }}" class="exercise-pick" data-saving-form>
+            <select name="exercise" required aria-label="Swap {{ item.name }}" onchange="this.form.requestSubmit()">
+              <option value="" selected disabled>Swap…</option>
+              {% for group in item.swap_groups %}<optgroup label="{{ group.label }}">{% for o in group.options %}<option value="{{ o.slug }}">{{ o.name }}{% if o.equipment != 'none' %} · {{ o.equipment|replace('_', ' ') }}{% endif %}</option>{% endfor %}</optgroup>{% endfor %}
+            </select>
+          </form>
+          {% endif %}
+          {% if not item.locked %}
+          <form method="post" action="{{ url_for('coach.delete_item', item_id=item.id) }}">
+            <button type="submit" class="quiet-btn">Remove</button>
+          </form>
+          {% endif %}
+        </div>
       </div>
       {% endfor %}
       {% endif %}
-      {% if selected.has_log %}
+      {% if selected.status == 'planned' and selected.add_groups %}
+      <form method="post" action="{{ url_for('coach.add_item', session_id=selected.id) }}" class="exercise-add exercise-pick" data-saving-form>
+        <select name="exercise" required aria-label="Add an exercise" onchange="this.form.requestSubmit()">
+          <option value="" selected disabled>+ Add exercise…</option>
+          {% for group in selected.add_groups %}<optgroup label="{{ group.label }}">{% for o in group.options %}<option value="{{ o.slug }}">{{ o.name }}{% if o.equipment != 'none' %} · {{ o.equipment|replace('_', ' ') }}{% endif %}</option>{% endfor %}</optgroup>{% endfor %}
+        </select>
+      </form>
+      {% endif %}
+      {% if selected.kind == 'gym' and selected.status in ('done', 'partial') %}
+      <details class="set-log-fold"{% if selected.log_open %} open{% endif %}>
+        <summary>Track sets and weight <span class="set-log-optional">optional</span></summary>
+        {% if selected.has_log %}
       <div class="set-log">
         <div class="set-log-head">
           <h3 class="set-log-title">What you did</h3>
@@ -343,6 +350,12 @@
         </div>
         {% endfor %}
       </div>
+        {% else %}
+        <form method="post" action="{{ url_for('coach.start_set_log', session_id=selected.id) }}" class="set-log-start" data-saving-form>
+          <button type="submit" class="quiet-btn">Start from the plan</button>
+        </form>
+        {% endif %}
+      </details>
       {% endif %}
     </section>
     {% else %}
@@ -397,7 +410,9 @@
           </ul></details>
           {%- endif -%}
           {{ m.reply }}</div>{% endif %}
-        {% if m.note %}<span class="msg-note">{{ m.note }}</span>{% endif %}
+        {% if m.note %}<div class="msg-note-row"><span class="msg-note">{{ m.note }}</span>
+          {%- if m.undo_id %}<form method="post" action="{{ url_for('coach.undo_proposal', proposal_id=m.undo_id) }}" data-live-form data-busy-label="…"><button type="submit" class="quiet-btn">Undo</button></form>{% endif -%}
+        </div>{% endif %}
         {% endfor %}
       </div>
       {% endif %}

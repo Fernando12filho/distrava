@@ -23,6 +23,11 @@
       <div class="page-title">{{ display_title }}</div>
     </div>
     <div class="title-block-actions">
+      {# DS-12: walk through activities without going back to the list; arrow keys do the same. #}
+      <nav class="activity-nav" aria-label="Other activities">
+        {% if newer %}<a class="btn btn-secondary" data-nav="newer" href="{{ url_for('main.activity_detail', activity_id=newer.id) }}" title="Newer activity (left arrow)">← Newer</a>{% else %}<span class="btn btn-secondary is-disabled">← Newer</span>{% endif %}
+        {% if older %}<a class="btn btn-secondary" data-nav="older" href="{{ url_for('main.activity_detail', activity_id=older.id) }}" title="Older activity (right arrow)">Older →</a>{% else %}<span class="btn btn-secondary is-disabled">Older →</span>{% endif %}
+      </nav>
       <span class="btn btn-secondary is-disabled" title="Coming soon">Edit</span>
       <span class="btn btn-secondary is-disabled" title="Coming soon">Export .gpx</span>
     </div>
@@ -163,6 +168,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='activity-nav.js') }}"></script>
 {% if is_pace_based %}
 <script src="{{ url_for('static', filename='activity-charts.js') }}"></script>
 <script>

@@ -44,8 +44,11 @@ def test_a_full_set_parses_reps_weight_and_rir():
     }
 
 
-def test_imperial_weight_is_stored_in_kg_rounded_to_two_decimals():
-    assert set_log.parse_set("reps", {"weight": "135"}, "imperial")["weight_kg"] == 61.23
+def test_imperial_weight_is_stored_in_kg_finely_enough_to_come_back_exact():
+    stored = set_log.parse_set("reps", {"weight": "135"}, "imperial")["weight_kg"]
+
+    assert round(stored, 2) == 61.23
+    assert set_log.weight_value(stored, "imperial") == "135"
 
 
 def test_timed_sets_parse_seconds_instead_of_reps():

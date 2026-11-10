@@ -111,7 +111,7 @@ def test_ac06_a_run_logged_the_next_day_asks_with_the_day_shown(client, run_on):
     html = _board(client)
 
     assert "Import matches" not in html
-    assert "Was this import this session?" in html
+    assert "Done a day late?" in html
     assert "Thu 22 · Run · 8.04 km" in html
 
 
@@ -129,7 +129,7 @@ def test_ac06_two_fitting_runs_ask_which_one(client, run_on):
 
     html = _board(client)
 
-    assert "Which import was this?" in html
+    assert "Which workout was this?" in html
     assert html.index(f'value="{morning.id}"') < html.index(f'value="{evening.id}"')
 
 
@@ -145,14 +145,14 @@ def test_choosing_one_of_two_candidates_confirms_it(client, db_session, run_on):
     assert _session(db_session).matched_activity_id == evening.id
 
 
-def test_gym_sessions_never_get_suggestions(client, run_on):
+def test_a_gym_session_with_no_strength_import_gets_no_suggestion(client, run_on):
     _add(client, "legs_glutes", 2)
     run_on(WEDNESDAY)
 
     html = _board(client)
 
     assert "Import matches" not in html
-    assert "Was this import" not in html
+    assert "Done a day" not in html and "Which workout" not in html
 
 
 def test_ride_session_matches_an_imported_ride(client, db_session, run_on):

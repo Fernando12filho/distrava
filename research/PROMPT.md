@@ -140,14 +140,14 @@ evidence. A first research round already produced rules on session hardness,
 recovery, weekly volume, progression, metrics, mobility and check-ins. This round
 covers goals that first round didn't.
 
-The example goal the app has to handle: **"Run a marathon, with no hurry on the
-date, and gain a little weight at the same time."**
+The goal the app has to handle: **"Run a half marathon every month or so, and
+build up to running a marathon, or 30 km, every month, while keeping up the gym."**
 
 ## About me (the user the rules are for)
 - Age: ___ · Sex: ___ · Height: ___ cm · Weight: ___ kg
 - Running: ___ runs/week, usually ___ km; longest recent run ___ km
 - Gym: ___ sessions/week
-- Goal: marathon (no fixed date) + gain about ___ kg over ___ months
+- Goal: a half marathon about every month, building to a marathon or 30 km every month; gain about ___ kg over ___ months (leave blank if not wanted)
 - Experience: ___ years running, ___ years lifting; marathons finished: ___
 
 ## How to research
@@ -193,6 +193,14 @@ Same standard as before:
    recommendations change weekly sets per muscle (≥ 10 hard sets to grow), rest
    between sessions for the same muscle (48 h), or reps in reserve? List each
    change against those three numbers.
+7. **Racing or long runs every month.** How much recovery does a recreational
+   runner need between half marathons or 30 km efforts done about monthly? How
+   should weekly volume be arranged around them, and when does that frequency
+   stop being sensible? Which parts are evidence and which are coaching tradition?
+8. **Rep ranges and sets per exercise.** For recreational lifters who also run,
+   what repetitions per set and how many sets per exercise suit strength,
+   hypertrophy and maintenance? Does it differ between compound and isolation
+   exercises? Give ranges an app can suggest per exercise, not fixed numbers.
 
 ## Output format
 Use exactly the same shape as the first round:

@@ -342,6 +342,14 @@ def categorize_activity_type(activity_type):
     return {"category": "Other", "label": activity_type, "dot": OTHER_DOT}
 
 
+def round_stream(stream, digits=2):
+    """Chart data at the display precision; coordinates keep theirs, or the route map collapses."""
+    return {
+        key: values if key in ("lat", "lon") else [round(v, digits) if isinstance(v, float) else v for v in values]
+        for key, values in stream.items()
+    }
+
+
 def format_duration(seconds):
     total = int(round(seconds))
     hours, remainder = divmod(total, 3600)

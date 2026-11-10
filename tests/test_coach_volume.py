@@ -79,8 +79,8 @@ def test_fields_for_another_shape_are_ignored():
     [
         ({"sets": 4, "reps": 6}, "metric", {"sets": "4", "reps": "6"}),
         ({"sets": 3, "duration_seconds": 45}, "metric", {"sets": "3", "seconds": "45"}),
-        ({"distance_meters": 8000.0}, "metric", {"distance": "8.0"}),
-        ({"distance_meters": 8046.72}, "imperial", {"distance": "5.0"}),
+        ({"distance_meters": 8000.0}, "metric", {"distance": "8"}),
+        ({"distance_meters": 8046.72}, "imperial", {"distance": "5"}),
         ({"duration_seconds": 2700}, "metric", {"minutes": "45"}),
         ({"duration_seconds": 450}, "metric", {"minutes": "7.5"}),
     ],

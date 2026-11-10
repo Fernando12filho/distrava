@@ -56,7 +56,8 @@ def _weight_kg(form, units):
         raise ValueError("weight must be a number") from None
     if not isfinite(value) or not 0 < value <= MAX_WEIGHT:
         raise ValueError(f"weight must be more than zero and at most {MAX_WEIGHT:g}")
-    return round(analytics.weight_to_kg(value, units), 2)
+    # Stored finer than it is shown, or 135 lb comes back as 134.99 lb.
+    return round(analytics.weight_to_kg(value, units), 4)
 
 
 def parse_set(kind, form, units):

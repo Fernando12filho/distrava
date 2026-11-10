@@ -104,7 +104,7 @@ def test_ac_04_a_proposal_writes_nothing_to_the_board(client, db_session, fake, 
     assert db_session.query(CoachLlmCall).filter_by(task="coach").count() == 2
 
 
-def test_the_board_shows_the_preview_faded_with_why_accept_and_discard(client, db_session, fake, week):
+def test_the_board_shows_the_preview_faded_with_changes_accept_and_discard(client, db_session, fake, week):
     fake.replies.append({"tool_calls": [_call("move_session", session_id=week["run"], day=5)]})
     fake.replies.append({})
     _ask(client)
@@ -113,7 +113,8 @@ def test_the_board_shows_the_preview_faded_with_why_accept_and_discard(client, d
     html = client.get(f"/coach/?week={WEEK}").get_data(as_text=True)
 
     bar = re.search(r'<div class="proposal-bar".*?</div>\s*</div>', html, re.S).group(0)
-    assert "Saturday is free." in bar
+    # DS-10: the reason is in the chat, once.
+    assert "Saturday is free." not in bar and html.count("Saturday is free.") == 1
     assert "Running day: Thu → Sat" in bar
     assert f'action="/coach/proposals/{proposal.id}/accept"' in bar
     assert f'action="/coach/proposals/{proposal.id}/discard"' in bar
@@ -438,7 +439,7 @@ def test_ac_04_a_manual_edit_after_the_preview_blocks_accept(client, db_session,
     assert _board_rows(db_session) == before
     assert _latest(db_session).status == "stale"
     html = client.get(f"/coach/?week={WEEK}").get_data(as_text=True)
-    assert "The week changed since" in html
+    assert "Not applied: the week changed" in html
 
 
 def test_undo_is_refused_once_the_session_was_used(client, db_session, fake, week):

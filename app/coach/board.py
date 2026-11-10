@@ -6,6 +6,7 @@ from app import analytics
 from app.coach.week import week_days, week_start_for
 
 DOW_LABELS = ("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN")
+MIN_YEAR, MAX_YEAR = 2000, 2100
 
 
 def _distance(meters, units):
@@ -44,10 +45,14 @@ def session_summary(kind, items, units):
 
 
 def activity_label(activity, units, session_date):
-    kind = analytics.categorize_activity_type(activity["activity_type"])["label"]
-    value, unit = analytics.convert_distance(activity["distance_meters"], units)
+    parts = [analytics.categorize_activity_type(activity["activity_type"])["label"]]
+    # A lift has no distance; "0.00 km" only hides what tells two workouts apart.
+    if activity["distance_meters"]:
+        value, unit = analytics.convert_distance(activity["distance_meters"], units)
+        parts.append(f"{value:.2f} {unit}")
     start = activity["start_time"]
-    label = f"{kind} · {value:.2f} {unit} · {analytics.format_duration(activity['duration_seconds'])} · {start:%H:%M}"
+    parts += [analytics.format_duration(activity["duration_seconds"]), f"{start:%H:%M}"]
+    label = " · ".join(parts)
     if start.date() != session_date:
         label = f"{start:%a %d} · {label}"
     return label
@@ -74,4 +79,22 @@ def build_week_view(week_start, today, sessions):
 def parse_week_param(raw, today):
     if raw is None:
         return week_start_for(today)
-    return week_start_for(date.fromisoformat(raw))
+    parsed = date.fromisoformat(raw)
+    # The page links to the weeks either side, which overflows at date's limits.
+    if not MIN_YEAR <= parsed.year <= MAX_YEAR:
+        raise ValueError("week is out of range")
+    return week_start_for(parsed)
+
+
+def exercise_choices(catalog, categories, activity_type, exclude=()):
+    """Catalog entries that may take a slot, grouped by muscle for a picker."""
+    groups = {}
+    fitting = [
+        e for e in catalog if e["category"] in categories and e["activity_type"] == activity_type and e["slug"] not in exclude
+    ]
+    for entry in sorted(fitting, key=lambda e: e["name"]):
+        groups.setdefault(entry["muscle_group"] or "none", []).append(entry)
+    return [
+        {"label": "Other" if muscle == "none" else muscle.replace("_", " ").capitalize(), "options": groups[muscle]}
+        for muscle in sorted(groups)
+    ]

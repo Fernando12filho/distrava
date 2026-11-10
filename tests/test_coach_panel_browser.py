@@ -71,6 +71,36 @@ def test_sending_a_message_answers_in_place_without_reloading(browser, server, f
     assert page.input_value(".composer textarea") == ""
 
 
+def test_a_half_written_message_survives_moving_around(browser, server):
+    page = _open(browser, server)
+    next_week = (week_start_for(date.today()) + timedelta(days=7)).isoformat()
+    page.locator(".composer textarea").press_sequentially("half written thought")
+
+    # What dragging a session or accepting a change does: the panel is re-rendered.
+    page.evaluate("fetch(location.href).then(r => r.text()).then(html => swapCoachLayout(html, location.href))")
+    page.wait_for_timeout(300)
+    assert page.input_value(".composer textarea") == "half written thought"
+
+    page.goto(f"{server}/coach/?week={next_week}", wait_until="networkidle")
+    assert page.input_value(".composer textarea") == "half written thought"
+
+    page.goto(f"{server}/settings", wait_until="networkidle")
+    page.goto(f"{server}/coach/", wait_until="networkidle")
+    assert page.input_value(".composer textarea") == "half written thought"
+
+
+def test_a_sent_message_is_not_restored_as_a_draft(browser, server, fake):
+    fake.replies.append({"text": "Answered."})
+    page = _open(browser, server)
+    page.locator(".composer textarea").press_sequentially("send this")
+    page.click(".composer button[type=submit]")
+    page.wait_for_selector("text=Answered.")
+
+    page.goto(f"{server}/coach/", wait_until="networkidle")
+
+    assert page.input_value(".composer textarea") == ""
+
+
 def test_the_message_shows_at_once_with_a_thinking_state(browser, server, fake):
     fake.replies.append({"text": "Done thinking."})
     page = _open(browser, server)

@@ -105,9 +105,22 @@ def test_an_activity_that_matches_its_own_day_is_not_offered_to_a_neighbour():
     assert result == {1: {"kind": "match", "activity_ids": [10]}}
 
 
-@pytest.mark.parametrize("status", ["done", "partial", "skipped", "moved"])
-def test_only_planned_sessions_get_suggestions(status):
+@pytest.mark.parametrize("status", ["skipped", "moved"])
+def test_sessions_that_did_not_happen_get_no_suggestions(status):
     assert match_sessions([_session(status=status)], [_activity()]) == {}
+
+
+@pytest.mark.parametrize("status", ["done", "partial"])
+def test_a_session_ticked_off_by_hand_offers_a_link_to_its_days_import(status):
+    session, workout = _session(status=status), _activity()
+
+    assert match_sessions([session], [workout]) == {session["id"]: {"kind": "link", "activity_ids": [workout["id"]]}}
+
+
+def test_a_session_already_linked_offers_nothing():
+    workout = _activity()
+
+    assert match_sessions([_session(status="done", matched=workout["id"])], [workout]) == {}
 
 
 @pytest.mark.parametrize("kind", ["mobility", "rest"])

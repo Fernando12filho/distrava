@@ -17,12 +17,12 @@ from flask import (
     request,
     url_for,
 )
-from sqlalchemy import func
+from sqlalchemy import and_, func, or_
 
 from app import analytics, parser, training_rules
 from app.coach import assistant
 from app.coach import profile as training_profile
-from app.models import Activity, ActivityStream, BestEffort, TrainingProfile, UserSettings
+from app.models import Activity, ActivityStream, BestEffort, CoachSession, TrainingProfile, UserSettings
 
 bp = Blueprint("main", __name__)
 
@@ -64,7 +64,26 @@ def index():
 
 def _detail_page_title(activity):
     label = analytics.categorize_activity_type(activity.activity_type)["label"]
-    return f"{label} · {activity.local_start_time.strftime('%b %d, %Y')}"
+    # With the time, since two workouts on one day are otherwise the same title.
+    return f"{label} · {activity.local_start_time.strftime('%b %d, %Y · %H:%M')}"
+
+
+# Newest-first like the list, with id breaking ties so equal start times can't loop or strand you.
+def _activity_neighbours(db, activity):
+    start, own_id = activity.start_time, activity.id
+    newer = (
+        db.query(Activity)
+        .filter(or_(Activity.start_time > start, and_(Activity.start_time == start, Activity.id > own_id)))
+        .order_by(Activity.start_time.asc(), Activity.id.asc())
+        .first()
+    )
+    older = (
+        db.query(Activity)
+        .filter(or_(Activity.start_time < start, and_(Activity.start_time == start, Activity.id < own_id)))
+        .order_by(Activity.start_time.desc(), Activity.id.desc())
+        .first()
+    )
+    return newer, older
 
 
 def _get_units(settings):
@@ -164,7 +183,7 @@ def activity_list():
 
     total = len(activities)
     total_pages = max(1, ceil(total / ACTIVITIES_PER_PAGE))
-    page = max(1, min(int(request.args.get("page", 1)), total_pages))
+    page = max(1, min(request.args.get("page", 1, type=int), total_pages))
     start = (page - 1) * ACTIVITIES_PER_PAGE
     page_activities = activities[start : start + ACTIVITIES_PER_PAGE]
 
@@ -402,9 +421,12 @@ def activity_detail(activity_id):
         else (None, None)
     )
 
+    newer, older = _activity_neighbours(db, activity)
     return render_template(
         "activity_detail.html",
         activity=activity,
+        newer=newer,
+        older=older,
         display_title=_detail_page_title(activity),
         category=category,
         splits=splits,
@@ -436,7 +458,7 @@ def activity_stream(activity_id):
     stream = db.query(ActivityStream).filter_by(activity_id=activity_id).first()
     if stream is None:
         return jsonify({"hr": [], "pace": [], "elevation": [], "distance": [], "time": []})
-    return jsonify(stream.stream_data)
+    return jsonify(analytics.round_stream(stream.stream_data))
 
 
 @bp.route("/import", methods=["GET"])
@@ -618,6 +640,8 @@ def settings_wipe():
     db.query(ActivityStream).delete()
     db.query(BestEffort).delete()
     db.query(Activity).delete()
+    # SQLite reuses the ids of an emptied table, so a kept link would point at the wrong workout later.
+    db.query(CoachSession).update({CoachSession.matched_activity_id: None})
     db.commit()
     return redirect(url_for("main.settings_page"))
 

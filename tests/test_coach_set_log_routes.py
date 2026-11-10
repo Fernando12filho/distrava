@@ -56,20 +56,24 @@ def _logged(db_session, focus="Legs & Glutes"):
 
 
 def _done(client, session_id, status="done"):
-    return client.post(f"/coach/sessions/{session_id}/status", data={"status": status})
+    """Ticks the session and opts in to tracking its sets (DS-11)."""
+    response = client.post(f"/coach/sessions/{session_id}/status", data={"status": status})
+    client.post(f"/coach/sessions/{session_id}/log")
+    return response
 
 
 def _board(client, session_id):
     return client.get(f"/coach/?week=2026-10-19&session={session_id}").get_data(as_text=True)
 
 
-def test_confirming_a_strength_import_fills_the_sets_from_the_plan(client, db_session, strength_on):
+def test_tracking_a_confirmed_strength_import_fills_the_sets_from_the_plan(client, db_session, strength_on):
     _add(client)
     workout = strength_on(WEDNESDAY)
     session = _session(db_session)
 
     assert "Import matches" in _board(client, session.id)
     client.post(f"/coach/sessions/{session.id}/confirm", data={"activity_id": str(workout.id)})
+    client.post(f"/coach/sessions/{session.id}/log")
 
     logged = _logged(db_session)
     assert logged["Back squat"] == [(n, 6, None, None, None) for n in range(1, 5)]
@@ -78,7 +82,7 @@ def test_confirming_a_strength_import_fills_the_sets_from_the_plan(client, db_se
 
 
 @pytest.mark.parametrize("status", ["done", "partial"])
-def test_marking_a_gym_session_done_or_partial_fills_the_sets(client, db_session, status):
+def test_tracking_a_done_or_partial_gym_session_fills_the_sets(client, db_session, status):
     _add(client)
     _done(client, _session(db_session).id, status)
 
@@ -153,7 +157,7 @@ def test_weight_typed_in_pounds_is_stored_in_kg(client, db_session):
 
     client.post(f"/coach/sets/{first.id}", data={"reps": "6", "weight": "225", "rir": ""})
 
-    assert _logged(db_session)["Back squat"][0][3] == 102.06
+    assert _logged(db_session)["Back squat"][0][3] == pytest.approx(102.06, abs=0.01)
 
 
 def test_adding_a_set_copies_the_last_sets_reps_and_weight_but_not_its_effort(client, db_session):

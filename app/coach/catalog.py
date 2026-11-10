@@ -18,6 +18,9 @@ MUSCLE_GROUPS = (
     "none",
 )
 
+# What can be added to a session of each kind by hand.
+ADDABLE_CATEGORIES = {"gym": ("strength",), "mobility": ("mobility", "stretching")}
+
 EQUIPMENT = ("none", "barbell", "dumbbell", "kettlebell", "cable", "pullup_bar", "band", "mat", "bike")
 
 # No fixed easy/moderate/hard per exercise: a squat is only hard when the sets

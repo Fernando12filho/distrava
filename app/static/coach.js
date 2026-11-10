@@ -87,6 +87,7 @@ function swapCoachLayout(html, url, { scrollThread = false } = {}) {
   if (scrollThread && panelBody) panelBody.scrollTop = panelBody.scrollHeight;
   history.replaceState(null, "", url);
   initCoachBoard();
+  restoreDraft();
   if (window.syncCollapsibles) window.syncCollapsibles();
 }
 
@@ -125,6 +126,7 @@ function showPendingMessage(form) {
   thinking.append(who, plan, steps, live);
   thread.append(question, thinking);
   textarea.value = "";
+  saveDraft("");
   growComposer(textarea);
   panelBody.scrollTop = panelBody.scrollHeight;
   let answering = false;
@@ -170,6 +172,7 @@ function showPendingMessage(form) {
       note.textContent = "Couldn't reach the coach. Nothing changed; your message is back in the box.";
       thread.appendChild(note);
       textarea.value = text;
+      saveDraft(text);
       growComposer(textarea);
     },
   };
@@ -179,6 +182,34 @@ function showPendingMessage(form) {
 function scrollThreadToEnd() {
   const panelBody = document.querySelector(".coach-panel-body");
   if (panelBody && panelBody.querySelector(".coach-thread")) panelBody.scrollTop = panelBody.scrollHeight;
+}
+
+// A half-written message survives dragging a session, changing week or opening
+// another page: everything but the text around it re-renders or reloads.
+const DRAFT_KEY = "coach-draft";
+
+function saveDraft(text) {
+  try {
+    if (text) sessionStorage.setItem(DRAFT_KEY, text);
+    else sessionStorage.removeItem(DRAFT_KEY);
+  } catch (error) {
+    // Storage can be blocked; the box then simply starts empty.
+  }
+}
+
+function restoreDraft() {
+  const textarea = document.querySelector(".composer textarea");
+  if (!textarea || textarea.value) return;
+  let draft = "";
+  try {
+    draft = sessionStorage.getItem(DRAFT_KEY) || "";
+  } catch (error) {
+    return;
+  }
+  if (draft) {
+    textarea.value = draft;
+    growComposer(textarea);
+  }
 }
 
 // DS-07: the message box fits what's typed; the CSS max-height caps it at about
@@ -271,6 +302,10 @@ function initLiveForms() {
   });
 
   document.addEventListener("input", (event) => {
-    if (event.target.matches(".composer textarea")) growComposer(event.target);
+    if (!event.target.matches(".composer textarea")) return;
+    growComposer(event.target);
+    saveDraft(event.target.value);
   });
+
+  restoreDraft();
 }

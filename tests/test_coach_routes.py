@@ -96,8 +96,7 @@ def test_selecting_a_session_lists_its_exercises(client, db_session):
 
     for name in ["Bench press", "Incline dumbbell press", "Dips", "Triceps pushdown"]:
         assert name in html
-    assert re.search(r'name="sets"[^>]*value="4"', html)
-    assert re.search(r'name="reps"[^>]*value="6"', html)
+    assert "4 × 6" in html
 
 
 def test_ac_rule_load_04_exercise_rows_show_no_intensity_bars(client, db_session):

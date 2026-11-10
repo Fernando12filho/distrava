@@ -25,6 +25,7 @@ def _logged_legs_day(client, db_session, week_start="2026-10-19", rirs=(1, 2, 5,
     db_session.expire_all()
     session = db_session.query(CoachSession).filter_by(focus="Legs & Glutes").one()
     client.post(f"/coach/sessions/{session.id}/status", data={"status": "done"})
+    client.post(f"/coach/sessions/{session.id}/log")
     db_session.expire_all()
     squat = next(i for i in session.items if i.exercise.slug == "back_squat")
     for logged, rir in zip(squat.logged_sets, rirs):

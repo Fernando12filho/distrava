@@ -2510,7 +2510,7 @@ a.recent-row:hover {
 .exercise-header-row,
 .exercise-row {
   display: grid;
-  grid-template-columns: 1fr 210px 100px 70px;
+  grid-template-columns: minmax(120px, 1fr) 190px 90px 190px;
   align-items: center;
   gap: 12px;
   padding: 11px 22px;
@@ -3441,4 +3441,76 @@ a.recent-row:hover {
 
 .effort-panel .explain {
   margin-top: 12px;
+}
+
+/* DS-10: the proposal card is only the decision; its change list folds when long. */
+.proposal-fold summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.msg-note-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* DS-11: pick exercises from a compact list; set tracking stays folded away. */
+.exercise-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+.exercise-pick select {
+  max-width: 120px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.exercise-add {
+  padding: 11px 22px;
+}
+
+.exercise-add select {
+  max-width: 180px;
+}
+
+.set-log-fold {
+  border-top: 1px solid var(--divider-row);
+}
+
+.set-log-fold summary {
+  padding: 12px 22px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.set-log-optional {
+  margin-left: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.set-log-start {
+  padding: 0 22px 14px;
+}
+
+/* DS-12: workouts outside the plan, and moving between activities. */
+.day-workout {
+  display: block;
+  padding: 2px 4px;
+}
+
+.activity-nav {
+  display: flex;
+  gap: 8px;
 }
